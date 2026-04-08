@@ -10,16 +10,17 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
   const [teams, setTeams] = useState(initialTeams);
   const [isAdding, setIsAdding] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
+  const [newTeamCaptainId, setNewTeamCaptainId] = useState("");
 
   const handleAddTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTeamName.trim()) return;
+    if (!newTeamName.trim() || !newTeamCaptainId.trim()) return;
 
     try {
       const { data, error } = await supabase.from('teams').insert({
         tournament_id: tournamentId,
         name: newTeamName,
-        captain_discord_id: 'internal_admin',
+        captain_discord_id: newTeamCaptainId.trim(),
         is_checked_in: true // Manual teams are checked in by default
       }).select().single();
 
@@ -27,6 +28,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       
       setTeams([...teams, { ...data, team_members: [] }]);
       setNewTeamName("");
+      setNewTeamCaptainId("");
       setIsAdding(false);
       router.refresh();
     } catch (err) {
@@ -67,13 +69,21 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       </div>
 
       {isAdding && (
-        <form onSubmit={handleAddTeam} className="bg-slate-800 p-4 rounded-xl border border-blue-500/50 flex gap-4 animate-in fade-in slide-in-from-top-2">
+        <form onSubmit={handleAddTeam} className="bg-slate-800 p-4 rounded-xl border border-blue-500/50 flex flex-col sm:flex-row gap-4 animate-in fade-in slide-in-from-top-2">
           <input 
             type="text" 
             placeholder="Nom de l'équipe..." 
             className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
             value={newTeamName}
             onChange={(e) => setNewTeamName(e.target.value)}
+            required
+          />
+          <input 
+            type="text" 
+            placeholder="ID Discord du Capitaine (ex: 123456789)..." 
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+            value={newTeamCaptainId}
+            onChange={(e) => setNewTeamCaptainId(e.target.value)}
             required
           />
           <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold">

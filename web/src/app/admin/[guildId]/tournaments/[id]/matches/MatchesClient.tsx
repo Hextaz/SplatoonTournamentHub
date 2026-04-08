@@ -101,7 +101,7 @@ export function MatchesClient({ tournamentId, guildId, phase, initialMatches }: 
                     {/* Team 1 Area */}
                     <div className={`p-2 flex items-center justify-between border-b border-slate-700 ${isCompleted && match.team1_id === winnerId ? 'bg-green-500/10' : ''}`}>
                        <span className={`font-bold truncate w-32 ${match.team1 ? 'text-white' : 'text-slate-600'}`}>
-                         {match.team1 ? match.team1.name : "TBD"}
+                         {match.team1?.name || "TBD"}
                        </span>
                        <span className={`font-mono text-sm ${isOngoing ? 'text-blue-400 font-bold' : isCompleted ? 'text-slate-300' : 'text-slate-600'}`}>
                          {match.team1_score !== null ? match.team1_score : "-"}
@@ -111,7 +111,7 @@ export function MatchesClient({ tournamentId, guildId, phase, initialMatches }: 
                     {/* Team 2 Area */}
                     <div className={`p-2 flex items-center justify-between ${isCompleted && match.team2_id === winnerId ? 'bg-green-500/10' : ''}`}>
                        <span className={`font-bold truncate w-32 ${match.team2 ? 'text-white' : 'text-slate-600'}`}>
-                         {match.team2 ? match.team2.name : "TBD"}
+                         {match.team2?.name || "TBD"}
                        </span>
                        <span className={`font-mono text-sm ${isOngoing ? 'text-blue-400 font-bold' : isCompleted ? 'text-slate-300' : 'text-slate-600'}`}>
                          {match.team2_score !== null ? match.team2_score : "-"}

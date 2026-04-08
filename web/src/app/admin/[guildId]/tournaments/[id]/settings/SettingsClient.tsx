@@ -3,8 +3,8 @@
 import { useForm } from "react-hook-form";
 import { supabase } from "@/lib/supabase";
 import dayjs from "dayjs";
-import { Save, CalendarDays, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { Save, CalendarDays, RefreshCw, MessageSquare, Shield } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export function SettingsClient({ tournament, guildId }: { tournament: any; guildId: string }) {
@@ -12,11 +12,46 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
+  const [channels, setChannels] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
+  const [isLoadingDiscord, setIsLoadingDiscord] = useState(true);
+
+  useEffect(() => {
+    const fetchDiscordData = async () => {
+      try {
+        const [channelsRes, rolesRes] = await Promise.all([
+          fetch(`http://localhost:8080/api/discord/channels?guildId=${guildId}`),
+          fetch(`http://localhost:8080/api/discord/roles?guildId=${guildId}`)
+        ]);
+
+        if (channelsRes.ok) {
+          const channelsData = await channelsRes.json();
+          setChannels(channelsData);
+        }
+
+        if (rolesRes.ok) {
+          const rolesData = await rolesRes.json();
+          setRoles(rolesData);
+        }
+      } catch (e) {
+        console.error("Failed to fetch Discord data", e);
+      } finally {
+        setIsLoadingDiscord(false);
+      }
+    };
+
+    fetchDiscordData();
+  }, [guildId]);
+
   const { register, handleSubmit } = useForm({
     defaultValues: {
       start_at: tournament.start_at ? dayjs(tournament.start_at).format('YYYY-MM-DDTHH:mm') : "",
       checkin_start_at: tournament.checkin_start_at ? dayjs(tournament.checkin_start_at).format('YYYY-MM-DDTHH:mm') : "",
-      checkin_end_at: tournament.checkin_end_at ? dayjs(tournament.checkin_end_at).format('YYYY-MM-DDTHH:mm') : ""
+      checkin_end_at: tournament.checkin_end_at ? dayjs(tournament.checkin_end_at).format('YYYY-MM-DDTHH:mm') : "",
+      discord_announcement_channel_id: tournament.discord_announcement_channel_id || "",
+      discord_checkin_channel_id: tournament.discord_checkin_channel_id || "",
+      discord_captain_role_id: tournament.discord_captain_role_id || "",
+      discord_to_role_id: tournament.discord_to_role_id || ""
     }
   });
 
@@ -28,6 +63,10 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
       start_at: data.start_at ? new Date(data.start_at).toISOString() : null,
       checkin_start_at: data.checkin_start_at ? new Date(data.checkin_start_at).toISOString() : null,
       checkin_end_at: data.checkin_end_at ? new Date(data.checkin_end_at).toISOString() : null,
+      discord_announcement_channel_id: data.discord_announcement_channel_id || null,
+      discord_checkin_channel_id: data.discord_checkin_channel_id || null,
+      discord_captain_role_id: data.discord_captain_role_id || null,
+      discord_to_role_id: data.discord_to_role_id || null,
       updated_at: new Date().toISOString()
     };
 
@@ -93,6 +132,78 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
             />
           </div>
         </div>
+
+        <h2 className="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-indigo-400" />
+          Salons Discord
+        </h2>
+
+        {isLoadingDiscord ? (
+          <div className="text-slate-400 text-sm animate-pulse">Chargement des salons et rôles depuis Discord...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-slate-300">Salon des annonces</label>
+              <select
+                {...register("discord_announcement_channel_id")}
+                className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+              >
+                <option value="">-- Aucun salon --</option>
+                {channels.map((ch: any) => (
+                  <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-slate-300">Salon des check-ins</label>
+              <select
+                {...register("discord_checkin_channel_id")}
+                className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+              >
+                <option value="">-- Aucun salon --</option>
+                {channels.map((ch: any) => (
+                  <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        <h2 className="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-purple-400" />
+          Rôles Discord
+        </h2>
+
+        {!isLoadingDiscord && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-slate-300">Rôle Capitaine / Participant</label>
+              <select
+                {...register("discord_captain_role_id")}
+                className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none"
+              >
+                <option value="">-- Aucun rôle --</option>
+                {roles.map((ro: any) => (
+                  <option key={ro.id} value={ro.id}>@{ro.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-slate-300">Rôle TO (Organisateur)</label>
+              <select
+                {...register("discord_to_role_id")}
+                className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none"
+              >
+                <option value="">-- Aucun rôle --</option>
+                {roles.map((ro: any) => (
+                  <option key={ro.id} value={ro.id}>@{ro.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
 
         <div className="pt-6 mt-6 border-t border-slate-700/80 flex justify-end">
           <button 
