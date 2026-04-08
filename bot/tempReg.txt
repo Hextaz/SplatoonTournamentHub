@@ -1,0 +1,167 @@
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, GuildMember } from "discord.js";
+import { supabase } from "../lib/supabase";
+
+export const data = new SlashCommandBuilder()
+  .setName("register")
+  .setDescription("Inscrit ton Ã©quipe au tournoi")
+  .addStringOption((opt) =>
+    opt.setName("nom_equipe").setDescription("Nom de l'Ã©quipe (Max 32 caractÃ¨res)").setRequired(true).setMaxLength(32)
+  )
+  .addStringOption((opt) =>
+    opt.setName("code_ami_capitaine").setDescription("Code ami du capitaine (SW-...)").setRequired(true)                                                                                                   
+  )                                                                                                  
+  .addStringOption((opt) => opt.setName("nom_joueur_2").setDescription("Nom (In-game) Joueur 2").setRequired(true))                                                                                        
+  .addStringOption((opt) => opt.setName("code_ami_2").setDescription("Code ami Joueur 2").setRequired(true))                                                                                               
+  .addStringOption((opt) => opt.setName("nom_joueur_3").setDescription("Nom (In-game) Joueur 3").setRequired(true))                                                                                        
+  .addStringOption((opt) => opt.setName("code_ami_3").setDescription("Code ami Joueur 3").setRequired(true))                                                                                               
+  .addStringOption((opt) => opt.setName("nom_joueur_4").setDescription("Nom (In-game) Joueur 4").setRequired(true))                                                                                        
+  .addStringOption((opt) => opt.setName("code_ami_4").setDescription("Code ami Joueur 4").setRequired(true))                                                                                               
+  .addStringOption((opt) => opt.setName("nom_joueur_5").setDescription("Nom (In-game) RemplaÃ§ant 1").setRequired(false))                                                                                  
+  .addStringOption((opt) => opt.setName("code_ami_5").setDescription("Code RemplaÃ§ant 1").setRequired(false))                                                                                             
+  .addStringOption((opt) => opt.setName("nom_joueur_6").setDescription("Nom (In-game) RemplaÃ§ant 2").setRequired(false))                                                                                  
+  .addStringOption((opt) => opt.setName("code_ami_6").setDescription("Code RemplaÃ§ant 2").setRequired(false));                                                                                            
+                                                                                                     
+export async function execute(interaction: ChatInputCommandInteraction) {                            
+  if (!interaction.isChatInputCommand()) return;                                                     
+                                                                                                     
+  const teamName = interaction.options.getString("nom_equipe", true);                                
+  const captainFC = interaction.options.getString("code_ami_capitaine", true);                       
+  const captainId = interaction.user.id;                                                             
+  const captainName = interaction.user.username;                                                     
+                                                                                                     
+  // 1. Validation stricte des remplaÃ§ants (5 et 6) obligatoires par paire                          
+  for (let i = 5; i <= 6; i++) {                                                                     
+    const nameOpt = interaction.options.getString(`nom_joueur_${i}`);                                
+    const fcOpt = interaction.options.getString(`code_ami_${i}`);                                    
+                                                                                                     
+    if (nameOpt && !fcOpt) {                                                                         
+      return interaction.reply({                                                                     
+        content: `â?O **Erreur** : Vous avez renseignÃ© le remplaÃ§ant (Joueur ${i}), mais vous n'avez pas fourni son code ami.`,                                                                          
+        ephemeral: true,                                                                             
+      });                                                                                            
+    }                                                                                                
+    if (!nameOpt && fcOpt) {                                                                         
+      return interaction.reply({                                                                     
+        content: `â?O **Erreur** : Vous avez fourni un code ami pour le remplaÃ§ant (Joueur ${i}), mais vous ne l'avez pas nommÃ©.`,                                                                       
+        ephemeral: true,                                                                             
+      });                                                                                            
+    }                                                                                                
+  }                                                                                                  
+                                                                                                     
+  // Collecting members                                                                              
+  const membersData: Array<{ userId: string | null; ingameName: string; fc: string; isCaptain: boolean }> = [                                                                                              
+    { userId: captainId, ingameName: captainName, fc: captainFC, isCaptain: true },                  
+  ];                                                                                                 
+                                                                                                     
+  for (let i = 2; i <= 6; i++) {                                                                     
+    const nameOpt = interaction.options.getString(`nom_joueur_${i}`);                                
+    const fcOpt = interaction.options.getString(`code_ami_${i}`);                                    
+    if (nameOpt && fcOpt) {                                                                          
+      membersData.push({                                                                             
+        userId: null,                                                                                
+        ingameName: nameOpt,                                                                         
+        fc: fcOpt,                                                                                   
+        isCaptain: false,                                                                            
+      });                                                                                            
+    }                                                                                                
+  }                                                                                                  
+                                                                                                     
+  // Validation Anti-Doublon des noms in-game                                                        
+  const ingameNames = membersData.map((m) => m.ingameName.toLowerCase());                            
+  const uniqueNames = new Set(ingameNames);                                                          
+                                                                                                     
+  if (uniqueNames.size !== ingameNames.length) {                                                     
+    return interaction.reply({                                                                       
+      content: "â?O **Erreur** : Vous avez entrÃ© plusieurs fois le mÃªme pseudo pour diffÃ©rents joueurs.",                                                                                               
+      ephemeral: true,                                                                               
+    });                                                                                              
+  }                                                                                                  
+                                                                                                     
+  await interaction.deferReply({ ephemeral: false });                                                
+                                                                                                     
+  // 2. Trouver le Tournoi en cours pour le Serveur (Guilde)                                         
+  const guildId = interaction.guildId;                                                               
+  const { data: currentTournament } = await supabase                                                 
+    .from("tournaments")                                                                             
+    .select("id")                                                                                    
+    .eq("guild_id", guildId)                                                                         
+    .order("created_at", { ascending: false })                                                       
+    .limit(1)                                                                                        
+    .single();                                                                                       
+                                                                                                     
+  if (!currentTournament) {                                                                          
+    return interaction.editReply("â?O **Erreur** : Aucun tournoi n'est configurÃ© pour ce serveur.");
+  }                                                                                                  
+                                                                                                     
+  // 3. Transaction Base de donnÃ©es : CrÃ©ation Team -> Membres                                     
+  try {                                                                                              
+    const { data: teamRes, error: teamErr } = await supabase                                         
+      .from("teams")                                                                                 
+      .insert({                                                                                      
+        tournament_id: currentTournament.id,                                                         
+        name: teamName,                                                                              
+        captain_discord_id: captainId,                                                               
+      })                                                                                             
+      .select("id")                                                                                  
+      .single();                                                                                     
+                                                                                                     
+    if (teamErr || !teamRes) {                                                                       
+      throw new Error(teamErr?.message || "Erreur crÃ©ation Ã©quipe (Nom dÃ©jÃ  pris ?)");           
+    }                                                                                                
+                                                                                                     
+    const teamId = teamRes.id;                                                                       
+    const membersToInsert = membersData.map((m) => ({                                                
+      team_id: teamId,                                                                               
+      user_id: m.userId,                                                                             
+      ingame_name: m.ingameName,                                                                     
+      friend_code: m.fc,                                                                             
+      is_captain: m.isCaptain,                                                                       
+    }));                                                                                             
+                                                                                                     
+    const { error: memberErr } = await supabase.from("team_members").insert(membersToInsert);        
+    if (memberErr) {                                                                                 
+      // Nettoyage en cas d'erreur                                                                   
+      await supabase.from("teams").delete().eq("id", teamId);                                        
+      throw new Error(memberErr.message);                                                            
+    }                                                                                                
+  } catch (error: any) {                                                                             
+    console.error("DB Error:", error);                                                               
+    return interaction.editReply(`â?O **Erreur lors de l'inscription** : ${error.message}`);         
+  }                                                                                                  
+                                                                                                     
+  // 4. Action Discord : Renommage du Capitaine                                                      
+  let renameFailed = false;                                                                          
+  if (interaction.guild && interaction.member) {                                                     
+    try {                                                                                            
+      const member = interaction.member as GuildMember;                                              
+      await member.setNickname(teamName);                                                            
+    } catch (err: any) {                                                                             
+      console.warn(`[Register] Failed to rename ${interaction.user.tag}: ${err.message}`);           
+      renameFailed = true;                                                                           
+    }                                                                                                
+  }                                                                                                  
+                                                                                                     
+  // 5. Feedback : Embed                                                                             
+  const embed = new EmbedBuilder()                                                                   
+    .setColor("#5865F2")                                                                             
+    .setTitle(`? Inscription Valid�e : ${teamName}`)                                              
+    .setDescription("Votre �quipe a �t� enregistr�e avec succ�s dans la base de donn�es !");   
+                                                                                                     
+  membersData.forEach((m, idx) => {                                                                  
+    embed.addFields({                                                                                
+      name: `${m.isCaptain ? "?? Capitaine" : `Joueur ${idx + 1}`}`,                               
+      value: `${m.ingameName} - \`${m.fc}\``,                                                        
+      inline: true,                                                                                  
+    });                                                                                              
+  });                                                                                                
+                                                                                                     
+  if (renameFailed) {                                                                                
+    embed.setFooter({                                                                                
+      text: "?? Note : Je n'ai pas pu vous renommer automatiquement car vos permissions (r�le) sont hi�rarchiquement sup�rieures aux miennes.",                                                     
+    });                                                                                              
+  }                                                                                                  
+                                                                                                     
+  await interaction.editReply({ embeds: [embed] });                                                  
+}                                                                                                    
+                                                                                                     
+
