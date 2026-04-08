@@ -137,6 +137,32 @@ app.get("/api/discord/channels", async (req, res) => {
   }
 });
 
+// Endpoint: Fetch Guild Members for Manual Input Combobox
+app.get("/api/discord/members", async (req, res) => {
+  try {
+    const guild = await getGuild(res);
+    if (!guild) return;
+
+    // Fetch members (limited to 1000 for safety, could be adjusted)
+    const members = await guild.members.fetch({ limit: 1000 });
+    
+    // Convert Map to array, filter out bots, map simple objects
+    const membersInfo = Array.from(members.values())
+      .filter((member: any) => !member.user.bot)
+      .map((member: any) => ({
+        id: member.user.id,
+        username: member.user.username,
+        displayName: member.displayName,
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    return res.status(200).json(membersInfo);
+  } catch (error) {
+    console.error("Error fetching members:", error);
+    return res.status(500).json({ error: "Failed to fetch members." });
+  }
+});
+
 // Endpoint: Auto-setup for Checkin requirements
 app.post("/api/discord/auto-setup", async (req, res) => {
   try {

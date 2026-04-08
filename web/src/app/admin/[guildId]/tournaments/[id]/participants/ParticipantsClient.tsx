@@ -1,26 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { CheckCircle2, XCircle, UserPlus, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, UserPlus, Trash2, Search } from "lucide-react";
 
 export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { tournamentId: string; guildId: string; initialTeams: any[] }) {
   const router = useRouter();
   const [teams, setTeams] = useState(initialTeams);
   const [isAdding, setIsAdding] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
-  const [newTeamCaptainId, setNewTeamCaptainId] = useState("");
+  
+  // Custom Combobox State
+  const [members, setMembers] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isAdding && members.length === 0) {
+      fetch(`http://localhost:8080/api/discord/members`)
+        .then((res) => res.json())
+        .then((data) => {
+          if(Array.isArray(data)) setMembers(data);
+        })
+        .catch((err) => console.error(err));
+    }
+  }, [isAdding]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleAddTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTeamName.trim() || !newTeamCaptainId.trim()) return;
+    if (!newTeamName.trim() || !selectedMember) return;
 
     try {
       const { data, error } = await supabase.from('teams').insert({
         tournament_id: tournamentId,
         name: newTeamName,
-        captain_discord_id: newTeamCaptainId.trim(),
+        captain_discord_id: selectedMember.id,
         is_checked_in: true // Manual teams are checked in by default
       }).select().single();
 
@@ -28,7 +57,8 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       
       setTeams([...teams, { ...data, team_members: [] }]);
       setNewTeamName("");
-      setNewTeamCaptainId("");
+      setSearchTerm("");
+      setSelectedMember(null);
       setIsAdding(false);
       router.refresh();
     } catch (err) {
@@ -50,6 +80,11 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     }
   };
 
+  const filteredMembers = members.filter(m => 
+    m.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    m.username?.toLowerCase().includes(searchTerm.toLowerCase())
+  ).slice(0, 50); // limit preview amount
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
@@ -69,7 +104,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       </div>
 
       {isAdding && (
-        <form onSubmit={handleAddTeam} className="bg-slate-800 p-4 rounded-xl border border-blue-500/50 flex flex-col sm:flex-row gap-4 animate-in fade-in slide-in-from-top-2">
+        <form onSubmit={handleAddTeam} className="bg-slate-800 p-4 rounded-xl border border-blue-500/50 flex flex-col sm:flex-row gap-4 animate-in fade-in slide-in-from-top-2 overflow-visible">
           <input 
             type="text" 
             placeholder="Nom de l'équipe..." 
@@ -78,15 +113,53 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
             onChange={(e) => setNewTeamName(e.target.value)}
             required
           />
-          <input 
-            type="text" 
-            placeholder="ID Discord du Capitaine (ex: 123456789)..." 
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
-            value={newTeamCaptainId}
-            onChange={(e) => setNewTeamCaptainId(e.target.value)}
-            required
-          />
-          <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold">
+          
+          {/* Custom Combobox for Discord Search */}
+          <div className="flex-1 relative" ref={dropdownRef}>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Rechercher capitane Discord..." 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                value={selectedMember ? selectedMember.displayName : searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSelectedMember(null); // allow re-search
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+                required={!selectedMember}
+              />
+            </div>
+            
+            {isDropdownOpen && !selectedMember && (
+              <div className="absolute top-11 left-0 w-full bg-slate-800 border border-slate-700 rounded-lg mt-1 max-h-60 overflow-y-auto z-50 shadow-xl overscroll-auto custom-scrollbar">
+                {members.length === 0 ? (
+                  <div className="p-3 text-sm text-slate-400 text-center">Chargement des membres...</div>
+                ) : filteredMembers.length === 0 ? (
+                  <div className="p-3 text-sm text-slate-400 text-center">Aucun membre trouvé</div>
+                ) : (
+                  filteredMembers.map(member => (
+                    <div 
+                      key={member.id} 
+                      className="px-4 py-2 hover:bg-slate-700 cursor-pointer flex flex-col transition-colors"
+                      onClick={() => {
+                        setSelectedMember(member);
+                        setSearchTerm(member.displayName);
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      <span className="text-white font-medium">{member.displayName}</span>
+                      <span className="text-xs text-slate-400">@{member.username}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <button type="submit" disabled={!selectedMember || !newTeamName} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed">
             Valider
           </button>
         </form>
@@ -115,11 +188,14 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
             ) : (
               teams.map(team => (
                 <tr key={team.id} className="hover:bg-slate-700/30 transition-colors group">
-                  <td className="px-6 py-4 font-bold text-white flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-700 border border-slate-600 flex items-center justify-center text-xs text-slate-400">
-                      {team.name.substring(0, 2).toUpperCase()}
+                  <td className="px-6 py-4 font-bold text-white flex flex-col gap-1">
+                    <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 rounded-lg bg-slate-700 border border-slate-600 flex items-center justify-center text-xs text-slate-400">
+                         {team.name.substring(0, 2).toUpperCase()}
+                       </div>
+                       {team.name}
                     </div>
-                    {team.name}
+                    <span className="text-xs text-slate-500 font-normal ml-11">Capt ID: {team.captain_discord_id}</span>
                   </td>
                   <td className="px-6 py-4 text-slate-300">
                     {team.team_members && team.team_members.length > 0 
