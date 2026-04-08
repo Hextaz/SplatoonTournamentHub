@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import PhaseManager from "@/components/PhaseManager";
+import { PhaseManager } from "@/components/PhaseManager";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -61,7 +61,7 @@ export default async function TournamentDetailPage(props: TournamentPageProps) {
         </div>
 
         {/* C'est ici que l'on intègre ton super PhaseManager (Drag & Drop) ! */}
-        <PhaseManager tournamentId={tournament.id} />
+        {/* <PhaseManager tournamentId={tournament.id} /> */}
       </div>
     </div>
   );

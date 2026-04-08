@@ -13,8 +13,11 @@ export default async function TournamentDashboard({ params }: { params: Promise<
   const { data: tournament, error } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
   if (error || !tournament) notFound();
 
-  const isStructureSet = false;
-  const participantsCount = 0;
+  const { count: phasesCount } = await supabase.from('phases').select('*', { count: 'exact', head: true }).eq('tournament_id', tournamentId);
+  const isStructureSet = (phasesCount || 0) > 0;
+  
+  const { count: participantsCountRaw } = await supabase.from('tournament_participants').select('*', { count: 'exact', head: true }).eq('tournament_id', tournamentId);
+  const participantsCount = participantsCountRaw || 0;
 
   return (
     <div className="p-6 md:p-8 space-y-6 min-h-full">

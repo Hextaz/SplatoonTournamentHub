@@ -9,12 +9,11 @@ export default async function MatchesPage({
 }) {
   const { guildId, id: tournamentId } = await params;
 
-  // 1. Fetch published phase
+  // 1. Fetch phase
   const { data: phase, error: phaseError } = await supabase
     .from("phases")
     .select("*")
     .eq("tournament_id", tournamentId)
-    .eq("status", "PUBLISHED")
     .order("phase_order", { ascending: true })
     .limit(1)
     .single();
@@ -28,7 +27,7 @@ export default async function MatchesPage({
   if (phase) {
     const { data: fetchedMatches, error: matchesError } = await supabase
       .from("matches")
-      .select("*, team1:teams!matches_team1_id_fkey(*), team2:teams!matches_team2_id_fkey(*)")
+      .select("*, team1:teams!team1_id(name), team2:teams!team2_id(name)")
       .eq("phase_id", phase.id)
       .order("round_number", { ascending: true })
       .order("match_number", { ascending: true });

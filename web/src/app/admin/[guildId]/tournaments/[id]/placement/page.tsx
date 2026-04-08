@@ -9,12 +9,11 @@ export default async function PlacementPage({
 }) {
   const { guildId, id: tournamentId } = await params;
 
-  // 1. Fetch DRAFT phase (assuming only one draft phase is seeded at a time)
+  // 1. Fetch DRAFT phase (assuming only one phase is seeded at a time)
   const { data: phase, error: phaseError } = await supabase
     .from("phases")
     .select("*")
     .eq("tournament_id", tournamentId)
-    .eq("status", "DRAFT")
     .order("phase_order", { ascending: true })
     .limit(1)
     .single();

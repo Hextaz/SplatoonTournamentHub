@@ -11,7 +11,6 @@ export function PlacementClient({ tournamentId, guildId, phase, availableTeams }
   const [seeds, setSeeds] = useState<any[]>([]);
   const [unassignedTeams, setUnassignedTeams] = useState<any[]>(availableTeams);
   const [isSaving, setIsSaving] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
 
   const bracketSize = phase.bracket_size || 8;
 
@@ -120,40 +119,6 @@ export function PlacementClient({ tournamentId, guildId, phase, availableTeams }
     }
   };
 
-  const handlePublish = async () => {
-    if (!confirm("Attention, publier génère l'arbre définitif et clôture le DRAFT. Continuer ?")) return;
-    
-    setIsPublishing(true);
-    try {
-      // 1. Sauvegarder d'abord
-       const payloadParticipants = seeds
-        .map((team, idx) => team ? { team_id: team.id, seed: idx + 1 } : null)
-        .filter(t => t !== null);
-
-      await fetch(`http://localhost:8080/api/phases/${phase.id}/seeding`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participants: payloadParticipants })
-      });
-
-      // 2. Publier HTTP
-      const publishRes = await fetch(`http://localhost:8080/api/phases/${phase.id}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-
-      if (!publishRes.ok) throw new Error("Erreur de publication");
-      
-      router.push(`/admin/${guildId}/tournaments/${tournamentId}/matches`);
-      router.refresh();
-    } catch(err) {
-      console.error(err);
-      alert("Erreur de publication.");
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
   // Helpers to get visual matchmaking for the preview tree.
   // Standard tree fold (e.g. 1vs8, 4vs5, 2vs7, 3vs6)
   const getSimulatedMatchings = () => {
@@ -218,15 +183,7 @@ export function PlacementClient({ tournamentId, guildId, phase, availableTeams }
                className="flex items-center justify-center gap-2 w-full py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition-all disabled:opacity-50"
             >
                {isSaving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 text-blue-400" />}
-               Sauvegarder Placement
-            </button>
-            <button 
-               onClick={handlePublish}
-               disabled={isPublishing}
-               className="flex items-center justify-center gap-2 w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold transition-all disabled:opacity-50 shadow-lg shadow-green-600/20"
-            >
-               {isPublishing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Rocket className="w-5 h-5" />}
-               🚀 Enregistrer & Publier Phase
+               💾 Enregistrer le Placement
             </button>
           </div>
         </div>

@@ -44,36 +44,44 @@ phaseRouter.get("/:tournamentId", async (req, res) => {
   }
 });
 
-// Appliquer le seeding
+// Appliquer le seeding et régénérer l'arbre (Live Edit)
 phaseRouter.put("/:id/seeding", async (req, res) => {
   try {
     const phaseId = req.params.id;
-    const { participants } = req.body; // array of { team_id, seed }
+    const { participants } = req.body;
 
-    // On supprime d'abord les seeds existantes
-    const { error: delError } = await supabase
-      .from("phase_teams")
-      .delete()
-      .eq("phase_id", phaseId);
+    // 0. Sécurité : Vérifier si des matchs ont déjà commencé
+    const { data: activeMatches, error: matchCheckErr} = await supabase
+      .from('matches')
+      .select('id, status, team1_score, team2_score')
+      .eq('phase_id', phaseId);
+      
+    if (matchCheckErr) throw matchCheckErr;
+    if (activeMatches && activeMatches.length > 0) {
+      const hasStarted = activeMatches.some(m => m.status === 'COMPLETED' || m.team1_score > 0 || m.team2_score > 0);
+      if (hasStarted) return res.status(400).json({ error: 'Impossible de modifier le placement : des matchs ont déjà des scores ou sont terminés.' });
+    }
 
+    const { error: delError } = await supabase.from('phase_teams').delete().eq('phase_id', phaseId);
     if (delError) throw delError;
 
     if (participants && participants.length > 0) {
-      const inserts = participants.map((p: any) => ({
-        phase_id: phaseId,
-        team_id: p.team_id,
-        seed: p.seed
-      }));
-
-      const { error } = await supabase
-        .from("phase_teams")
-        .insert(inserts);
-
+      const inserts = participants.map((p: any) => ({ phase_id: phaseId, team_id: p.team_id, seed: p.seed }));
+      const { error } = await supabase.from('phase_teams').insert(inserts);
       if (error) throw error;
     }
 
-    res.status(200).json({ message: "Seeding sauvegardé" });
+    const { error: delMatchesError } = await supabase.from('matches').delete().eq('phase_id', phaseId);
+    if (delMatchesError) throw delMatchesError;
+
+    const { data: phaseData, error: phaseErr } = await supabase.from('phases').select('bracket_size').eq('id', phaseId).single();
+    if (phaseErr) throw phaseErr;
+
+    await BracketGeneratorService.generateBracket(phaseId, phaseData.bracket_size || 8);
+
+    res.status(200).json({ message: 'Placement et arbre mis à jour avec succès' });
   } catch (error: any) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -82,48 +90,10 @@ phaseRouter.put("/:id/seeding", async (req, res) => {
 phaseRouter.get("/:id/seeding", async (req, res) => {
   try {
     const phaseId = req.params.id;
-    
-    const { data: seeded, error: err1 } = await supabase
-      .from("phase_teams")
-      .select("team_id, seed, teams(id, name, logo_url)")
-      .eq("phase_id", phaseId)
-      .order("seed", { ascending: true });
-
+    const { data: seeded, error: err1 } = await supabase.from('phase_teams').select('team_id, seed, teams(id, name, logo_url)').eq('phase_id', phaseId).order('seed', { ascending: true });
     if (err1) throw err1;
     res.status(200).json(seeded || []);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Publier une phase
-phaseRouter.post("/:id/publish", async (req, res) => {
-  try {
-    const phaseId = req.params.id;
-
-    // 1. Récupérer la taille demandée pour cette phase
-    const { data: phaseData, error: phaseErr } = await supabase
-      .from("phases")
-      .select("bracket_size")
-      .eq("id", phaseId)
-      .single();
-    
-    if (phaseErr) throw phaseErr;
-
-    // 2. Lancer la génération mathématique via le Service externe et propulser les BYEs
-    await BracketGeneratorService.generateBracket(phaseId, phaseData.bracket_size || 8);
-
-    // 3. Passer la phase en mode PUBLISHED (Bloque le seed et valide l'arbre)
-    const { error } = await supabase
-      .from("phases")
-      .update({ status: "PUBLISHED" })
-      .eq("id", phaseId);
-
-    if (error) throw error;
-
-    res.status(200).json({ message: "Phase générée et publiée avec succès" });
-  } catch (error: any) {
-    console.error("Publish Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
