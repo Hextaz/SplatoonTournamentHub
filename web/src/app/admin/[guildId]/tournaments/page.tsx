@@ -30,9 +30,9 @@ export default function TournamentsPage({
       .from("tournaments")
       .select("*")
       .eq("guild_id", guildId)
-      .eq("status", "in_progress")
-      .single();
-    
+      .in("status", ["REGISTRATION", "ACTIVE"])
+      .maybeSingle();
+
     setActiveTournament(data || null);
     setLoading(false);
   };
@@ -53,12 +53,12 @@ export default function TournamentsPage({
           guild_id: guildId,
           name: newTourneyName,
           description: newTourneyDesc,
-          status: "in_progress",
+          status: "REGISTRATION",
           start_date: new Date().toISOString()
         })
         .select()
         .single();
-        
+
       if (error) throw error;
 
       // Contact Express Bot to setup channels or archive old ones
