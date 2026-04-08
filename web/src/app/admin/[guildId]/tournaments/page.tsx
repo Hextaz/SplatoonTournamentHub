@@ -2,8 +2,27 @@
 
 import { useEffect, useState, use } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Trophy, Archive, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Trophy, AlertTriangle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const formSchema = z.object({
+  name: z.string().min(3, "Le nom doit contenir au moins 3 caractères"),
+  description: z.string().optional(),
+  start_at: z.string().min(1, "La date de début est requise"),
+  checkin_start_at: z.string().min(1, "La date de début du check-in est requise"),
+  checkin_end_at: z.string().min(1, "La date de fin du check-in est requise"),
+}).refine((data) => new Date(data.checkin_end_at) > new Date(data.checkin_start_at), {
+  message: "La fin du check-in doit être après le début",
+  path: ["checkin_end_at"],
+}).refine((data) => new Date(data.start_at) > new Date(data.checkin_end_at), {
+  message: "Le tournoi doit commencer après la fin du check-in",
+  path: ["start_at"],
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 export default function TournamentsPage({
   params,
@@ -18,12 +37,12 @@ export default function TournamentsPage({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   
-  const [newTourneyName, setNewTourneyName] = useState("");
-  const [newTourneyDesc, setNewTourneyDesc] = useState("");
-
   const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:3001";
 
-  // Fetch active tournament
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+  });
+
   const fetchActive = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -41,27 +60,26 @@ export default function TournamentsPage({
     fetchActive();
   }, [guildId]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: FormValues) => {
     setCreating(true);
 
     try {
-      // Create tournament DB entry
       const { data: created, error } = await supabase
         .from("tournaments")
         .insert({
           guild_id: guildId,
-          name: newTourneyName,
-          description: newTourneyDesc,
+          name: data.name,
+          description: data.description,
           status: "REGISTRATION",
-          start_date: new Date().toISOString()
+          start_at: new Date(data.start_at).toISOString(),
+          checkin_start_at: new Date(data.checkin_start_at).toISOString(),
+          checkin_end_at: new Date(data.checkin_end_at).toISOString()
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Contact Express Bot to setup channels or archive old ones
       try {
         await fetch(`${BOT_API_URL}/api/archive-and-init`, {
           method: "POST",
@@ -76,16 +94,14 @@ export default function TournamentsPage({
       }
 
       setShowCreateModal(false);
-      setNewTourneyName("");
-      setNewTourneyDesc("");
+      reset();
       fetchActive();
       
-      // Also we could redirect to a specific tournament manage page:
-      // router.push(`/admin/${guildId}/tournaments/${created.id}`);
+      router.push(`/admin/${guildId}/tournaments/${created.id}`);
 
     } catch (err) {
       console.error(err);
-      alert("Erreur lors de la création.");
+      alert("Erreur lors de la création du tournoi.");
     } finally {
       setCreating(false);
     }
@@ -98,119 +114,137 @@ export default function TournamentsPage({
           <h1 className="text-3xl font-bold text-white mb-2">🏆 Gestion des Tournois</h1>
           <p className="text-slate-400">Gérez le tournoi en cours et lancez de nouvelles éditions.</p>
         </div>
-
-        <button 
-          onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shrink-0"
-        >
-          <Plus className="w-5 h-5" />
-          Nouveau Tournoi
-        </button>
+        {!activeTournament && (
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Créer un Tournoi
+          </button>
+        )}
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-32 text-slate-400">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="bg-slate-800/50 rounded-2xl border border-slate-700 p-8 flex items-center justify-center min-h-[200px]">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
         </div>
       ) : activeTournament ? (
-        <div className="bg-gradient-to-br from-indigo-900/50 to-slate-900 border border-blue-500/30 p-8 rounded-2xl shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4">
-            <span className="bg-blue-500/20 text-blue-300 font-bold px-3 py-1 rounded-full text-xs uppercase tracking-widest border border-blue-500/30">
-              Actif
-            </span>
-          </div>
-          
-          <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-            <Trophy className="w-6 h-6 text-yellow-400" />
-            {activeTournament.name}
-          </h2>
-          <p className="text-slate-300 mb-6 max-w-2xl">{activeTournament.description}</p>
-
-          <div className="flex flex-wrap gap-4">
-            <button className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-lg font-bold border border-slate-700 transition flex items-center">
-              Gestion du Bracket
-            </button>
-            <button className="text-red-400 hover:bg-red-500/10 px-5 py-2.5 rounded-lg font-bold border border-transparent transition flex items-center gap-2">
-              <Archive className="w-4 h-4" />
-              Archiver manuellement
+        <div className="bg-slate-900 border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl">
+          <div className="bg-slate-800 p-6 border-b border-slate-700 flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded">Édition Active</span>
+                <span className="text-slate-400 text-sm">ID: {activeTournament.id.split('-')[0]}...</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">{activeTournament.name}</h2>
+              {activeTournament.description && (
+                <p className="text-slate-400">{activeTournament.description}</p>
+              )}
+            </div>
+            <button 
+              onClick={() => router.push(`/admin/${guildId}/tournaments/${activeTournament.id}`)}
+              className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-colors flex items-center gap-2"
+            >
+              Salle des Machines ⚙️
             </button>
           </div>
         </div>
       ) : (
-        <div className="bg-slate-800/50 border border-slate-700 border-dashed rounded-2xl p-12 text-center flex flex-col items-center">
-          <Trophy className="w-16 h-16 text-slate-600 mb-4" />
-          <h3 className="text-xl font-bold text-slate-300 mb-2">Aucun tournoi actif</h3>
-          <p className="text-slate-400 mb-6">Créez un nouveau tournoi pour ouvrir les inscriptions.</p>
+        <div className="bg-slate-800/30 border border-slate-700/50 border-dashed rounded-2xl p-12 text-center">
+          <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-slate-300 mb-2">Aucun tournoi n'est actif</h2>
+          <p className="text-slate-500 max-w-md mx-auto mb-6">
+            Votre serveur est en sommeil. Créez un nouveau tournoi pour démarrer les inscriptions et le setup des salons Discord.
+          </p>
           <button 
             onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors"
+            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto transition-colors"
           >
-            Créer un tournoi
+            <Plus className="w-5 h-5" />
+            Créer un nouveau Tournoi
           </button>
         </div>
       )}
 
-      {/* CREATE MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg shadow-2xl relative overflow-hidden">
-            <div className="p-6 border-b border-slate-700">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <Plus className="text-blue-400" /> Initialiser un Tournoi
-              </h3>
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white">Nouvelle Édition</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
             
-            <form onSubmit={handleCreate} className="p-6 space-y-6">
-              
-              {activeTournament && (
-                <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-xl p-4 flex gap-3 text-yellow-300 text-sm">
-                  <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5 text-yellow-500" />
-                  <p>
-                    <strong className="block text-yellow-500 mb-1">Attention ! Un tournoi est déjà en cours.</strong>
-                    Créer ce nouveau tournoi va <strong>archiver</strong> "{activeTournament.name}" et passer ses salons Discord existants en lecture seule (via le bot).
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Nom du Tournoi <span className="text-red-400">*</span></label>
-                  <input 
-                    required 
-                    type="text" 
-                    value={newTourneyName}
-                    onChange={(e) => setNewTourneyName(e.target.value)}
-                    placeholder="Inkling Cup Saison 4" 
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Description (Optionnel)</label>
-                  <textarea 
-                    value={newTourneyDesc}
-                    onChange={(e) => setNewTourneyDesc(e.target.value)}
-                    placeholder="Règles, cashprize, mots doux..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white h-24 focus:border-blue-500 focus:outline-none"
-                  ></textarea>
-                </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Nom du Tournoi <span className="text-red-500">*</span></label>
+                <input 
+                  type="text" 
+                  {...register("name")}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500"
+                  placeholder="Ex: Splatoon Cup Series #4"
+                />
+                {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
               </div>
 
-              <div className="flex gap-4 pt-4 border-t border-slate-700">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Description (Optionnelle)</label>
+                <textarea 
+                  {...register("description")}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500 h-24 resize-none"
+                  placeholder="Règles ou sous-titre de l'évènement..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Début du Check-in <span className="text-red-500">*</span></label>
+                <input 
+                  type="datetime-local" 
+                  {...register("checkin_start_at")}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500"
+                />
+                {errors.checkin_start_at && <p className="text-red-400 text-xs mt-1">{errors.checkin_start_at.message}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Fin du Check-in <span className="text-red-500">*</span></label>
+                <input 
+                  type="datetime-local" 
+                  {...register("checkin_end_at")}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500"
+                />
+                {errors.checkin_end_at && <p className="text-red-400 text-xs mt-1">{errors.checkin_end_at.message}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Début du Tournoi <span className="text-red-500">*</span></label>
+                <input 
+                  type="datetime-local" 
+                  {...register("start_at")}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500"
+                />
+                {errors.start_at && <p className="text-red-400 text-xs mt-1">{errors.start_at.message}</p>}
+              </div>
+
+              <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 flex gap-3 text-sm text-yellow-500 my-4">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <p>La création déclenchera le Bot Discord qui archivera les anciens salons et créera la nouvelle infrastructure.</p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
                 <button 
-                  type="button" 
+                  type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition"
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl font-medium transition-colors"
                 >
                   Annuler
                 </button>
                 <button 
-                  type="submit" 
-                  disabled={creating || !newTourneyName}
-                  className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition flex justify-center items-center gap-2"
+                  type="submit"
+                  disabled={creating}
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:text-white/50 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-blue-900/20"
                 >
-                  {creating && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {creating ? "Veuillez patienter..." : "Confirmer"}
+                  {creating ? <><Loader2 className="w-5 h-5 animate-spin" /> Création...</> : "🚀 Lancer"}
                 </button>
               </div>
             </form>

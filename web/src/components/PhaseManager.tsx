@@ -5,7 +5,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { Users, Target, Rocket, Loader2, GripVertical, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// Define strict team types matching supabaase structure
+// Define strict team types matching supabase structure
 type Team = {
   id: string;
   name: string;

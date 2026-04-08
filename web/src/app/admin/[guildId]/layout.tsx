@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
+import { ServerSidebarWrapper } from '@/components/ServerSidebarWrapper';
 import { LayoutDashboard, Settings, Trophy, ArrowLeft } from "lucide-react";
 
 export default async function AdminLayout({
@@ -44,8 +45,9 @@ export default async function AdminLayout({
 
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)] bg-slate-900 text-white">
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-slate-800 border-r border-slate-700 flex flex-col shrink-0">
+      {/* Sidebar Server conditionally rendered */}
+      <ServerSidebarWrapper>
+        <aside className="w-full md:w-64 bg-slate-800 border-r border-slate-700 flex flex-col shrink-0">
         <div className="p-6 border-b border-slate-700">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Settings className="w-6 h-6 text-blue-400" />
@@ -88,6 +90,7 @@ export default async function AdminLayout({
           </Link>
         </div>
       </aside>
+      </ServerSidebarWrapper>
 
       {/* Main Content */}
       <main className="flex-1 p-6 md:p-8 overflow-y-auto">
