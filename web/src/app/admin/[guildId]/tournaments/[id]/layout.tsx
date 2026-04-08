@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, LayoutDashboard, Settings, Users, Sword, GitMerge } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Settings, Users, Sword, GitMerge, ListOrdered } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 
@@ -70,6 +70,13 @@ export default async function TournamentAdminLayout({
           >
             <Users className="w-5 h-5" />
             Participants
+          </Link>
+          <Link
+            href={`/admin/${guildId}/tournaments/${tournamentId}/placement`}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+          >
+            <ListOrdered className="w-5 h-5" />
+            Placement
           </Link>
           <Link
             href={`/admin/${guildId}/tournaments/${tournamentId}/matches`}

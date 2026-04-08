@@ -237,6 +237,8 @@ app.post("/api/discord/sync-schedule", async (req, res) => {
 
   const { phaseRouter } = require('./routes/PhaseRouter');
   app.use('/api/phases', phaseRouter);
+  const { matchRouter } = require('./routes/MatchRouter');
+  app.use('/api/matches', matchRouter);
 
 // 3. Connect DB and Start Systems
 const bootstrap = async () => {

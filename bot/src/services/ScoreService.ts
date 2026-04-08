@@ -138,7 +138,7 @@ export class ScoreService {
     }
   }
 
-  private static async progressTeams(match: any, channel: TextChannel) {
+  public static async progressTeams(match: any, channel: TextChannel) {
     let winnerId = null;
     let loserId = null;
 
