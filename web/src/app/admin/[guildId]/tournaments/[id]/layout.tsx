@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, LayoutDashboard, Settings, Users, Sword, GitMerge } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 
 export default async function TournamentAdminLayout({
