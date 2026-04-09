@@ -24,7 +24,7 @@ export async function POST(
 
     // Ici on devrait interroger Supabase ou l'API externe (Express Bot) pour générer les brackets, 
     // round préliminaire, insert des matchs etc...
-    // ex: await fetch(`http://localhost:3001/api/tournaments/${tournamentId}/phases/${phaseId}/publish`, ...);
+    // ex: await fetch(`http://localhost:8080/api/tournaments/${tournamentId}/phases/${phaseId}/publish`, ...);
 
     console.log(`[SERVER] Bracket generated for Phase ${phaseId}, Teams:`, seededTeams);
 

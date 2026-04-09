@@ -20,14 +20,14 @@ export default function SettingsPage({
     captain_role_id: "",
     to_role_id: "",
     checkin_channel_id: "",
-    announcements_channel_id: "",
+    announcement_channel_id: "",
   });
 
   const [discordRoles, setDiscordRoles] = useState<{ id: string; name: string }[]>([]);
   const [discordChannels, setDiscordChannels] = useState<{ id: string; name: string }[]>([]);
   const [apiError, setApiError] = useState("");
 
-  const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:3001";
+  const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:8080";
 
   useEffect(() => {
     async function loadData() {
@@ -45,13 +45,13 @@ export default function SettingsPage({
             captain_role_id: dbSettings.captain_role_id || "",
             to_role_id: dbSettings.to_role_id || "",
             checkin_channel_id: dbSettings.checkin_channel_id || "",
-            announcements_channel_id: dbSettings.announcements_channel_id || "",
+            announcement_channel_id: dbSettings.announcement_channel_id || "",
           });
         }
 
         // Fetch Discord Roles via Express Bot API
         try {
-          const rolesRes = await fetch(`${BOT_API_URL}/api/discord/roles/${guildId}`);
+          const rolesRes = await fetch(`${BOT_API_URL}/api/discord/roles`);
           if (rolesRes.ok) {
             const roles = await rolesRes.json();
             setDiscordRoles(roles);
@@ -62,7 +62,7 @@ export default function SettingsPage({
 
         // Fetch Discord Channels via Express Bot API
         try {
-          const channelsRes = await fetch(`${BOT_API_URL}/api/discord/channels/${guildId}`);
+          const channelsRes = await fetch(`${BOT_API_URL}/api/discord/channels`);
           if (channelsRes.ok) {
             const channels = await channelsRes.json();
             // Filter out voice channels if needed, but here we take everything returned by bot
@@ -89,7 +89,7 @@ export default function SettingsPage({
         captain_role_id: settings.captain_role_id,
         to_role_id: settings.to_role_id,
         checkin_channel_id: settings.checkin_channel_id,
-        announcements_channel_id: settings.announcements_channel_id,
+        announcement_channel_id: settings.announcement_channel_id,
         updated_at: new Date().toISOString(),
       };
 
@@ -229,8 +229,8 @@ export default function SettingsPage({
               <label className="text-sm font-medium text-slate-400">Salon d'Annonces (Public)</label>
               {discordChannels.length > 0 ? (
                 <select
-                  name="announcements_channel_id"
-                  value={settings.announcements_channel_id}
+                  name="announcement_channel_id"
+                  value={settings.announcement_channel_id}
                   onChange={handleChange}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
                 >
@@ -242,8 +242,8 @@ export default function SettingsPage({
               ) : (
                 <input 
                   type="text" 
-                  name="announcements_channel_id"
-                  value={settings.announcements_channel_id}
+                  name="announcement_channel_id"
+                  value={settings.announcement_channel_id}
                   onChange={handleChange}
                   placeholder="ID du Salon" 
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"

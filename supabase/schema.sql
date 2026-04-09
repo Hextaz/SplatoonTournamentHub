@@ -6,6 +6,9 @@ CREATE TYPE phase_type AS ENUM ('ROUND_ROBIN', 'SINGLE_ELIM', 'SWISS');
 CREATE TABLE server_settings (
     guild_id VARCHAR(50) PRIMARY KEY,
     to_role_id VARCHAR(50),
+    captain_role_id VARCHAR(50),
+    checkin_channel_id VARCHAR(50),
+    announcement_channel_id VARCHAR(50),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
