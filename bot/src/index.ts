@@ -366,7 +366,10 @@ const bootstrap = async () => {
             // 3. Vérifier si l'équipe est déjà checked-in
             if (team.is_checked_in) {
               return interaction.reply({
-        content: `Tu es déjà validé ! (Équipe **${team.name}**)`,
+                content: `Tu es déjà validé ! (Équipe **${team.name}**)`,
+                ephemeral: true,
+              });
+            }
 
             // 4. Mettre à jour is_checked_in = true pour cette équipe
             const { error: updateError } = await supabase
