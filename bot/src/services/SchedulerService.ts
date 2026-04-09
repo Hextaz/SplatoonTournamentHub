@@ -17,10 +17,11 @@ export class SchedulerService {
     this.client = client;
     console.log("[Scheduler] Initializing SchedulerService...");
 
-    // Au démarrage, on récupère tous les tournois dont la phase de check-in est dans le futur
+    // Au démarrage, on récupère tous les tournois (REGISTRATION ou ACTIVE) dont la phase de check-in n'est pas complètement terminée
     const { data: tournaments, error } = await supabase
       .from("tournaments")
       .select("*")
+      .in("status", ["REGISTRATION", "ACTIVE"])
       .gte("checkin_end_at", new Date().toISOString());
 
     if (error) {
@@ -55,8 +56,20 @@ export class SchedulerService {
       });
       this.activeJobs.set(`${tournament.id}_open`, openJob);
     } else if (now >= startAt && now < endAt) {
-      // Le bot a restarté pendant la phase de check-in, on assure que les messages sont toujours ok
-      // On pourrait relancer handleOpenCheckin s'il n'y a pas de checkin_message_id, à voir.
+      // Rattrapage immédiat (Catch-up) : Si l'heure de check-in est déjà passée,
+      // MAIS qu'on n'a pas encore de checkin_message_id (donc l'embed n'a jamais été publié),
+      // on doit le lancer immédiatement pour rattraper le retard dû au redémarrage.
+      if (!tournament.checkin_message_id) {
+        console.log(`[Scheduler] Catch-up: Starting missed check-in for tournament ${tournament.id} immediately.`);
+        // On ne bloque pas le reste du lancement du Scheduler
+        setTimeout(() => {
+          this.handleOpenCheckin(tournament).catch((err) =>
+            console.error(`[Scheduler] Catch-up failed for ${tournament.id}:`, err)
+          );
+        }, 1000); // Exécuté presque tout de suite
+      } else {
+        console.log(`[Scheduler] Check-in already triggered for ${tournament.id}, resume reminders and close jobs.`);
+      }
     }
 
     // --- Actions Rappels ---
@@ -123,23 +136,26 @@ export class SchedulerService {
         `[Scheduler] Executing Check-in Open for tournament ${tournament.id}`,
       );
 
-      const { data: settings } = await supabase
-        .from("server_settings")
-        .select("checkin_channel_id")
-        .eq("guild_id", tournament.guild_id)
-        .single();
+      // On utilise les nouveaux champs de configuration de tournoi
+      const checkinChannelId = tournament.discord_checkin_channel_id;
+      const captainRoleId = tournament.discord_captain_role_id;
 
-      if (!settings?.checkin_channel_id) return;
+      if (!checkinChannelId) {
+        console.warn(`[Scheduler] Missing discord_checkin_channel_id for tournament ${tournament.id}`);
+        return;
+      }
 
       const channel = (await this.client.channels.fetch(
-        settings.checkin_channel_id,
+        checkinChannelId,
       )) as TextChannel;
       if (!channel || !("send" in channel)) return;
+
+      const mentionsMessage = captainRoleId ? `<@&${captainRoleId}>, le check-in est ouvert !` : "Le check-in est ouvert !";
 
       const checkinEmbed = new EmbedBuilder()
         .setTitle("✅ Check-in Ouvert !")
         .setDescription(
-          `Le check-in pour le tournoi commence maintenant.\nCapitaines, cliquez sur le bouton ci-dessous pour confirmer votre présence.\n\nFermeture prévue : <t:${Math.floor(new Date(tournament.checkin_end_at).getTime() / 1000)}:R>`,
+          `Le check-in pour le tournoi **${tournament.name || "Actif"}** commence maintenant.\nCapitaines, cliquez sur le bouton ci-dessous pour confirmer votre présence.\n\nFermeture prévue : <t:${Math.floor(new Date(tournament.checkin_end_at).getTime() / 1000)}:R>`,
         )
         .setColor(0x00ff00);
 
@@ -152,15 +168,18 @@ export class SchedulerService {
       );
 
       const msg = await channel.send({
+        content: mentionsMessage,
         embeds: [checkinEmbed],
         components: [row],
       });
 
-      // Save message ID to DB
+      // Saving message ID to DB so next restarts won't re-ping
       await supabase
         .from("tournaments")
         .update({ checkin_message_id: msg.id })
         .eq("id", tournament.id);
+
+      console.log(`[Scheduler] Check-in Embed fully published and checkin_message_id saved for ${tournament.id}.`);
     } catch (e) {
       console.error("[Scheduler] Failed opening checkin:", e);
     }
@@ -172,13 +191,9 @@ export class SchedulerService {
         `[Scheduler] Warning Check-in closes in ${minutesLeft}min for tournament ${tournament.id}`,
       );
 
-      // Get settings for channel
-      const { data: settings } = await supabase
-        .from("server_settings")
-        .select("checkin_channel_id")
-        .eq("guild_id", tournament.guild_id)
-        .single();
-      if (!settings?.checkin_channel_id) return;
+      // On utilise le channel Discord du tournoi
+      const checkinChannelId = tournament.discord_checkin_channel_id;
+      if (!checkinChannelId) return;
 
       // Get teams that haven't checked in
       const { data: teams } = await supabase
@@ -190,7 +205,7 @@ export class SchedulerService {
       if (!teams || teams.length === 0) return; // All checked in
 
       const channel = (await this.client.channels.fetch(
-        settings.checkin_channel_id,
+        checkinChannelId,
       )) as TextChannel;
       if (!channel || !("send" in channel)) return;
 
@@ -212,21 +227,17 @@ export class SchedulerService {
       // Refresh tournament data to get the latest message_id
       const { data: latestTournament } = await supabase
         .from("tournaments")
-        .select("checkin_message_id, guild_id")
+        .select("checkin_message_id, guild_id, discord_checkin_channel_id")
         .eq("id", tournament.id)
         .single();
 
       if (!latestTournament?.checkin_message_id) return;
 
-      const { data: settings } = await supabase
-        .from("server_settings")
-        .select("checkin_channel_id")
-        .eq("guild_id", latestTournament.guild_id)
-        .single();
-      if (!settings?.checkin_channel_id) return;
+      const checkinChannelId = latestTournament.discord_checkin_channel_id;
+      if (!checkinChannelId) return;
 
       const channel = (await this.client.channels.fetch(
-        settings.checkin_channel_id,
+        checkinChannelId,
       )) as TextChannel;
       if (!channel || !("messages" in channel)) return;
 
