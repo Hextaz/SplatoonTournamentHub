@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CopyX, GitMerge, LayoutGrid, Network, Trash2, CheckCircle2, HelpCircle } from "lucide-react";
+import { CopyX, GitMerge, LayoutGrid, Network, Trash2, CheckCircle2, HelpCircle, Pencil } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,6 +27,12 @@ export function StructureClient({
   const router = useRouter();
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // States for Phase Edit/Delete
+  const [editingPhase, setEditingPhase] = useState<any>(null);
+  const [editPhaseName, setEditPhaseName] = useState("");
+  const [editBracketSize, setEditBracketSize] = useState("");
+  const [phaseToDelete, setPhaseToDelete] = useState<any>(null);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -66,15 +72,42 @@ export function StructureClient({
     }
   };
 
-  const deletePhase = async (phaseId: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette phase ?")) return;
+  const deletePhase = async () => {
+    if (!phaseToDelete) return;
     try {
-      const { error } = await supabase.from('phases').delete().eq('id', phaseId).eq('status', 'draft');
+      const { error } = await supabase.from('phases').delete().eq('id', phaseToDelete.id);
       if (error) throw error;
+      setPhaseToDelete(null);
       router.refresh();
     } catch (err) {
       console.error(err);
       alert("Erreur lors de la suppression");
+    }
+  };
+
+  const openEditPhaseModal = (phase: any) => {
+    setEditingPhase(phase);
+    setEditPhaseName(phase.name);
+    setEditBracketSize(phase.bracket_size ? phase.bracket_size.toString() : "8");
+  };
+
+  const handleEditPhase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPhase) return;
+    try {
+      const updateData: any = { name: editPhaseName };
+      if (editingPhase.status === 'draft') {
+        updateData.bracket_size = parseInt(editBracketSize);
+      }
+      
+      const { error } = await supabase.from('phases').update(updateData).eq('id', editingPhase.id);
+      if (error) throw error;
+      
+      setEditingPhase(null);
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la modification de la phase");
     }
   };
 
@@ -110,15 +143,23 @@ export function StructureClient({
                     {phase.status === 'PUBLISHED' ? 'PUBLIÉE' : 'BROUILLON'}
                   </span>
                   
-                  {phase.status === 'draft' && (
+                  <div className="flex bg-slate-700/50 rounded-lg overflow-hidden border border-slate-600">
                     <button 
-                      onClick={() => deletePhase(phase.id)}
-                      className="p-2 text-slate-400 hover:text-red-400 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors"
+                      onClick={() => openEditPhaseModal(phase)}
+                      className="p-2 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 transition-colors"
+                      title="Éditer la phase"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <div className="w-px bg-slate-600"></div>
+                    <button 
+                      onClick={() => setPhaseToDelete(phase)}
+                      className="p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-colors"
                       title="Supprimer la phase"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -242,6 +283,110 @@ export function StructureClient({
             </div>
           </form>
         </section>
+      )}
+      {/* Modal Edition Phase */}
+      {editingPhase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-700">
+            <div className="bg-slate-900 border-b border-slate-700 p-4">
+              <h3 className="text-xl font-bold text-white">Éditer la phase</h3>
+            </div>
+            
+            <form onSubmit={handleEditPhase} className="p-6 space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400">Nom de la phase</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                  value={editPhaseName}
+                  onChange={(e) => setEditPhaseName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400 flex items-center gap-2">
+                  Taille du bracket
+                  {editingPhase.status !== 'draft' && (
+                    <span className="text-xs px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded text-normal">Verrouillée</span>
+                  )}
+                </label>
+                <select 
+                  className={`w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white outline-none ${editingPhase.status !== 'draft' ? "opacity-50 cursor-not-allowed" : "focus:border-blue-500"}`}
+                  value={editBracketSize}
+                  onChange={(e) => setEditBracketSize(e.target.value)}
+                  disabled={editingPhase.status !== 'draft'}
+                >
+                  <option value="4">4 participants</option>
+                  <option value="8">8 participants</option>
+                  <option value="16">16 participants</option>
+                  <option value="32">32 participants</option>
+                  <option value="64">64 participants</option>
+                </select>
+                {editingPhase.status !== 'draft' && (
+                  <p className="text-xs text-slate-500 mt-1">Impossible de modifier la taille d'une phase publiée.</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-700">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingPhase(null)}
+                  className="px-5 py-2.5 rounded-lg font-bold text-slate-300 hover:bg-slate-700 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!editPhaseName} 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold disabled:opacity-50 transition-colors"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Suppression Phase */}
+      {phaseToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-red-500/30">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Supprimer la phase ?</h3>
+              <div className="text-sm text-slate-300 space-y-2">
+                <p>Êtes-vous sûr de vouloir supprimer la phase <strong className="text-white">"{phaseToDelete.name}"</strong> ?</p>
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-left text-xs">
+                  <p className="font-bold mb-1">Attention, cette action cascade :</p>
+                  <ul className="list-disc list-inside ml-4">
+                    <li>Détruira la phase de l'interface</li>
+                    <li><strong>Supprimera définitivement tous les matchs</strong> qui y sont rattachés</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 p-4 bg-slate-900/50">
+              <button 
+                onClick={() => setPhaseToDelete(null)}
+                className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-300 hover:bg-slate-700 transition-colors"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={deletePhase}
+                className="flex-1 px-4 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

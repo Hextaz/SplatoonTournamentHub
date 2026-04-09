@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { CheckCircle2, XCircle, UserPlus, Trash2, Search } from "lucide-react";
+import { CheckCircle2, XCircle, UserPlus, Trash2, Search, Pencil, MoreVertical } from "lucide-react";
 
 export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { tournamentId: string; guildId: string; initialTeams: any[] }) {
   const router = useRouter();
@@ -17,6 +17,12 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
   
+  // Add State Variables
+  const [editingTeam, setEditingTeam] = useState<any>(null);
+  const [editTeamName, setEditTeamName] = useState("");
+  
+  const [teamToDelete, setTeamToDelete] = useState<any>(null);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,6 +83,71 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     } catch (err) {
       console.error(err);
       alert("Erreur lors de la mise à jour");
+    }
+  };
+
+  const handleEditTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTeamName.trim() || !selectedMember) return;
+
+    try {
+      const { data, error } = await supabase.from('teams').update({
+        name: editTeamName,
+        captain_discord_id: selectedMember.id,
+      }).eq('id', editingTeam.id).select().single();
+
+      if (error) throw error;
+      
+      setTeams(teams.map(t => t.id === editingTeam.id ? { ...t, name: editTeamName, captain_discord_id: selectedMember.id } : t));
+      setEditingTeam(null);
+      setEditTeamName("");
+      setSelectedMember(null);
+      setSearchTerm("");
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la modification de l'équipe");
+    }
+  };
+
+  const handleDeleteTeam = async () => {
+    if (!teamToDelete) return;
+    try {
+      const { error } = await supabase.from('teams').delete().eq('id', teamToDelete.id);
+      if (error) throw error;
+      
+      setTeams(teams.filter(t => t.id !== teamToDelete.id));
+      setTeamToDelete(null);
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la suppression de l'équipe");
+    }
+  };
+
+  const openEditModal = (team: any) => {
+    setEditingTeam(team);
+    setEditTeamName(team.name);
+    // Dummy member fallback
+    const member = members.find(m => m.id === team.captain_discord_id) || { id: team.captain_discord_id, displayName: "Chargement (ID: " + team.captain_discord_id + ")" };
+    setSelectedMember(member);
+    setSearchTerm(member.displayName);
+    setIsDropdownOpen(false);
+
+    if (members.length === 0) {
+      fetch('http://localhost:8080/api/discord/members')
+        .then((res) => res.json())
+        .then((data) => {
+          if(Array.isArray(data)) {
+            setMembers(data);
+            const found = data.find(m => m.id === team.captain_discord_id);
+            if(found) {
+                setSelectedMember(found);
+                setSearchTerm(found.displayName);
+            }
+          }
+        })
+        .catch((err) => console.error(err));
     }
   };
 
@@ -227,6 +298,23 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                        >
                          {team.is_checked_in ? "Annuler le check-in" : "👉 Forcer le check-in"}
                        </button>
+                       <div className="flex bg-slate-700/50 rounded-lg overflow-hidden border border-slate-600">
+                         <button 
+                           onClick={() => openEditModal(team)}
+                           className="p-2 hover:bg-blue-500/20 text-slate-300 hover:text-blue-400 transition-colors"
+                           title="Éditer l'équipe"
+                         >
+                           <Pencil className="w-4 h-4" />
+                         </button>
+                         <div className="w-px bg-slate-600"></div>
+                         <button 
+                           onClick={() => setTeamToDelete(team)}
+                           className="p-2 hover:bg-red-500/20 text-slate-300 hover:text-red-400 transition-colors"
+                           title="Supprimer l'équipe"
+                         >
+                           <Trash2 className="w-4 h-4" />
+                         </button>
+                       </div>
                      </div>
                   </td>
                 </tr>
@@ -235,6 +323,132 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
           </tbody>
         </table>
       </div>
+      {editingTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-700">
+            <div className="bg-slate-900 border-b border-slate-700 p-4">
+              <h3 className="text-xl font-bold text-white">Éditer l'équipe</h3>
+            </div>
+            
+            <form onSubmit={handleEditTeam} className="p-6 space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400">Nom de l'équipe</label>
+                <input 
+                  type="text" 
+                  placeholder="Nom de l'équipe..." 
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                  value={editTeamName}
+                  onChange={(e) => setEditTeamName(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400">Capitaine Discord</label>
+                <div className="relative" ref={dropdownRef}>
+                  <div className="relative">
+                    <Search className="w-5 h-5 absolute left-3 top-3.5 text-slate-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Rechercher capitane Discord..." 
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                      value={selectedMember ? selectedMember.displayName : searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setSelectedMember(null);
+                        setIsDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsDropdownOpen(true)}
+                      required={!selectedMember}
+                    />
+                  </div>
+                  
+                  {isDropdownOpen && !selectedMember && (
+                    <div className="absolute top-14 left-0 w-full bg-slate-800 border border-slate-700 rounded-lg mt-1 max-h-60 overflow-y-auto z-50 shadow-xl overscroll-auto custom-scrollbar">
+                      {members.length === 0 ? (
+                        <div className="p-3 text-sm text-slate-400 text-center">Chargement des membres...</div>
+                      ) : filteredMembers.length === 0 ? (
+                        <div className="p-3 text-sm text-slate-400 text-center">Aucun membre trouvé</div>
+                      ) : (
+                        filteredMembers.map(member => (
+                          <div 
+                            key={member.id} 
+                            className="px-4 py-3 hover:bg-slate-700 cursor-pointer flex flex-col transition-colors border-b border-slate-700/50 last:border-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMember(member);
+                              setSearchTerm(member.displayName);
+                              setIsDropdownOpen(false);
+                            }}
+                          >
+                            <span className="text-white font-medium">{member.displayName}</span>
+                            <span className="text-xs text-slate-400">@{member.username}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-700">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setEditingTeam(null);
+                    setSelectedMember(null);
+                    setSearchTerm("");
+                  }}
+                  className="px-5 py-2.5 rounded-lg font-bold text-slate-300 hover:bg-slate-700 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!selectedMember || !editTeamName} 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {teamToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-red-500/30">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Supprimer l'équipe ?</h3>
+              <p className="text-sm text-slate-300">
+                Êtes-vous sûr de vouloir supprimer l'équipe <strong className="text-white">"{teamToDelete.name}"</strong> ?
+                <br/>
+                <span className="text-red-400 block mt-2 text-xs uppercase tracking-wider font-bold">Cette action est irréversible.</span>
+              </p>
+            </div>
+            
+            <div className="flex gap-2 p-4 bg-slate-900/50">
+              <button 
+                onClick={() => setTeamToDelete(null)}
+                className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-300 hover:bg-slate-700 transition-colors"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleDeleteTeam}
+                className="flex-1 px-4 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
