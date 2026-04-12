@@ -11,7 +11,7 @@ export default function Navbar() {
 
   return (
     <nav className="bg-[#0a0a0f] border-b border-slate-800/50 text-white shadow-md relative z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link
@@ -115,3 +115,4 @@ export default function Navbar() {
     </nav>
   );
 }
+

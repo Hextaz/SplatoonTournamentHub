@@ -24,7 +24,7 @@ export default async function TournamentDetailPage(props: TournamentPageProps) {
 
   return (
     <div className="min-h-screen p-8 bg-gray-50 flex flex-col items-center">
-      <div className="w-full max-w-6xl">
+      <div className="max-w-[1600px] w-full mx-auto">
         <div className="mb-6 flex items-center justify-between">
           <Link href="/tournaments" className="text-blue-600 hover:underline font-medium">
             ← Retour à la liste
@@ -65,4 +65,5 @@ export default async function TournamentDetailPage(props: TournamentPageProps) {
     </div>
   );
 }
+
 

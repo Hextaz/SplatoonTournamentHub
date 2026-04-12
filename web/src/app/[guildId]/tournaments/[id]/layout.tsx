@@ -50,7 +50,7 @@ export default async function PublicTournamentLayout({
         </div>
         
         {/* Profile Info Overlay */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 -mt-16 sm:-mt-20">
+        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 relative z-10 -mt-16 sm:-mt-20">
           <div className="flex flex-col sm:flex-row items-center sm:items-end sm:space-x-6">
             <div className="relative">
               <div className="w-24 h-24 sm:w-32 sm:h-32 bg-slate-900 border-4 border-[#0f111a] overflow-hidden rounded-xl shadow-lg flex items-center justify-center shrink-0">
@@ -78,10 +78,11 @@ export default async function PublicTournamentLayout({
 
       {/* Main Content Area */}
       <main className="flex-grow pt-8 pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8">
           {children}
         </div>
       </main>
     </div>
   );
 }
+

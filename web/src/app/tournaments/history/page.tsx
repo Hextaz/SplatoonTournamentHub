@@ -35,7 +35,7 @@ export default function TournamentsHistoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-[1600px] w-full mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Historique des Tournois</h1>
           <Link href="/tournaments" className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition font-medium">
@@ -86,3 +86,4 @@ export default function TournamentsHistoryPage() {
     </div>
   );
 }
+

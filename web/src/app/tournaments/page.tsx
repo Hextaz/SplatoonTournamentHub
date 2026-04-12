@@ -78,7 +78,7 @@ export default async function TournamentsPage() {
 
   return (
     <div className="min-h-screen p-8 bg-gray-50 flex items-start justify-center">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-4xl">
+      <div className="bg-white p-8 rounded-xl shadow-lg max-w-[1600px] w-full mx-auto">
         <h1 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">
           Gestion des Tournois
         </h1>

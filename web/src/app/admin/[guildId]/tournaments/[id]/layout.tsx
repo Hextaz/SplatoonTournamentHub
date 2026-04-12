@@ -1,5 +1,15 @@
 import Link from "next/link";
-import { ArrowLeft, LayoutDashboard, Settings, Users, Sword, GitMerge, ListOrdered } from "lucide-react";
+import {
+  ArrowLeft,
+  LayoutDashboard,
+  Settings,
+  Users,
+  Sword,
+  GitMerge,
+  ListOrdered,
+  Menu,
+  X,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 
@@ -25,9 +35,38 @@ export default async function TournamentAdminLayout({
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)] bg-slate-900 text-white w-full">
+    <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)] bg-slate-900 text-white w-full relative">
       {/* Tournament Admin Sidebar */}
-      <aside className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0">
+      {/* Mobile Header Toggle */}
+      <div className="lg:hidden p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center sticky top-0 z-30">
+        <h2 className="text-lg font-bold truncate pr-4">{tournament.name}</h2>
+        <label
+          htmlFor="tournament-sidebar"
+          className="p-2 cursor-pointer bg-slate-800 rounded-md hover:bg-slate-700 transition-colors shrink-0"
+        >
+          <Menu className="w-5 h-5 text-white" />
+        </label>
+      </div>
+
+      {/* Hidden Checkbox */}
+      <input type="checkbox" id="tournament-sidebar" className="peer hidden" />
+
+      {/* Overlay */}
+      <label
+        htmlFor="tournament-sidebar"
+        className="fixed inset-0 bg-black/60 z-40 hidden peer-checked:block lg:hidden"
+      />
+
+      {/* Tournament Admin Sidebar */}
+      <aside className="fixed lg:sticky top-0 lg:top-[0rem] left-0 h-[100dvh] lg:h-[calc(100vh-4rem)] w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 z-50 transform -translate-x-full peer-checked:translate-x-0 lg:translate-x-0 transition-transform duration-300">
+        <div className="lg:hidden absolute top-4 right-4">
+          <label
+            htmlFor="tournament-sidebar"
+            className="p-2 cursor-pointer bg-slate-800 rounded-md hover:bg-slate-700 transition-colors flex"
+          >
+            <X className="w-5 h-5 text-white" />
+          </label>
+        </div>
         <div className="p-6 border-b border-slate-800">
           <Link
             href={`/admin/${guildId}/tournaments`}
@@ -89,9 +128,7 @@ export default async function TournamentAdminLayout({
       </aside>
 
       {/* Main Tournament Content */}
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 }

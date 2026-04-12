@@ -56,7 +56,7 @@ export default async function GuildHubPage({
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#0f111a] text-slate-200 p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-[1600px] w-full mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h1 className="text-4xl font-extrabold flex items-center gap-4 text-white">
             <Trophy className="w-10 h-10 text-yellow-500" />
@@ -106,3 +106,4 @@ export default async function GuildHubPage({
     </div>
   );
 }
+

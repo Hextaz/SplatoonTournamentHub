@@ -17,7 +17,7 @@ export function PublicTournamentNav({ guildId, tournamentId }: { guildId: string
 
   return (
     <nav className="border-b border-slate-800/50 bg-[#0f111a]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8">
         <ul className="flex flex-row space-x-8 overflow-x-auto no-scrollbar">
           {tabs.map((tab) => {
             const href = `${baseUrl}${tab.path}`;
@@ -45,3 +45,4 @@ export function PublicTournamentNav({ guildId, tournamentId }: { guildId: string
     </nav>
   );
 }
+

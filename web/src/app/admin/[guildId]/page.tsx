@@ -27,7 +27,7 @@ export default async function AdminDashboard({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md flex items-center justify-between">
           <div>
             <p className="text-slate-400 text-sm mb-1 uppercase tracking-wider">Tournois Total</p>
@@ -64,3 +64,4 @@ export default async function AdminDashboard({
     </div>
   );
 }
+
