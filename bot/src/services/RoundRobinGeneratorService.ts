@@ -67,25 +67,25 @@ export class RoundRobinGeneratorService {
           const t1 = teamIds[i];
           const t2 = teamIds[teamIds.length - 1 - i];
 
-          if (t1 !== "BYE" && t2 !== "BYE") {
+            if (t1 === "BYE" && t2 === "BYE") continue;
+
+            const isByeMatch = t1 === "BYE" || t2 === "BYE";
+            const realTeam1 = t1 === "BYE" ? (t2 as string) : (t1 as string);
+            const realTeam2 = isByeMatch ? null : (t2 as string);
+
             matchesToInsert.push({
               phase_id: phaseId,
               group_id: groupName,
-              team1_id: t1 as string,
-              team2_id: t2 as string,
+              team1_id: realTeam1,
+              team2_id: realTeam2,
               round_number: r,
               match_number: matchCounter++,
-              status: "PENDING"
+              status: isByeMatch ? "BYE" : "PENDING"
             });
-          }
         }
-        
-        // Rotate all except the first one
-        if (teamIds.length > 2) {
-          const firstTeam = teamIds[0];
-          const lastTeam = teamIds.pop()!;
-          teamIds.splice(1, 0, lastTeam);
-        }
+        // Rotate array: keep first element fixed, move last element to index 1
+        const lastTeam = teamIds.pop()!;
+        teamIds.splice(1, 0, lastTeam);
       }
     }
 

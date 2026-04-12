@@ -161,32 +161,42 @@ export function StagesClientView({ phases, matches, teams }: { phases: Phase[], 
         teamsStats[m.team2_id] = { id: m.team2_id, name: m.team2?.name, j: 0, v: 0, n: 0, d: 0, f: 0, sc: 0, diff: 0, pts: 0 };
       }
 
-      if (m.status === "COMPLETED" || m.status === "FF") {
-        if (m.team1_id) teamsStats[m.team1_id].j += 1;
-        if (m.team2_id) teamsStats[m.team2_id].j += 1;
-
-        const s1 = m.team1_score || 0;
-        const s2 = m.team2_score || 0;
-
-        if (m.team1_id) {
-          teamsStats[m.team1_id].sc += s1;
-          teamsStats[m.team1_id].diff += (s1 - s2);
-        }
-        if (m.team2_id) {
-          teamsStats[m.team2_id].sc += s2;
-          teamsStats[m.team2_id].diff += (s2 - s1);
-        }
-
-        if (s1 > s2) {
-          if (m.team1_id) { teamsStats[m.team1_id].v += 1; teamsStats[m.team1_id].pts += 3; }
-          if (m.team2_id) { teamsStats[m.team2_id].d += 1; }
-        } else if (s2 > s1) {
-          if (m.team2_id) { teamsStats[m.team2_id].v += 1; teamsStats[m.team2_id].pts += 3; }
-          if (m.team1_id) { teamsStats[m.team1_id].d += 1; }
+      if (m.status === "COMPLETED" || m.status === "FF" || m.status === "BYE") {
+        const isBye = m.status === "BYE";
+        
+        if (isBye) {
+          if (m.team1_id) {
+            teamsStats[m.team1_id].j += 1;
+            teamsStats[m.team1_id].v += 1;
+            teamsStats[m.team1_id].pts += 3;
+          }
         } else {
-          // Draw
-          if (m.team1_id) { teamsStats[m.team1_id].n += 1; teamsStats[m.team1_id].pts += 1; }
-          if (m.team2_id) { teamsStats[m.team2_id].n += 1; teamsStats[m.team2_id].pts += 1; }
+          if (m.team1_id) teamsStats[m.team1_id].j += 1;
+          if (m.team2_id) teamsStats[m.team2_id].j += 1;
+  
+          const s1 = m.team1_score || 0;
+          const s2 = m.team2_score || 0;
+  
+          if (m.team1_id) {
+            teamsStats[m.team1_id].sc += s1;
+            teamsStats[m.team1_id].diff += (s1 - s2);
+          }
+          if (m.team2_id) {
+            teamsStats[m.team2_id].sc += s2;
+            teamsStats[m.team2_id].diff += (s2 - s1);
+          }
+  
+          if (s1 > s2) {
+            if (m.team1_id) { teamsStats[m.team1_id].v += 1; teamsStats[m.team1_id].pts += 3; }
+            if (m.team2_id) { teamsStats[m.team2_id].d += 1; }
+          } else if (s2 > s1) {
+            if (m.team2_id) { teamsStats[m.team2_id].v += 1; teamsStats[m.team2_id].pts += 3; }
+            if (m.team1_id) { teamsStats[m.team1_id].d += 1; }
+          } else {
+            // Draw
+            if (m.team1_id) { teamsStats[m.team1_id].n += 1; teamsStats[m.team1_id].pts += 1; }
+            if (m.team2_id) { teamsStats[m.team2_id].n += 1; teamsStats[m.team2_id].pts += 1; }
+          }
         }
       }
     });

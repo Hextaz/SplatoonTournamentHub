@@ -130,25 +130,35 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
         if (m.team1_id && !teamsStats[m.team1_id]) teamsStats[m.team1_id] = { id: m.team1_id, name: m.team1?.name || "Équipe " + m.team1_id.slice(0,4), j:0, v:0, n:0, d:0, f:0, sc:0, diff:0, pts:0 };
         if (m.team2_id && !teamsStats[m.team2_id]) teamsStats[m.team2_id] = { id: m.team2_id, name: m.team2?.name || "Équipe " + m.team2_id.slice(0,4), j:0, v:0, n:0, d:0, f:0, sc:0, diff:0, pts:0 };
 
-        if (m.status === "COMPLETED" || m.status === "FF") {
-            const isFf = m.status === "FF";
-            if (m.team1_id) { teamsStats[m.team1_id].j++; teamsStats[m.team1_id].sc += m.team1_score || 0; teamsStats[m.team1_id].diff += ((m.team1_score || 0) - (m.team2_score || 0)); }
-            if (m.team2_id) { teamsStats[m.team2_id].j++; teamsStats[m.team2_id].sc += m.team2_score || 0; teamsStats[m.team2_id].diff += ((m.team2_score || 0) - (m.team1_score || 0)); }
+          if (m.status === "COMPLETED" || m.status === "FF" || m.status === "BYE") {
+              const isFf = m.status === "FF";
+              const isBye = m.status === "BYE";
 
-            if (m.team1_score > m.team2_score) {
-              if (m.team1_id) { teamsStats[m.team1_id].v++; teamsStats[m.team1_id].pts += 3; }
-              if (m.team2_id) { isFf ? teamsStats[m.team2_id].f++ : teamsStats[m.team2_id].d++; }
-            } else if (m.team1_score < m.team2_score) {
-              if (m.team2_id) { teamsStats[m.team2_id].v++; teamsStats[m.team2_id].pts += 3; }
-              if (m.team1_id) { isFf ? teamsStats[m.team1_id].f++ : teamsStats[m.team1_id].d++; }
-            } else {
-              if (m.team1_id) { teamsStats[m.team1_id].n++; teamsStats[m.team1_id].pts += 1; }
-              if (m.team2_id) { teamsStats[m.team2_id].n++; teamsStats[m.team2_id].pts += 1; }
-            }
-        }
+              if (isBye) {
+                if (m.team1_id) {
+                    teamsStats[m.team1_id].j++;
+                    teamsStats[m.team1_id].v++;
+                    teamsStats[m.team1_id].pts += 3;
+                }
+              } else {
+                if (m.team1_id) { teamsStats[m.team1_id].j++; teamsStats[m.team1_id].sc += m.team1_score || 0; teamsStats[m.team1_id].diff += ((m.team1_score || 0) - (m.team2_score || 0)); }
+                if (m.team2_id) { teamsStats[m.team2_id].j++; teamsStats[m.team2_id].sc += m.team2_score || 0; teamsStats[m.team2_id].diff += ((m.team2_score || 0) - (m.team1_score || 0)); }
+    
+                if (m.team1_score > m.team2_score) {
+                  if (m.team1_id) { teamsStats[m.team1_id].v++; teamsStats[m.team1_id].pts += 3; }
+                  if (m.team2_id) { isFf ? teamsStats[m.team2_id].f++ : teamsStats[m.team2_id].d++; }
+                } else if (m.team1_score < m.team2_score) {
+                  if (m.team2_id) { teamsStats[m.team2_id].v++; teamsStats[m.team2_id].pts += 3; }
+                  if (m.team1_id) { isFf ? teamsStats[m.team1_id].f++ : teamsStats[m.team1_id].d++; }
+                } else {
+                  if (m.team1_id) { teamsStats[m.team1_id].n++; teamsStats[m.team1_id].pts += 1; }
+                  if (m.team2_id) { teamsStats[m.team2_id].n++; teamsStats[m.team2_id].pts += 1; }
+                }
+              }
+          }
     });
 
-    const sortedTeams = Object.values(teamsStats).sort((a: any, b: any) => b.pts - a.pts || b.diff - a.diff);
+    const sortedTeams = Object.values(teamsStats).sort((a:any, b:any) => b.pts - a.pts || b.diff - a.diff);
 
     return (
       <div className="p-6 md:p-8 flex flex-col gap-8">
