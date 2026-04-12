@@ -1,63 +1,29 @@
-import { supabase } from "@/lib/supabase";
-import { notFound } from "next/navigation";
-import { MatchesClient } from "./MatchesClient";
+﻿import { supabase } from "@/lib/supabase";
+import { MatchesOverviewClient } from "./MatchesOverviewClient";
 
-export default async function MatchesPage({
+export default async function MatchesOverviewPage({
   params
 }: {
   params: Promise<{ guildId: string; id: string }>;
 }) {
   const { guildId, id: tournamentId } = await params;
 
-  // 1. Fetch phase
-  const { data: phase, error: phaseError } = await supabase
-    .from("phases")
-    .select("*")
-    .eq("tournament_id", tournamentId)
-    .order("phase_order", { ascending: true })
-    .limit(1)
-    .single();
+  // Fetch all matches for the tournament, joined with phase and teams
+  const { data: matches, error } = await supabase
+    .from("matches")
+    .select("*, phase:phases!inner(name, tournament_id), team1:teams!team1_id(name), team2:teams!team2_id(name)")
+    .eq("phase.tournament_id", tournamentId)
+    .order("created_at", { ascending: false });
 
-  if (phaseError && phaseError.code !== 'PGRST116') {
-    console.error("Phase fetch error", phaseError);
-  }
-
-  // 2. Fetch matches for that phase
-  let matches = [];
-  if (phase) {
-    const { data: fetchedMatches, error: matchesError } = await supabase
-      .from("matches")
-      .select("*, team1:teams!team1_id(name), team2:teams!team2_id(name)")
-      .eq("phase_id", phase.id)
-      .order("round_number", { ascending: true })
-      .order("match_number", { ascending: true });
-
-    if (matchesError) {
-       console.error("Matches Error", matchesError);
-    } else {
-       matches = fetchedMatches || [];
-    }
+  if (error) {
+    console.error("Error fetching all matches:", error);
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-6 min-h-[calc(100vh-2rem)] flex flex-col">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Matchs & Arbitrage</h1>
-        <p className="text-slate-400">Forcez les résultats et observez l'avancée du tournoi de manière omnisciente.</p>
-      </div>
-
-      {!phase ? (
-        <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 p-6 rounded-xl text-center shadow-lg animate-pulse">
-          L'arbre n'a pas encore été publié. Terminez le placement des équipes puis publiez la phase pour générer les matchs.
-        </div>
-      ) : (
-        <MatchesClient 
-          tournamentId={tournamentId} 
-          guildId={guildId} 
-          phase={phase} 
-          initialMatches={matches}
-        />
-      )}
-    </div>
+    <MatchesOverviewClient
+      guildId={guildId}
+      tournamentId={tournamentId}
+      allMatches={matches || []}
+    />
   );
 }
