@@ -1,6 +1,6 @@
-import { supabase } from "@/lib/supabase";
+﻿import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
-import { PlacementClient } from "./PlacementClient";
+import { PlacementOverviewClient } from "./PlacementOverviewClient";
 
 export default async function PlacementPage({
   params
@@ -9,49 +9,40 @@ export default async function PlacementPage({
 }) {
   const { guildId, id: tournamentId } = await params;
 
-  // 1. Fetch DRAFT phase (assuming only one phase is seeded at a time)
-  const { data: phase, error: phaseError } = await supabase
+  // Retrieve tournament
+  const { data: tournament, error: tErr } = await supabase
+    .from("tournaments")
+    .select("id, status")
+    .eq("id", tournamentId)
+    .single();
+
+  if (tErr || !tournament) {
+    notFound();
+  }
+
+  // Fetch existing phases for this tournament
+  const { data: phases, error: pErr } = await supabase
     .from("phases")
     .select("*")
     .eq("tournament_id", tournamentId)
-    .order("phase_order", { ascending: true })
-    .limit(1)
-    .single();
+    .order("phase_order", { ascending: true });
 
-  if (phaseError && phaseError.code !== 'PGRST116') {
-    console.error("Phase fetch error", phaseError);
-  }
-
-  // 2. Fetch all checked-in teams
-  const { data: teams, error: teamsError } = await supabase
-    .from("teams")
-    .select("*")
-    .eq("tournament_id", tournamentId)
-    .eq("is_checked_in", true);
-
-  if (teamsError) {
-    console.error("Teams fetch error", teamsError);
-  }
+  const currentPhases = phases || [];
 
   return (
-    <div className="p-6 md:p-8 space-y-6 min-h-[calc(100vh-2rem)] flex flex-col">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Placement & Seeding</h1>
-        <p className="text-slate-400">Glissez-déposez les équipes pour définir le seeding de la phase en cours.</p>
-      </div>
+    <div className="p-6 md:p-8 space-y-6 min-h-full flex flex-col">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-white mb-2">Placement</h1>
+        <p className="text-slate-400">
+          Sélectionnez une phase pour y répartir vos équipes (seeding).
+        </p>
+      </header>
 
-      {!phase ? (
-        <div className="bg-orange-500/10 border border-orange-500/20 text-orange-400 p-6 rounded-xl text-center">
-          Aucune phase en DRAFT trouvée. Veuillez générer une phase depuis l'onglet Structure d'abord.
-        </div>
-      ) : (
-        <PlacementClient 
-          tournamentId={tournamentId} 
-          guildId={guildId} 
-          phase={phase} 
-          availableTeams={teams || []} 
-        />
-      )}
+      <PlacementOverviewClient 
+        tournamentId={tournamentId} 
+        guildId={guildId} 
+        initialPhases={currentPhases} 
+      />
     </div>
   );
 }
