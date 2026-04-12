@@ -30,16 +30,39 @@ export default async function PublicTournamentOverview({
     const phaseIds = phases.map(p => p.id);
     const { data } = await supabase
       .from("matches")
-      .select("*, team1:team1_id(*), team2:team2_id(*)")
-      .in("phase_id", phaseIds)
-      .order("created_at", { ascending: false })
-      .limit(4);
+      .select("*, team1:team1_id(*), team2:team2_id(*), phase:phase_id(name, phase_order)")
+      .in("phase_id", phaseIds);
     if (data) matches = data;
   }
 
-  // Fake distinction between recent and upcoming
-  const recentMatches = matches?.filter(m => m.status === 'COMPLETED') || [];
-  const upcomingMatches = matches?.filter(m => m.status !== 'COMPLETED') || [];
+  // Split into recent and upcoming and limit to 4
+  const recentMatches = matches
+    .filter(m => m.status === 'COMPLETED' || m.status === 'FF' || m.status === 'BYE')
+    .sort((a, b) => {
+      const orderA = a.phase?.phase_order || 0;
+      const orderB = b.phase?.phase_order || 0;
+      if (orderB !== orderA) return orderB - orderA;
+      
+      const dateA = new Date(a.updated_at || a.created_at).getTime();
+      const dateB = new Date(b.updated_at || b.created_at).getTime();
+      return dateB - dateA;
+    })
+    .slice(0, 4);
+
+  const upcomingMatches = matches
+    .filter(m => m.status !== 'COMPLETED' && m.status !== 'FF' && m.status !== 'BYE')
+    .sort((a, b) => {
+      const orderA = a.phase?.phase_order || 0;
+      const orderB = b.phase?.phase_order || 0;
+      if (orderA !== orderB) return orderA - orderB;
+      
+      const roundA = a.round_number || 0;
+      const roundB = b.round_number || 0;
+      if (roundA !== roundB) return roundA - roundB;
+      
+      return (a.match_number || 0) - (b.match_number || 0);
+    })
+    .slice(0, 4);
 
   return (
     <div className="space-y-12 animate-in fade-in duration-300">
@@ -57,35 +80,50 @@ export default async function PublicTournamentOverview({
                 Aucun match terminé
               </p>
             ) : (
-              recentMatches.map(match => (
-                <div key={match.id} className="bg-[#151722] border border-slate-800/50 hover:bg-[#1a1d2d] transition-colors rounded overflow-hidden flex flex-col font-mono text-sm shadow-sm cursor-pointer group">
-                  <div className="text-xs text-slate-500 px-3 py-1.5 border-b border-slate-800/50 bg-[#12141d]">
-                    Match • Round {match.round_number || '?'}
-                  </div>
-                  <div className="flex flex-col p-2">
-                    <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
-                      <span className={`font-semibold ${match.score1 > match.score2 ? 'text-slate-200' : 'text-slate-400'}`}>
-                        {match.team1?.name || "TBD"}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-slate-300 font-bold">{match.score1 || 0}</span>
-                        {match.score1 > match.score2 && <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">V</span>}
-                        {match.score1 < match.score2 && <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">D</span>}
+              recentMatches.map(match => {
+                const s1 = match.team1_score || 0;
+                const s2 = match.team2_score || 0;
+                const isBye = match.status === 'BYE';
+                const team1Wins = s1 > s2 || isBye;
+                const team2Wins = s2 > s1 && !isBye;
+
+                return (
+                  <div key={match.id} className="bg-[#151722] border border-slate-800/50 hover:bg-[#1a1d2d] transition-colors rounded overflow-hidden flex flex-col font-mono text-sm shadow-sm cursor-pointer group">
+                    <div className="text-xs text-slate-500 px-3 py-1.5 border-b border-slate-800/50 bg-[#12141d]">
+                      {match.phase?.name || 'Match'} • Round {match.round_number || '?'}
+                    </div>
+                    <div className="flex flex-col p-2">
+                      <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
+                        <span className={`font-semibold ${team1Wins ? 'text-slate-200' : 'text-slate-400'}`}>
+                          {match.team1?.name || "TBD"}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          {!isBye && <span className="text-slate-300 font-bold">{s1}</span>}
+                          {isBye && <span className="text-green-500 font-bold text-xs uppercase">Auto</span>}
+                          {team1Wins ? (
+                            <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">V</span>
+                          ) : (
+                            <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">D</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
+                        <span className={`font-semibold ${team2Wins ? 'text-slate-200' : 'text-slate-400'}`}>
+                          {isBye ? "BYE" : (match.team2?.name || "TBD")}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          {!isBye && <span className="text-slate-300 font-bold">{s2}</span>}
+                          {team2Wins ? (
+                            <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">V</span>
+                          ) : (
+                            <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">D</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
-                      <span className={`font-semibold ${match.score2 > match.score1 ? 'text-slate-200' : 'text-slate-400'}`}>
-                        {match.team2?.name || "TBD"}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-slate-300 font-bold">{match.score2 || 0}</span>
-                        {match.score2 > match.score1 && <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">V</span>}
-                        {match.score2 < match.score1 && <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">D</span>}
-                      </div>
-                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -105,7 +143,7 @@ export default async function PublicTournamentOverview({
               upcomingMatches.map(match => (
                 <div key={match.id} className="bg-[#151722] border border-slate-800/50 hover:bg-[#1a1d2d] transition-colors rounded overflow-hidden flex flex-col font-mono text-sm shadow-sm cursor-pointer group">
                   <div className="text-xs text-slate-500 px-3 py-1.5 border-b border-slate-800/50 bg-[#12141d]">
-                    Match • Round {match.round_number || '?'}
+                    {match.phase?.name || 'Match'} • Round {match.round_number || '?'}
                   </div>
                   <div className="flex flex-col p-2 text-slate-300">
                     <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
