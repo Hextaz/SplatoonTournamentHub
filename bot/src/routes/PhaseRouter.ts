@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { BracketGeneratorService } from "../services/BracketGeneratorService";
+import { RoundRobinGeneratorService } from "../services/RoundRobinGeneratorService";
 
 export const phaseRouter = Router();
 
@@ -81,10 +82,14 @@ phaseRouter.put("/:id/seeding", async (req, res) => {
     const { error: delMatchesError } = await supabase.from('matches').delete().eq('phase_id', phaseId);
     if (delMatchesError) throw delMatchesError;
 
-    const { data: phaseData, error: phaseErr } = await supabase.from('phases').select('bracket_size').eq('id', phaseId).single();
+    const { data: phaseData, error: phaseErr } = await supabase.from('phases').select('bracket_size, format, max_groups').eq('id', phaseId).single();
     if (phaseErr) throw phaseErr;
 
-    await BracketGeneratorService.generateBracket(phaseId, phaseData.bracket_size || 8);
+    if (phaseData.format === "ROUND_ROBIN") {
+      await RoundRobinGeneratorService.generateGroups(phaseId, phaseData.max_groups || 1);
+    } else {
+      await BracketGeneratorService.generateBracket(phaseId, phaseData.bracket_size || 8);
+    }
 
     res.status(200).json({ message: 'Placement et arbre mis à jour avec succès' });
   } catch (error: any) {

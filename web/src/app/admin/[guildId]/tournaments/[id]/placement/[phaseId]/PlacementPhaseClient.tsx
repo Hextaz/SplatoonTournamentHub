@@ -64,7 +64,20 @@ export function PlacementPhaseClient({
     setSearchQuery("");
     setModalOpen(true);
   };
-
+  const handleAutoFill = () => {
+    let unplacedTeams = availableTeams.filter(t => !seeds.some(s => s?.id === t.id));
+    if (unplacedTeams.length === 0) {
+      alert("Plus aucune équipe disponible à placer.");
+      return;
+    }
+    const newSeeds = [...seeds];
+    for (let i = 0; i < totalSlots; i++) {
+      if (!newSeeds[i] && unplacedTeams.length > 0) {
+        newSeeds[i] = unplacedTeams.shift() || null;
+      }
+    }
+    setSeeds(newSeeds);
+  };
   const handleRemoveFromSlot = (index: number) => {
     const newSeeds = [...seeds];
     newSeeds[index] = null;
@@ -332,7 +345,13 @@ export function PlacementPhaseClient({
             })}
           </div>
 
-          <div className="p-4 border-t border-slate-800 bg-slate-900/80 shrink-0 backdrop-blur">
+          <div className="p-4 border-t border-slate-800 bg-slate-900/80 shrink-0 backdrop-blur flex flex-col gap-2">
+            <button
+              onClick={handleAutoFill}
+              className="w-full h-10 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg font-bold shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              🪄 Remplissage Automatique
+            </button>
             <button
               onClick={handleSaveSeeding}
               disabled={isSaving}

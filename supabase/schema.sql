@@ -97,6 +97,7 @@ CREATE TABLE matches (
     team2_score INT DEFAULT 0,
     status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, COMPLETED, DISPUTED, FF, DSQ
     discord_channel_id VARCHAR(50), -- To link Discord channel generating commands
+    group_id VARCHAR(50), -- Pour les phases de groupes/round robin
     next_match_winner_id UUID REFERENCES matches(id) ON DELETE SET NULL,
     next_match_loser_id UUID REFERENCES matches(id) ON DELETE SET NULL,
     reported_by_team_id UUID REFERENCES teams(id) ON DELETE SET NULL,

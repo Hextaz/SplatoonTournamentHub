@@ -116,19 +116,17 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     }
 
     // Individual Group Detail
-    // Group matches: Normally we'd filter matches by group. Assuming phase.max_groups = 1 or we just mock a standing table if we lack group_id in matches.
-    // For now we show all group matches divided by round.
-    const rounds = initialMatches.reduce((acc: any, m: any) => {
-      // Basic filter if we had group info. For now, show them all.
-      // E.g. in real life we would filter `m.group_number === selectedGroup`
+    const activeGroupMatches = initialMatches.filter((m: any) => String(m.group_id) === String(selectedGroup));
+
+    const rounds = activeGroupMatches.reduce((acc: any, m: any) => {
       acc[m.round_number] = acc[m.round_number] || [];
       acc[m.round_number].push(m);
       return acc;
     }, {});
 
-    // Compute basic standings from matches
+    // Compute basic standings from activeGroupMatches
     const teamsStats: Record<string, any> = {};
-    initialMatches.forEach((m: any) => {
+    activeGroupMatches.forEach((m: any) => {
         if (m.team1_id && !teamsStats[m.team1_id]) teamsStats[m.team1_id] = { id: m.team1_id, name: m.team1?.name || "Équipe " + m.team1_id.slice(0,4), j:0, v:0, n:0, d:0, f:0, sc:0, diff:0, pts:0 };
         if (m.team2_id && !teamsStats[m.team2_id]) teamsStats[m.team2_id] = { id: m.team2_id, name: m.team2?.name || "Équipe " + m.team2_id.slice(0,4), j:0, v:0, n:0, d:0, f:0, sc:0, diff:0, pts:0 };
 

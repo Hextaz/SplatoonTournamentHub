@@ -73,6 +73,33 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     }
   };
 
+  const handleGenerateFakeTeams = async () => {
+    const userInput = window.prompt("Combien d'équipes fictives voulez-vous générer ?", "8");
+    if (!userInput) return;
+    const count = parseInt(userInput);
+    if (!count || count <= 0) return;
+
+    try {
+      const fakeTeams = Array.from({ length: count }).map(() => ({
+        tournament_id: tournamentId,
+        name: `Equipe Fictive ${Math.floor(Math.random() * 10000)}`,
+        captain_discord_id: `999999999${Math.floor(Math.random() * 10000)}`,
+        is_checked_in: true
+      }));
+
+      const { data, error } = await supabase.from('teams').insert(fakeTeams).select();
+      if (error) throw error;
+      
+      const newTeams = data.map(d => ({ ...d, team_members: [] }));
+      setTeams(prev => [...prev, ...newTeams]);
+      router.refresh();
+      alert(`${count} équipes ajoutées avec succès !`);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la génération d'équipes fictives");
+    }
+  };
+
   const handleForceCheckIn = async (teamId: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase.from('teams').update({ is_checked_in: !currentStatus }).eq('id', teamId);
@@ -165,13 +192,22 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
             {teams.length} inscrits
           </span>
         </h2>
-        <button 
-          onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-blue-500/20"
-        >
-          <UserPlus className="w-4 h-4" />
-          Ajouter manuellement
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsAdding(!isAdding)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-blue-500/20"
+          >
+            <UserPlus className="w-4 h-4" />
+            Ajouter manuellement
+          </button>
+            
+          <button 
+            onClick={handleGenerateFakeTeams}
+            className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-yellow-500/20"
+          >
+            Générer Fake
+          </button>
+        </div>
       </div>
 
       {isAdding && (
@@ -234,7 +270,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
             Valider
           </button>
         </form>
-      )}
+        )}
 
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg">
         <table className="w-full text-left">
