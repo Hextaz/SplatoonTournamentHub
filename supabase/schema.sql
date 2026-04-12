@@ -19,6 +19,7 @@ CREATE TABLE tournaments (
     guild_id VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    is_public BOOLEAN DEFAULT FALSE,
     status tournament_status DEFAULT 'DRAFT',
     start_date TIMESTAMPTZ,
     start_at TIMESTAMPTZ,
