@@ -53,12 +53,19 @@ phaseRouter.put("/:id/seeding", async (req, res) => {
     // 0. Sécurité : Vérifier si des matchs ont déjà commencé
     const { data: activeMatches, error: matchCheckErr} = await supabase
       .from('matches')
-      .select('id, status, team1_score, team2_score')
+      .select('id, status, team1_score, team2_score, team1_id, team2_id')
       .eq('phase_id', phaseId);
       
     if (matchCheckErr) throw matchCheckErr;
     if (activeMatches && activeMatches.length > 0) {
-      const hasStarted = activeMatches.some(m => m.status === 'COMPLETED' || m.team1_score > 0 || m.team2_score > 0);
+      // Ignorer les matchs fictifs (BYE, TBD)
+      const hasStarted = activeMatches.some(m => {
+        // C'est un vrai match s'il y a deux équipes concernées
+        const isRealMatch = m.team1_id !== null && m.team2_id !== null;
+        if (!isRealMatch) return false;
+        
+        return m.status === 'COMPLETED' || m.team1_score > 0 || m.team2_score > 0;
+      });
       if (hasStarted) return res.status(400).json({ error: 'Impossible de modifier le placement : des matchs ont déjà des scores ou sont terminés.' });
     }
 
