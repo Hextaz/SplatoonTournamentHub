@@ -46,6 +46,7 @@ CREATE TABLE phases (
     max_groups INT,
     allow_asymmetric_groups BOOLEAN DEFAULT FALSE,
     bracket_size INTEGER DEFAULT 8,
+    settings JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
