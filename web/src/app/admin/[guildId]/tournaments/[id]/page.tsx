@@ -14,7 +14,7 @@ export default async function TournamentDashboard({ params }: { params: Promise<
   // Récupération Phases pour Carte 3
   const { data: phases } = await supabase
     .from('phases')
-    .select('*')
+    .select('*, matches(id, status)')
     .eq('tournament_id', tournamentId)
     .order('phase_order', { ascending: true });
   
@@ -120,7 +120,11 @@ export default async function TournamentDashboard({ params }: { params: Promise<
                     <p className="text-xs text-slate-500">{phase.format.replace('_', ' ')} • {phase.max_groups ? `${phase.max_groups} Groupes` : `Arbre de ${phase.bracket_size}`}</p>
                   </div>
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300">
-                    {phase.status === 'PUBLISHED' ? 'Publié' : phase.status === 'COMPLETED' ? 'Terminé' : 'Brouillon'}
+                    {!phase.matches || phase.matches.length === 0 
+                      ? 'Brouillon' 
+                      : phase.matches.every((m: any) => m.status === 'COMPLETED') 
+                        ? 'TerminÃ©' 
+                        : 'En cours'}
                   </span>
                 </div>
               ))

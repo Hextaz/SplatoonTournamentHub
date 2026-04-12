@@ -1,6 +1,5 @@
-﻿-- 1. Enum Types
+-- 1. Enum Types
 CREATE TYPE tournament_status AS ENUM ('DRAFT', 'REGISTRATION', 'ACTIVE', 'COMPLETED', 'ARCHIVED');
-CREATE TYPE phase_status AS ENUM ('DRAFT', 'PUBLISHED', 'COMPLETED');
 CREATE TYPE phase_type AS ENUM ('ROUND_ROBIN', 'SINGLE_ELIM', 'SWISS', 'DOUBLE_ELIM');
 
 -- 1.5 Server Settings Table
@@ -41,7 +40,6 @@ CREATE TABLE phases (
     tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     phase_order INT NOT NULL,
-    status phase_status DEFAULT 'DRAFT',
     format phase_type NOT NULL,
     max_groups INT,
     allow_asymmetric_groups BOOLEAN DEFAULT FALSE,
@@ -106,3 +104,4 @@ CREATE TABLE matches (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+

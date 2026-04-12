@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabase";
-import { PhaseManager } from "@/components/PhaseManager";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -66,3 +65,4 @@ export default async function TournamentDetailPage(props: TournamentPageProps) {
     </div>
   );
 }
+

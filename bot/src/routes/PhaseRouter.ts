@@ -5,7 +5,7 @@ import { RoundRobinGeneratorService } from "../services/RoundRobinGeneratorServi
 
 export const phaseRouter = Router();
 
-// Créer une phase (DRAFT)
+// Créer une phase
 phaseRouter.post("/", async (req, res) => {
   try {
     const { tournament_id, name, format, phase_order, bracket_size } = req.body;
@@ -17,7 +17,6 @@ phaseRouter.post("/", async (req, res) => {
         format: format || "SINGLE_ELIM",
         bracket_size: bracket_size || 8,
         phase_order: phase_order || 1,
-        status: "DRAFT",
       })
       .select()
       .single();
