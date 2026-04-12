@@ -87,7 +87,7 @@ export function MatchesOverviewClient({ guildId, tournamentId, allMatches }: { g
                   <td className="px-4 py-3">R{match.round_number} - M{match.match_number}</td>
                   <td className="px-4 py-3 text-white font-medium">{match.team1?.name || "TBD"}</td>
                   <td className="px-4 py-3 text-center text-slate-400 font-mono">
-                    {match.team1_score} - {match.team2_score}
+                    {match.status === "PENDING" ? "-" : `${match.team1_score ?? 0} - ${match.team2_score ?? 0}`}
                   </td>
                   <td className="px-4 py-3 text-white font-medium">{match.team2?.name || "TBD"}</td>
                   <td className="px-4 py-3">
