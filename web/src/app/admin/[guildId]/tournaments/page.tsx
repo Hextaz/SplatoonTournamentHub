@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Trophy, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Trophy, AlertTriangle, Loader2, Trash2, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,7 +32,7 @@ export default function TournamentsPage({
   const router = useRouter();
   const { guildId } = use(params);
   
-  const [activeTournament, setActiveTournament] = useState<any>(null);
+  const [tournaments, setTournaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -43,21 +43,33 @@ export default function TournamentsPage({
     resolver: zodResolver(formSchema),
   });
 
-  const fetchActive = async () => {
+  const fetchTournaments = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("tournaments")
       .select("*")
       .eq("guild_id", guildId)
-      .in("status", ["REGISTRATION", "ACTIVE"])
-      .maybeSingle();
+      .order("created_at", { ascending: false });
 
-    setActiveTournament(data || null);
+    setTournaments(data || []);
     setLoading(false);
   };
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le tournoi "${name}" ? Cette action est irréversible.`)) return;
+    try {
+      setLoading(true);
+      await supabase.from("tournaments").delete().eq("id", id);
+      await fetchTournaments();
+    } catch (err) {
+      console.error(err);
+      alert("Une erreur est survenue lors de la suppression.");
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchActive();
+    fetchTournaments();
   }, [guildId]);
 
   const onSubmit = async (data: FormValues) => {
@@ -95,7 +107,7 @@ export default function TournamentsPage({
 
       setShowCreateModal(false);
       reset();
-      fetchActive();
+      fetchTournaments();
       
       router.push(`/admin/${guildId}/tournaments/${created.id}`);
 
@@ -114,41 +126,61 @@ export default function TournamentsPage({
           <h1 className="text-3xl font-bold text-white mb-2">🏆 Gestion des Tournois</h1>
           <p className="text-slate-400">Gérez le tournoi en cours et lancez de nouvelles éditions.</p>
         </div>
-        {!activeTournament && (
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Créer un Tournoi
-          </button>
-        )}
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          Créer un Tournoi
+        </button>
       </div>
 
       {loading ? (
         <div className="bg-slate-800/50 rounded-2xl border border-slate-700 p-8 flex items-center justify-center min-h-[200px]">
           <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
         </div>
-      ) : activeTournament ? (
-        <div className="bg-slate-900 border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl">
-          <div className="bg-slate-800 p-6 border-b border-slate-700 flex justify-between items-center">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded">Édition Active</span>
-                <span className="text-slate-400 text-sm">ID: {activeTournament.id.split('-')[0]}...</span>
+      ) : tournaments && tournaments.length > 0 ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {tournaments.map((tournament) => (
+            <div key={tournament.id} className="bg-slate-900 border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
+              <div className="bg-slate-800 p-6 border-b border-slate-700">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex flex-col items-start gap-2">
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${
+                      tournament.status === 'ACTIVE' || tournament.status === 'REGISTRATION' ? 'bg-green-500/20 text-green-400' :
+                      tournament.status === 'COMPLETED' ? 'bg-blue-500/20 text-blue-400' :
+                      tournament.status === 'ARCHIVED' ? 'bg-slate-500/20 text-slate-400' : 'bg-yellow-500/20 text-yellow-400'
+                    }`}>
+                      {tournament.status}
+                    </span>
+                    <h2 className="text-2xl font-bold text-white leading-tight">{tournament.name}</h2>
+                  </div>
+                  <button 
+                    onClick={() => handleDelete(tournament.id, tournament.name)}
+                    title="Supprimer"
+                    className="p-2 ml-4 bg-slate-700/50 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors shrink-0"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+                {tournament.description && (
+                  <p className="text-slate-400 mb-4 line-clamp-2">{tournament.description}</p>
+                )}
+                <div className="flex flex-wrap gap-4 text-sm text-slate-500">
+                  <span>ID: {tournament.id.split('-')[0]}...</span>
+                  <span>📅 {new Date(tournament.start_at).toLocaleDateString("fr-FR")}</span>
+                </div>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">{activeTournament.name}</h2>
-              {activeTournament.description && (
-                <p className="text-slate-400">{activeTournament.description}</p>
-              )}
+              <div className="p-4 bg-slate-900/50">
+                <button 
+                  onClick={() => router.push(`/admin/${guildId}/tournaments/${tournament.id}`)}
+                  className="w-full bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
+                >
+                  <Settings className="w-5 h-5" /> Salle des Machines
+                </button>
+              </div>
             </div>
-            <button 
-              onClick={() => router.push(`/admin/${guildId}/tournaments/${activeTournament.id}`)}
-              className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-colors flex items-center gap-2"
-            >
-              Salle des Machines ⚙️
-            </button>
-          </div>
+          ))}
         </div>
       ) : (
         <div className="bg-slate-800/30 border border-slate-700/50 border-dashed rounded-2xl p-12 text-center">
