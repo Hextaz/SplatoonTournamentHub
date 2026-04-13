@@ -265,6 +265,8 @@ app.post("/api/discord/sync-schedule", async (req, res) => {
   app.use('/api/phases', phaseRouter);
   const { matchRouter } = require('./routes/MatchRouter');
   app.use('/api/matches', matchRouter);
+  const { tournamentRouter } = require('./routes/TournamentRouter');
+  app.use('/api/tournaments', tournamentRouter);
 
 // 3. Connect DB and Start Systems
 const bootstrap = async () => {
@@ -304,6 +306,8 @@ const bootstrap = async () => {
 
     // Gérer les interactions des Commandes Slash
     client.on("interactionCreate", async (interaction) => {
+      const { RegistrationService } = require('./services/RegistrationService');
+      try { await RegistrationService.handleInteraction(interaction); } catch(e) { console.error('Registration Error', e); }
       // -- GESTION DES MODALES --
       if (interaction.isModalSubmit()) {
         try {
@@ -439,3 +443,5 @@ const bootstrap = async () => {
 };
 
 bootstrap();
+
+

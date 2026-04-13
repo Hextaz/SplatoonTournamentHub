@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ExternalLink, Users, Settings2, GitMerge } from "lucide-react";
 import Link from "next/link";
 import { VisibilityToggle } from "./VisibilityToggle";
+import { OpenRegistrationButton } from "./OpenRegistrationButton";
 
 export default async function TournamentDashboard({ params }: { params: Promise<{ guildId: string; id: string }> }) {
   const { guildId, id: tournamentId } = await params;
@@ -58,12 +59,13 @@ export default async function TournamentDashboard({ params }: { params: Promise<
             {/* Composant Client */}
             <VisibilityToggle tournamentId={tournamentId} initialIsPublic={!!tournament.is_public} />
           </div>
-          <div className="mt-8 pt-4 border-t border-slate-800">
+          <div className="mt-4 pt-4 border-t border-slate-800 space-y-4">
             <p className="text-xs text-slate-500">
               {tournament.is_public 
                 ? "Le tournoi est actuellement visible par tous les joueurs via l'URL publique." 
                 : "Le tournoi est privé et masqué au grand public. Préparez-le avant de le publier."}
             </p>
+            <OpenRegistrationButton tournamentId={tournamentId} />
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { supabase } from "@/lib/supabase";
 import dayjs from "dayjs";
-import { Save, CalendarDays, RefreshCw, MessageSquare, Shield } from "lucide-react";
+import { Save, CalendarDays, RefreshCw, MessageSquare, Shield, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -48,6 +48,7 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
       start_at: tournament.start_at ? dayjs(tournament.start_at).format('YYYY-MM-DDTHH:mm') : "",
       checkin_start_at: tournament.checkin_start_at ? dayjs(tournament.checkin_start_at).format('YYYY-MM-DDTHH:mm') : "",
       checkin_end_at: tournament.checkin_end_at ? dayjs(tournament.checkin_end_at).format('YYYY-MM-DDTHH:mm') : "",
+      discord_registration_channel_id: tournament.discord_registration_channel_id || "",
       discord_announcement_channel_id: tournament.discord_announcement_channel_id || "",
       discord_checkin_channel_id: tournament.discord_checkin_channel_id || "",
       discord_captain_role_id: tournament.discord_captain_role_id || "",
@@ -63,6 +64,7 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
       start_at: data.start_at ? new Date(data.start_at).toISOString() : null,
       checkin_start_at: data.checkin_start_at ? new Date(data.checkin_start_at).toISOString() : null,
       checkin_end_at: data.checkin_end_at ? new Date(data.checkin_end_at).toISOString() : null,
+      discord_registration_channel_id: data.discord_registration_channel_id || null,
       discord_announcement_channel_id: data.discord_announcement_channel_id || null,
       discord_checkin_channel_id: data.discord_checkin_channel_id || null,
       discord_captain_role_id: data.discord_captain_role_id || null,
@@ -87,12 +89,14 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-          <CalendarDays className="w-8 h-8 text-blue-400" />
-          Paramètres du Tournoi
-        </h1>
-        <p className="text-slate-400">Configurez les dates de ce tournoi.</p>
+      <div className="flex justify-between items-center bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+            <CalendarDays className="w-8 h-8 text-blue-400" />
+            Paramètres du Tournoi
+          </h1>
+          <p className="text-slate-400">Configurez les dates de ce tournoi et les paramètres Discord.</p>
+        </div>
       </div>
 
       {message && (
@@ -142,6 +146,20 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
           <div className="text-slate-400 text-sm animate-pulse">Chargement des salons et rôles depuis Discord...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-slate-300">Salon des inscriptions</label>
+              <select
+                {...register("discord_registration_channel_id")}
+                className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+              >
+                <option value="">-- Aucun salon --</option>
+                {channels.map((ch: any) => (
+                  <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-3">
               <label className="block text-sm font-semibold text-slate-300">Salon des annonces</label>
               <select
@@ -212,7 +230,7 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
             className="flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20"
           >
             {isSaving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-            Enregistrer les dates
+            Enregistrer les paramètres
           </button>
         </div>
       </form>

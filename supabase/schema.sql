@@ -27,6 +27,8 @@ CREATE TABLE tournaments (
     checkin_end_at TIMESTAMPTZ,
     checkin_message_id TEXT,
     discord_announcement_channel_id TEXT,
+    discord_registration_channel_id TEXT,
+    is_registration_open BOOLEAN DEFAULT FALSE,
     discord_checkin_channel_id TEXT,
     discord_captain_role_id TEXT,
     discord_to_role_id TEXT,
@@ -104,4 +106,5 @@ CREATE TABLE matches (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
 
