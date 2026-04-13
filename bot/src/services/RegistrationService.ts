@@ -310,18 +310,26 @@ export class RegistrationService {
             .select()
             .single();
 
-        if (teamErr || !team) throw teamErr;
+        if (teamErr) {
+            if (teamErr.message?.includes('unique_captain_per_tournament') || teamErr.code === '23505') {
+                return interaction.editReply({ content: "❌ **Impossible de s'inscrire** : Tu es déjà associé en tant que capitaine à une autre équipe pour ce tournoi !" });
+            }
+            throw teamErr;
+        }
+        if (!team) throw new Error("Équipe non créée");
 
         // 2. Sauvegarder les joueurs (Main + Subs)
         const allPlayers = [...cachedData.players, ...subs];
         
         for (let i=0; i<allPlayers.length; i++) {
-           await supabase.from('team_members').insert({
+           const { error: memberErr } = await supabase.from('team_members').insert({
                team_id: team.id,
-               name: allPlayers[i].name,
+               user_id: i === 0 ? interaction.user.id : null,
+               ingame_name: allPlayers[i].name,
                is_captain: i === 0 ? true : false,
                friend_code: allPlayers[i].fc
            });
+           if (memberErr) console.error("Erreur lors de l'insertion d'un joueur:", memberErr);
         }
 
         // Nettoyage Cache
@@ -344,9 +352,9 @@ export class RegistrationService {
             }
         }
 
-        // 4. Message Public dans le salon d'annonce
-        if (tournament && tournament.discord_announcement_channel_id) {
-             const annChannel = await interaction.client.channels.fetch(tournament.discord_announcement_channel_id);
+        // 4. Message Public dans le salon d'inscription
+        if (tournament && tournament.discord_registration_channel_id) {
+             const annChannel = await interaction.client.channels.fetch(tournament.discord_registration_channel_id);
              if (annChannel && annChannel.isTextBased()) {
                  const rosterStr = cachedData.players.map((p: any) => `• ${p.name}`).join('\n');
                  const subsStr = subs.length > 0 ? `\n\n**Remplaçants:**\n` + subs.map((s: any) => `• ${s.name}`).join('\n') : '';

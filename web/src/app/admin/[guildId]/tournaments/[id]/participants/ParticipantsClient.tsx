@@ -21,6 +21,16 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
   const [editingTeam, setEditingTeam] = useState<any>(null);
   const [editTeamName, setEditTeamName] = useState("");
   
+  const defaultMembers = [
+    { ingame_name: "", friend_code: "", is_captain: true },
+    { ingame_name: "", friend_code: "", is_captain: false },
+    { ingame_name: "", friend_code: "", is_captain: false },
+    { ingame_name: "", friend_code: "", is_captain: false },
+    { ingame_name: "", friend_code: "", is_captain: false },
+    { ingame_name: "", friend_code: "", is_captain: false },
+  ];
+  const [teamMembers, setTeamMembers] = useState(defaultMembers);
+  
   const [teamToDelete, setTeamToDelete] = useState<any>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -47,6 +57,14 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const openAddModal = () => {
+    setIsAdding(true);
+    setNewTeamName("");
+    setSelectedMember(null);
+    setSearchTerm("");
+    setTeamMembers(JSON.parse(JSON.stringify(defaultMembers)));
+  };
+
   const handleAddTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeamName.trim() || !selectedMember) return;
@@ -61,7 +79,23 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
 
       if (error) throw error;
       
-      setTeams([...teams, { ...data, team_members: [] }]);
+      const validMembers = teamMembers.filter(m => m.ingame_name.trim() || m.friend_code.trim() || m.is_captain);
+      const membersToInsert = validMembers.map(m => ({
+        team_id: data.id,
+        user_id: m.is_captain ? selectedMember.id : null,
+        ingame_name: m.ingame_name.trim(),
+        friend_code: m.friend_code.trim(),
+        is_captain: m.is_captain
+      }));
+      
+      let updatedTeamMembers = [];
+      if (membersToInsert.length > 0) {
+        const { data: insertedMembers, error: membersError } = await supabase.from('team_members').insert(membersToInsert).select();
+        if (membersError) throw membersError;
+        updatedTeamMembers = insertedMembers;
+      }
+      
+      setTeams([...teams, { ...data, team_members: updatedTeamMembers }]);
       setNewTeamName("");
       setSearchTerm("");
       setSelectedMember(null);
@@ -90,7 +124,36 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       const { data, error } = await supabase.from('teams').insert(fakeTeams).select();
       if (error) throw error;
       
-      const newTeams = data.map(d => ({ ...d, team_members: [] }));
+      const allFakeMembers: any[] = [];
+      data.forEach(t => {
+        const memberCount = Math.floor(Math.random() * 3) + 4; // 4 to 6 members
+        for(let i = 0; i < memberCount; i++) {
+          const isCaptain = i === 0;
+          const fakeFC = `SW-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
+          allFakeMembers.push({
+            team_id: t.id,
+            user_id: isCaptain ? t.captain_discord_id : null,
+            ingame_name: `Joueur ${Math.floor(Math.random() * 1000)}`,
+            friend_code: fakeFC,
+            is_captain: isCaptain
+          });
+        }
+      });
+
+      let insertedFakeMembers: any[] = [];
+      if (allFakeMembers.length > 0) {
+        const { data: mData, error: mError } = await supabase.from('team_members').insert(allFakeMembers).select();
+        if (mError) {
+          console.error("Erreur gèn membres fictifs:", mError);
+        } else {
+          insertedFakeMembers = mData || [];
+        }
+      }
+      
+      const newTeams = data.map(d => ({ 
+        ...d, 
+        team_members: insertedFakeMembers.filter(m => m.team_id === d.id) 
+      }));
       setTeams(prev => [...prev, ...newTeams]);
       router.refresh();
       alert(`${count} équipes ajoutées avec succès !`);
@@ -125,7 +188,26 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
 
       if (error) throw error;
       
-      setTeams(teams.map(t => t.id === editingTeam.id ? { ...t, name: editTeamName, captain_discord_id: selectedMember.id } : t));
+      const { error: deleteError } = await supabase.from('team_members').delete().eq('team_id', editingTeam.id);
+      if (deleteError) throw deleteError;
+
+      const validMembers = teamMembers.filter(m => m.ingame_name.trim() || m.friend_code.trim() || m.is_captain);
+      const membersToInsert = validMembers.map(m => ({
+        team_id: editingTeam.id,
+        user_id: m.is_captain ? selectedMember.id : null,
+        ingame_name: m.ingame_name.trim(),
+        friend_code: m.friend_code.trim(),
+        is_captain: m.is_captain
+      }));
+
+      let updatedTeamMembers = [];
+      if (membersToInsert.length > 0) {
+        const { data: insertedMembers, error: membersError } = await supabase.from('team_members').insert(membersToInsert).select();
+        if (membersError) throw membersError;
+        updatedTeamMembers = insertedMembers;
+      }
+      
+      setTeams(teams.map(t => t.id === editingTeam.id ? { ...t, name: editTeamName, captain_discord_id: selectedMember.id, team_members: updatedTeamMembers } : t));
       setEditingTeam(null);
       setEditTeamName("");
       setSelectedMember(null);
@@ -161,6 +243,27 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     setSearchTerm(member.displayName);
     setIsDropdownOpen(false);
 
+    const existingMembers = [...(team.team_members || [])].sort((a: any, b: any) => 
+      (a.is_captain === b.is_captain) ? 0 : a.is_captain ? -1 : 1
+    );
+    
+    const editMembers = JSON.parse(JSON.stringify(defaultMembers)).map((def: any, idx: number) => {
+      if (existingMembers[idx]) {
+        return {
+          id: existingMembers[idx].id,
+          user_id: existingMembers[idx].user_id,
+          ingame_name: existingMembers[idx].ingame_name || "",
+          friend_code: existingMembers[idx].friend_code || "",
+          is_captain: existingMembers[idx].is_captain,
+        };
+      }
+      return def;
+    });
+    // Force captain logic
+    editMembers[0].is_captain = true;
+    for(let i=1; i<6; i++) editMembers[i].is_captain = false;
+    setTeamMembers(editMembers);
+
     if (members.length === 0) {
       fetch('http://localhost:8080/api/discord/members')
         .then((res) => res.json())
@@ -194,7 +297,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
         </h2>
         <div className="flex gap-2">
           <button 
-            onClick={() => setIsAdding(!isAdding)}
+            onClick={openAddModal}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-blue-500/20"
           >
             <UserPlus className="w-4 h-4" />
@@ -211,66 +314,131 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       </div>
 
       {isAdding && (
-        <form onSubmit={handleAddTeam} className="bg-slate-800 p-4 rounded-xl border border-blue-500/50 flex flex-col sm:flex-row gap-4 animate-in fade-in slide-in-from-top-2 overflow-visible">
-          <input 
-            type="text" 
-            placeholder="Nom de l'équipe..." 
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
-            value={newTeamName}
-            onChange={(e) => setNewTeamName(e.target.value)}
-            required
-          />
-          
-          {/* Custom Combobox for Discord Search */}
-          <div className="flex-1 relative" ref={dropdownRef}>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Rechercher capitane Discord..." 
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-white focus:outline-none focus:border-blue-500"
-                value={selectedMember ? selectedMember.displayName : searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setSelectedMember(null); // allow re-search
-                  setIsDropdownOpen(true);
-                }}
-                onFocus={() => setIsDropdownOpen(true)}
-                required={!selectedMember}
-              />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-700 custom-scrollbar">
+            <div className="bg-slate-900 border-b border-slate-700 p-4">
+              <h3 className="text-xl font-bold text-white">Ajouter une équipe</h3>
             </div>
             
-            {isDropdownOpen && !selectedMember && (
-              <div className="absolute top-11 left-0 w-full bg-slate-800 border border-slate-700 rounded-lg mt-1 max-h-60 overflow-y-auto z-50 shadow-xl overscroll-auto custom-scrollbar">
-                {members.length === 0 ? (
-                  <div className="p-3 text-sm text-slate-400 text-center">Chargement des membres...</div>
-                ) : filteredMembers.length === 0 ? (
-                  <div className="p-3 text-sm text-slate-400 text-center">Aucun membre trouvé</div>
-                ) : (
-                  filteredMembers.map(member => (
-                    <div 
-                      key={member.id} 
-                      className="px-4 py-2 hover:bg-slate-700 cursor-pointer flex flex-col transition-colors"
-                      onClick={() => {
-                        setSelectedMember(member);
-                        setSearchTerm(member.displayName);
-                        setIsDropdownOpen(false);
-                      }}
-                    >
-                      <span className="text-white font-medium">{member.displayName}</span>
-                      <span className="text-xs text-slate-400">@{member.username}</span>
+            <form onSubmit={handleAddTeam} className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-400">Nom de l'équipe</label>
+                  <input 
+                    type="text" 
+                    placeholder="Nom de l'équipe..." 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                    value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-400">Capitaine Discord</label>
+                  <div className="relative" ref={dropdownRef}>
+                    <div className="relative">
+                      <Search className="w-5 h-5 absolute left-3 top-3.5 text-slate-400" />
+                      <input 
+                        type="text" 
+                        placeholder="Rechercher capitaine Discord..." 
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                        value={selectedMember ? selectedMember.displayName : searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setSelectedMember(null);
+                          setIsDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsDropdownOpen(true)}
+                        required={!selectedMember}
+                      />
                     </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
+                    
+                    {isDropdownOpen && !selectedMember && (
+                      <div className="absolute top-14 left-0 w-full bg-slate-800 border border-slate-700 rounded-lg mt-1 max-h-60 overflow-y-auto z-50 shadow-xl overscroll-auto custom-scrollbar">
+                        {members.length === 0 ? (
+                          <div className="p-3 text-sm text-slate-400 text-center">Chargement des membres...</div>
+                        ) : filteredMembers.length === 0 ? (
+                          <div className="p-3 text-sm text-slate-400 text-center">Aucun membre trouvé</div>
+                        ) : (
+                          filteredMembers.map(member => (
+                            <div 
+                              key={member.id} 
+                              className="px-4 py-3 hover:bg-slate-700 cursor-pointer flex flex-col transition-colors border-b border-slate-700/50 last:border-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedMember(member);
+                                setSearchTerm(member.displayName);
+                                setIsDropdownOpen(false);
+                              }}
+                            >
+                              <span className="text-white font-medium">{member.displayName}</span>
+                              <span className="text-xs text-slate-400">@{member.username}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-          <button type="submit" disabled={!selectedMember || !newTeamName} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed">
-            Valider
-          </button>
-        </form>
-        )}
+                <div className="pt-4 space-y-4">
+                  <h4 className="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-2">Membres de l'équipe</h4>
+                  {teamMembers.map((member, idx) => (
+                    <div key={idx} className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex-1">
+                        <input 
+                          type="text"
+                          placeholder={`Pseudo In-game (Joueur ${idx + 1}${idx === 0 ? " - Cap" : idx >= 4 ? " - Optionnel" : ""})`}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                          value={member.ingame_name}
+                          required={member.friend_code.trim().length > 0}
+                          onChange={(e) => {
+                            const newMembers = [...teamMembers];
+                            newMembers[idx].ingame_name = e.target.value;
+                            setTeamMembers(newMembers);
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <input 
+                          type="text"
+                          placeholder={`Code Ami (ex: SW-...)${idx >= 4 ? " - Optionnel" : ""}`}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                          value={member.friend_code}
+                          required={member.ingame_name.trim().length > 0}
+                          onChange={(e) => {
+                            const newMembers = [...teamMembers];
+                            newMembers[idx].friend_code = e.target.value;
+                            setTeamMembers(newMembers);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-700">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAdding(false)}
+                  className="px-5 py-2.5 rounded-lg font-bold text-slate-300 hover:bg-slate-700 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!selectedMember || !newTeamName} 
+                  className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Valider
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg">
         <table className="w-full text-left">
@@ -305,9 +473,16 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                     <span className="text-xs text-slate-500 font-normal ml-11">Capt ID: {team.captain_discord_id}</span>
                   </td>
                   <td className="px-6 py-4 text-slate-300">
-                    {team.team_members && team.team_members.length > 0 
-                      ? <span className="text-sm bg-slate-700 px-2 py-1 rounded text-slate-300">{team.team_members.length} joueur(s)</span>
-                      : <span className="text-sm bg-purple-500/10 text-purple-400 px-2 py-1 rounded border border-purple-500/20">Externe / Admin</span>}
+                    {team.team_members && team.team_members.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm border border-slate-600 bg-slate-800 px-2 py-1 rounded text-slate-300 w-max">{team.team_members.length} joueur(s)</span>
+                        <div className="text-xs text-slate-400 max-w-[200px] truncate" title={team.team_members.map((m: any) => m.ingame_name || `(Joueur)`).join(', ')}>
+                          {team.team_members.map((m: any) => m.ingame_name || `(Joueur)`).join(', ')}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-sm bg-purple-500/10 text-purple-400 px-2 py-1 rounded border border-purple-500/20">Externe / Admin</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     {team.is_checked_in ? (
@@ -425,6 +600,42 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="pt-4 space-y-4">
+                <h4 className="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-2">Membres de l'équipe</h4>
+                {teamMembers.map((member, idx) => (
+                  <div key={idx} className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1">
+                      <input 
+                        type="text"
+                        placeholder={`Pseudo In-game (Joueur ${idx + 1}${idx === 0 ? " - Cap" : idx >= 4 ? " - Optionnel" : ""})`}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                        value={member.ingame_name}
+                        required={member.friend_code.trim().length > 0}
+                        onChange={(e) => {
+                          const newMembers = [...teamMembers];
+                          newMembers[idx].ingame_name = e.target.value;
+                          setTeamMembers(newMembers);
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <input 
+                        type="text"
+                        placeholder={`Code Ami (ex: SW-...)${idx >= 4 ? " - Optionnel" : ""}`}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                        value={member.friend_code}
+                        required={member.ingame_name.trim().length > 0}
+                        onChange={(e) => {
+                          const newMembers = [...teamMembers];
+                          newMembers[idx].friend_code = e.target.value;
+                          setTeamMembers(newMembers);
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="flex gap-3 justify-end pt-4 border-t border-slate-700">
