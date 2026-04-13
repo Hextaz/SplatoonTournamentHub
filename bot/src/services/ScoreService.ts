@@ -19,6 +19,10 @@ export class ScoreService {
       return interaction.reply({ content: '❌ Match introuvable.', ephemeral: true });
     }
 
+    if (match.status !== 'PENDING' && match.status !== 'IN_PROGRESS') {
+      return interaction.reply({ content: '❌ Ce match n\'est plus en attente de résultat.', ephemeral: true });
+    }
+
     const isTeam1 = match.teamA?.captain_discord_id === captainId;
     const isTeam2 = match.teamB?.captain_discord_id === captainId;
 
@@ -76,6 +80,10 @@ export class ScoreService {
     // 1. Check Match
     const { data: match } = await supabase.from("matches").select("*").eq("id", matchId).single();
     if (!match) return interaction.reply({ content: "❌ Match introuvable.", ephemeral: true });
+
+    if (match.status !== 'PENDING' && match.status !== 'IN_PROGRESS') {
+      return interaction.reply({ content: '❌ Ce match n\'est plus en attente de résultat.', ephemeral: true });
+    }
 
     const isTeamA = match.team1_id === reporterTeamId;
     const team1Score = isTeamA ? myScore : oppScore;
@@ -154,8 +162,8 @@ export class ScoreService {
     if (!match) return;
 
     if (action === "deny") {
-       // update status to DISPUTED
-       await supabase.from("matches").update({ status: "DISPUTED" }).eq("id", matchId);
+       // update status to CONTESTED
+       await supabase.from("matches").update({ status: "CONTESTED" }).eq("id", matchId);
        
        // Ping TO role
        const { data: settings } = await supabase.from("server_settings").select("to_role_id").eq("guild_id", interaction.guildId).single();
@@ -172,8 +180,23 @@ export class ScoreService {
        await interaction.update({ content: `**SCORE CONTESTÉ** - Appel aux arbitres : ${toPing}`, embeds: [updatedEmbed], components: [] });
 
     } else if (action === "val") {
-       // update status to COMPLETED
-       await supabase.from("matches").update({ status: "COMPLETED" }).eq("id", matchId);
+       let winnerId = null;
+       let loserId = null;
+
+       if (match.team1_score > match.team2_score) {
+          winnerId = match.team1_id;
+          loserId = match.team2_id;
+       } else if (match.team2_score > match.team1_score) {
+          winnerId = match.team2_id;
+          loserId = match.team1_id;
+       }
+
+       // update status to COMPLETED and save winner/loser
+       const updatePayload: any = { status: "COMPLETED" };
+       if (winnerId) updatePayload.winner_id = winnerId;
+       if (loserId) updatePayload.loser_id = loserId;
+
+       await supabase.from("matches").update(updatePayload).eq("id", matchId);
 
        const embedBase = interaction.message.embeds[0];
        if (!embedBase) return;
@@ -188,24 +211,17 @@ export class ScoreService {
 
        // ROUTING AUTOMATIQUE ! 🚀
        if (interaction.channel && 'send' in interaction.channel) {
-          await this.progressTeams(match, interaction.channel as TextChannel);
+          await this.progressTeams(match, interaction.channel as TextChannel, winnerId, loserId);
        }
     }
   }
 
-  public static async progressTeams(match: any, channel: TextChannel) {
-    let winnerId = null;
-    let loserId = null;
-
-    if (match.team1_score > match.team2_score) {
-       winnerId = match.team1_id;
-       loserId = match.team2_id;
-    } else if (match.team2_score > match.team1_score) {
-       winnerId = match.team2_id;
-       loserId = match.team1_id;
-    } else {
+  public static async progressTeams(match: any, channel: TextChannel, winnerId: string | null, loserId: string | null) {
+    if (!winnerId || !loserId) {
        // Egalité stricte, ce qui est rare dans un bracket. Le TO devra forcer l'avancée.
-       await channel.send("⚠️ Le score est une égalité. Le routing automatique est suspendu. Demandez l'aide d'un arbitre.");
+       const { data: settings } = await supabase.from("server_settings").select("to_role_id").eq("guild_id", channel.guildId).single();
+       const toPing = settings?.to_role_id ? `<@&${settings.to_role_id}>` : "TO (Arbitre)";
+       await channel.send(`⚠️ **MATCH NUL** pour le Match #${match.match_number || '?'}.\nLe système ne peut pas déterminer de vainqueur pour l'auto-routing.\n${toPing} - Une intervention manuelle est requise via le panel web.`);
        return;
     }
 
@@ -244,16 +260,7 @@ export class ScoreService {
         ]);
 
         if (ta && tb) {
-          if (targetMatch.discord_channel_id) {
-             try {
-                const targetChannel = await channel.client.channels.fetch(targetMatch.discord_channel_id) as TextChannel;
-                if (targetChannel && 'send' in targetChannel) {
-                   await targetChannel.send(`⚔️ **NOUVEAU MATCH DE BRACKET** ⚔️\n👉 L'équipe **${ta.name}** (<@${ta.captain_discord_id}>) affronte l'équipe **${tb.name}** (<@${tb.captain_discord_id}>) !\nPréparez-vous.`);
-                   return;
-                }
-             } catch(e) { }
-          }
-          await channel.send(`⚔️ **NOUVEAU MATCH DE BRACKET** ⚔️\n👉 L'équipe **${ta.name}** (<@${ta.captain_discord_id}>) affronte l'équipe **${tb.name}** (<@${tb.captain_discord_id}>) !\nPréparez-vous.`);
+             await channel.send(`⚔️ **NOUVEAU MATCH DE BRACKET** ⚔️\n👉 L'équipe **${ta.name}** (<@${ta.captain_discord_id}>) affronte l'équipe **${tb.name}** (<@${tb.captain_discord_id}>) !\nPréparez-vous.`);
         }
      }
   }
