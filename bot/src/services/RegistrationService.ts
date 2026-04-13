@@ -336,19 +336,33 @@ export class RegistrationService {
         registrationCache.delete(cacheKey);
 
         // 3. Actions Discord (Assigner le rôle Captain + Changer Pseudo)
+        let renameStatus = "—";
+        let roleStatus = "—";
+
         if (interaction.member && tournament) {
+            const member = interaction.member as any;
+            
+            // Renommer
             try {
-               const member = interaction.member;
-               // Renommer
                const newNickname = `${cachedData.teamName} | ${member.user.username}`.substring(0, 32);
-               await member.setNickname(newNickname).catch(() => {});
-               
-               // Rôle Capitaine
-               if (tournament.discord_captain_role_id) {
-                   await member.roles.add(tournament.discord_captain_role_id).catch(() => {});
+               await member.setNickname(newNickname);
+               renameStatus = "✅ Fait";
+            } catch(e: any) {
+               console.error("Non fatal discord error (rename):", e.message);
+               renameStatus = "⚠️ Permissions insuffisantes";
+            }
+            
+            // Rôle Capitaine
+            if (tournament.discord_captain_role_id) {
+               try {
+                   await member.roles.add(tournament.discord_captain_role_id);
+                   roleStatus = "✅ Fait";
+               } catch (e: any) {
+                   console.error("Non fatal discord error (role):", e.message);
+                   roleStatus = "⚠️ Permissions insuffisantes";
                }
-            } catch(e) {
-                console.error("Non fatal discord error:", e);
+            } else {
+               roleStatus = "Non configuré";
             }
         }
 
@@ -369,7 +383,17 @@ export class RegistrationService {
              }
         }
 
-        await interaction.editReply({ content: `✅ **Félicitations !** Votre équipe **${cachedData.teamName}** a bien été inscrite.` });
+        const replyEmbed = {
+            title: `✅ Inscription Validée !`,
+            description: `Votre équipe **${cachedData.teamName}** a bien été inscrite au tournoi.`,
+            fields: [
+                { name: "Changement de Pseudo", value: renameStatus, inline: true },
+                { name: "Rôle Capitaine", value: roleStatus, inline: true }
+            ],
+            color: 0x57F287
+        };
+
+        await interaction.editReply({ content: '', embeds: [replyEmbed] });
 
     } catch (e: any) {
         console.error("Erreur lors de la finalisation", e);
