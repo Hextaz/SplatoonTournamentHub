@@ -2,6 +2,7 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { BracketGeneratorService } from "../services/BracketGeneratorService";
 import { RoundRobinGeneratorService } from "../services/RoundRobinGeneratorService";
+import { LifecycleService } from "../services/LifecycleService";
 
 export const phaseRouter = Router();
 
@@ -105,6 +106,23 @@ phaseRouter.get("/:id/seeding", async (req, res) => {
     if (err1) throw err1;
     res.status(200).json(seeded || []);
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Synchroniser les salons Discord
+phaseRouter.post("/:id/sync", async (req, res) => {
+  try {
+    const phaseId = req.params.id;
+    const { guildId } = req.body;
+    const discordClient = req.app.locals.discordClient;
+
+    if (!guildId) return res.status(400).json({ error: "Missing guildId" });
+
+    await LifecycleService.syncPhaseChannels(phaseId, guildId, discordClient);
+    res.status(200).json({ message: 'Salons Discord générés avec succès' });
+  } catch (error: any) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 });

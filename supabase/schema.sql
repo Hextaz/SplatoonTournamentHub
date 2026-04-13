@@ -33,6 +33,7 @@ CREATE TABLE tournaments (
     discord_checkin_channel_id TEXT,
     discord_captain_role_id TEXT,
     discord_to_role_id TEXT,
+    discord_category_id VARCHAR(50),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -48,6 +49,17 @@ CREATE TABLE phases (
     allow_asymmetric_groups BOOLEAN DEFAULT FALSE,
     bracket_size INTEGER DEFAULT 8,
     settings JSONB DEFAULT '{}'::jsonb,
+    discord_channel_id VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create a groups table for better relational structure and channel tracking
+CREATE TABLE groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phase_id UUID NOT NULL REFERENCES phases(id) ON DELETE CASCADE,
+    name VARCHAR(50) NOT NULL,
+    discord_channel_id VARCHAR(50),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -86,6 +98,7 @@ CREATE TABLE phase_teams (
     team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     seed INT,
     group_name VARCHAR(50), -- Used if phase is ROUND_ROBIN
+    group_id UUID REFERENCES groups(id) ON DELETE SET NULL,
     PRIMARY KEY(phase_id, team_id)
 );
 
@@ -99,7 +112,7 @@ CREATE TABLE matches (
     team2_score INT DEFAULT 0,
     status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, COMPLETED, DISPUTED, FF, DSQ
     discord_channel_id VARCHAR(50), -- To link Discord channel generating commands
-    group_id VARCHAR(50), -- Pour les phases de groupes/round robin
+    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     next_match_winner_id UUID REFERENCES matches(id) ON DELETE SET NULL,
     next_match_loser_id UUID REFERENCES matches(id) ON DELETE SET NULL,
     reported_by_team_id UUID REFERENCES teams(id) ON DELETE SET NULL,

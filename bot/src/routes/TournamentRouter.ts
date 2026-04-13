@@ -1,8 +1,43 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { RegistrationService } from "../services/RegistrationService";
+import { LifecycleService } from "../services/LifecycleService";
 
 export const tournamentRouter = Router();
+
+// /api/tournaments/:id/launch
+tournamentRouter.post("/:id/launch", async (req, res) => {
+  try {
+    const tournamentId = req.params.id;
+    const { guildId } = req.body;
+    const discordClient = req.app.locals.discordClient;
+
+    if (!guildId) return res.status(400).json({ error: "Missing guildId" });
+
+    await LifecycleService.launchTournament(tournamentId, guildId, discordClient);
+    res.json({ success: true, message: "Tournament launched successfully." });
+  } catch (error: any) {
+    console.error(`[TournamentRouter] Error launching tournament:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// /api/tournaments/:id/close
+tournamentRouter.post("/:id/close", async (req, res) => {
+  try {
+    const tournamentId = req.params.id;
+    const { guildId } = req.body;
+    const discordClient = req.app.locals.discordClient;
+
+    if (!guildId) return res.status(400).json({ error: "Missing guildId" });
+
+    await LifecycleService.closeTournament(tournamentId, guildId, discordClient);
+    res.json({ success: true, message: "Tournament closed successfully." });
+  } catch (error: any) {
+    console.error(`[TournamentRouter] Error closing tournament:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // /api/tournaments/:id/registrations
 tournamentRouter.post("/:id/registrations", async (req, res) => {

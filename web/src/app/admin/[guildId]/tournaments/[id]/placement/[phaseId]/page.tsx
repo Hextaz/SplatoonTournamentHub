@@ -1,6 +1,7 @@
 ﻿import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { PlacementPhaseClient } from "./PlacementPhaseClient";
+import { SyncDiscordButton } from "./SyncDiscordButton";
 
 export default async function PlacementPhasePage({
   params
@@ -34,13 +35,14 @@ export default async function PlacementPhasePage({
 
   return (
     <div className="min-h-[calc(100vh-2rem)] flex flex-col p-6 md:p-8">
-      <header className="mb-6 flex justify-between items-end">
+      <header className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
           <div className="text-sm text-blue-400 font-bold mb-1 tracking-wider uppercase">Placement</div>
           <h1 className="text-3xl font-bold text-white leading-tight">
             {phase.name}
           </h1>
         </div>
+        <SyncDiscordButton guildId={guildId} tournamentId={tournamentId} phaseId={phaseId} />
       </header>
 
       <PlacementPhaseClient 

@@ -4,6 +4,7 @@ import { ExternalLink, Users, Settings2, GitMerge } from "lucide-react";
 import Link from "next/link";
 import { VisibilityToggle } from "./VisibilityToggle";
 import { OpenRegistrationButton } from "./OpenRegistrationButton";
+import { TournamentLifecycleManager } from "./TournamentLifecycleManager";
 
 export default async function TournamentDashboard({ params }: { params: Promise<{ guildId: string; id: string }> }) {
   const { guildId, id: tournamentId } = await params;
@@ -50,6 +51,13 @@ export default async function TournamentDashboard({ params }: { params: Promise<
           Page publique <ExternalLink className="w-4 h-4" />
         </Link>
       </header>
+
+      {/* Tournament Lifecycle Manager */}
+      <TournamentLifecycleManager 
+        tournamentId={tournamentId} 
+        guildId={guildId} 
+        status={tournament.status} 
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* Card 1: Statut (Haut Gauche) */}

@@ -55,6 +55,8 @@ export default function TournamentsPage({
     setLoading(false);
   };
 
+  const hasActiveTournament = tournaments.some(t => ['REGISTRATION', 'ACTIVE', 'DRAFT'].includes(t.status));
+
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le tournoi "${name}" ? Cette action est irréversible.`)) return;
     try {
@@ -140,13 +142,28 @@ export default function TournamentsPage({
           <p className="text-slate-400">Gérez le tournoi en cours et lancez de nouvelles éditions.</p>
         </div>
         <button 
-          onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors"
+          onClick={() => !hasActiveTournament && setShowCreateModal(true)}
+          disabled={hasActiveTournament}
+          title={hasActiveTournament ? "Un tournoi est déjà actif" : ""}
+          className={`px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors ${
+            hasActiveTournament 
+              ? "bg-slate-700/50 text-slate-500 cursor-not-allowed" 
+              : "bg-blue-600 hover:bg-blue-500 text-white"
+          }`}
         >
           <Plus className="w-5 h-5" />
           Créer un Tournoi
         </button>
       </div>
+
+      {hasActiveTournament && !loading && (
+        <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-xl p-4 flex gap-4 items-center text-yellow-500">
+          <AlertTriangle className="w-6 h-6 shrink-0" />
+          <p>
+            <strong>Bloqué :</strong> Un tournoi est déjà en cours de configuration ou actif. Vous devez le terminer (clôturer) ou le supprimer avant d'en créer un nouveau afin de prévenir les conflits de salons Discord.
+          </p>
+        </div>
+      )}
 
       {loading ? (
         <div className="bg-slate-800/50 rounded-2xl border border-slate-700 p-8 flex items-center justify-center min-h-[200px]">
