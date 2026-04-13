@@ -1,4 +1,4 @@
-import { Client, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Interaction, MathUtility } from 'discord.js';
+import { Client, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Interaction } from 'discord.js';
 import { supabase } from '../lib/supabase';
 
 // Cache to store the initial roster modal submission
@@ -115,7 +115,7 @@ export class RegistrationService {
     if (!input || input.trim() === '') return null;
     const regex = /(.*?)(SW-\d{4}-\d{4}-\d{4})/i;
     const match = input.match(regex);
-    if (!match) return null;
+    if (!match || !match[1] || !match[2]) return null;
     
     // Le nom est ce qui précède le FC (nettoyé)
     const name = match[1].replace(/[-:]/g, '').trim(); 
