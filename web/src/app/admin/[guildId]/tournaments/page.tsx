@@ -76,6 +76,14 @@ export default function TournamentsPage({
     setCreating(true);
 
     try {
+      // 1. Récupérer les paramètres par défaut du serveur
+      const { data: serverSettings } = await supabase
+        .from("server_settings")
+        .select("*")
+        .eq("guild_id", guildId)
+        .single();
+
+      // 2. Créer le tournoi avec ou sans paramètres par défaut
       const { data: created, error } = await supabase
         .from("tournaments")
         .insert({
@@ -85,7 +93,12 @@ export default function TournamentsPage({
           status: "REGISTRATION",
           start_at: new Date(data.start_at).toISOString(),
           checkin_start_at: new Date(data.checkin_start_at).toISOString(),
-          checkin_end_at: new Date(data.checkin_end_at).toISOString()
+          checkin_end_at: new Date(data.checkin_end_at).toISOString(),
+          discord_registration_channel_id: serverSettings?.registration_channel_id || null,
+          discord_announcement_channel_id: serverSettings?.announcement_channel_id || null,
+          discord_checkin_channel_id: serverSettings?.checkin_channel_id || null,
+          discord_captain_role_id: serverSettings?.captain_role_id || null,
+          discord_to_role_id: serverSettings?.to_role_id || null,
         })
         .select()
         .single();

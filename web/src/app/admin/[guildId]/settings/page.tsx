@@ -21,6 +21,7 @@ export default function SettingsPage({
     to_role_id: "",
     checkin_channel_id: "",
     announcement_channel_id: "",
+    registration_channel_id: "",
   });
 
   const [discordRoles, setDiscordRoles] = useState<{ id: string; name: string }[]>([]);
@@ -46,6 +47,7 @@ export default function SettingsPage({
             to_role_id: dbSettings.to_role_id || "",
             checkin_channel_id: dbSettings.checkin_channel_id || "",
             announcement_channel_id: dbSettings.announcement_channel_id || "",
+            registration_channel_id: dbSettings.registration_channel_id || "",
           });
         }
 
@@ -90,6 +92,7 @@ export default function SettingsPage({
         to_role_id: settings.to_role_id,
         checkin_channel_id: settings.checkin_channel_id,
         announcement_channel_id: settings.announcement_channel_id,
+        registration_channel_id: settings.registration_channel_id,
         updated_at: new Date().toISOString(),
       };
 
@@ -244,6 +247,32 @@ export default function SettingsPage({
                   type="text" 
                   name="announcement_channel_id"
                   value={settings.announcement_channel_id}
+                  onChange={handleChange}
+                  placeholder="ID du Salon" 
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label className="text-sm font-medium text-slate-400">Salon d'Inscriptions (Caché/Spécifique)</label>
+              {discordChannels.length > 0 ? (
+                <select
+                  name="registration_channel_id"
+                  value={settings.registration_channel_id}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">Sélectionner un salon textuel pour les inscriptions</option>
+                  {discordChannels.map((ch) => (
+                    <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <input 
+                  type="text" 
+                  name="registration_channel_id"
+                  value={settings.registration_channel_id}
                   onChange={handleChange}
                   placeholder="ID du Salon" 
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"

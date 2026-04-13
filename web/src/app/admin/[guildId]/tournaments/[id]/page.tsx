@@ -30,6 +30,11 @@ export default async function TournamentDashboard({ params }: { params: Promise<
   const hasDiscordRoles = !!tournament.discord_captain_role_id || !!tournament.discord_to_role_id;
   const hasDiscordChannels = !!tournament.discord_announcement_channel_id || !!tournament.discord_checkin_channel_id;
 
+  const now = new Date();
+  const startDate = tournament.start_at ? new Date(tournament.start_at) : (tournament.start_date ? new Date(tournament.start_date) : null);
+  const checkinStart = tournament.checkin_start_at ? new Date(tournament.checkin_start_at) : null;
+  const hasStartedOrCheckin = !!((checkinStart && now >= checkinStart) || (startDate && now >= startDate) || tournament.status === 'ACTIVE' || tournament.status === 'COMPLETED' || tournament.status === 'ARCHIVED');
+
   return (
     <div className="p-6 md:p-8 space-y-6 min-h-full bg-slate-950 text-slate-200">
       <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-8">
@@ -65,7 +70,12 @@ export default async function TournamentDashboard({ params }: { params: Promise<
                 ? "Le tournoi est actuellement visible par tous les joueurs via l'URL publique." 
                 : "Le tournoi est privé et masqué au grand public. Préparez-le avant de le publier."}
             </p>
-            <OpenRegistrationButton tournamentId={tournamentId} />
+            <OpenRegistrationButton 
+              tournamentId={tournamentId} 
+              isRegistrationOpen={!!tournament.is_registration_open} 
+              isPublic={!!tournament.is_public}
+              hasStartedOrCheckin={hasStartedOrCheckin}
+            />
           </div>
         </div>
 

@@ -17,16 +17,15 @@ export class RegistrationService {
         .eq('id', tournamentId)
         .single();
       
-      if (error || !tournament) throw new Error("Tournament not found");
+      if (error || !tournament) throw new Error("Tournoi introuvable dans la base de données.");
 
       if (!tournament.discord_registration_channel_id) {
-        console.error(`No registration channel set for tournament ${tournamentId}`);
-        return false;
+        throw new Error("Aucun salon d'inscription n'a été défini pour ce tournoi dans ses paramètres. Impossible d'envoyer l'annonce.");
       }
 
       // 2. Fetch the channel
-      const channel = await client.channels.fetch(tournament.discord_registration_channel_id) as TextChannel;
-      if (!channel) throw new Error("Channel not found");
+      const channel = await client.channels.fetch(tournament.discord_registration_channel_id).catch(() => null) as TextChannel | null;
+      if (!channel) throw new Error(`Impossible de trouver le salon Discord avec l'ID ${tournament.discord_registration_channel_id}. Vérifiez que le bot y a accès.`);
 
       // 3. Build Embed & Button
       const embed = {
@@ -36,7 +35,7 @@ export class RegistrationService {
         fields: [
           {
             name: "Règle Code Ami",
-            value: "Le format `SW-XXXX-XXXX-XXXX` est **strictement requis**."
+            value: "Format attendu: **`SW-XXXX-XXXX-XXXX`**. (ex: `Pseudo SW-1234-5678-9012`). \n*Note: le séparateur entre le pseudo et le code ami n'est pas obligatoire.*"
           }
         ],
         footer: {
@@ -56,9 +55,9 @@ export class RegistrationService {
       await channel.send({ embeds: [embed], components: [row] });
       return true;
 
-    } catch (e) {
+    } catch (e: any) {
       console.error("[RegistrationService] Error sending embed:", e);
-      return false;
+      throw new Error(e.message);
     }
   }
 
@@ -84,6 +83,26 @@ export class RegistrationService {
   // ÉTAPE 2: Le bouton ouvre la modale du roster principal
   private static async handleRegisterButton(interaction: any) {
     const tournamentId = interaction.customId.split('_').pop();
+
+    // 1. Get tournament details to check dates/status
+    const { data: tournament, error } = await supabase
+      .from('tournaments')
+      .select('status, start_at, start_date, checkin_start_at')
+      .eq('id', tournamentId)
+      .single();
+
+    if (error || !tournament) {
+      return interaction.reply({ content: "❌ Impossible de trouver ce tournoi.", ephemeral: true });
+    }
+
+    const now = new Date();
+    const startDate = tournament.start_at ? new Date(tournament.start_at) : (tournament.start_date ? new Date(tournament.start_date) : null);
+    const checkinStart = tournament.checkin_start_at ? new Date(tournament.checkin_start_at) : null;
+
+    // Vérifier si on est en phase de checkin, ou si le tournoi est commencé/terminé
+    if ((checkinStart && now >= checkinStart) || (startDate && now >= startDate) || tournament.status === 'ACTIVE' || tournament.status === 'COMPLETED' || tournament.status === 'ARCHIVED') {
+      return interaction.reply({ content: "❌ Les inscriptions sont terminées pour ce tournoi.", ephemeral: true });
+    }
 
     const modal = new ModalBuilder()
       .setCustomId(`modal_register_main_${tournamentId}`)
@@ -113,18 +132,39 @@ export class RegistrationService {
   // Regex de validation
   private static parsePlayerInput(input: string): { name: string, fc: string } | null {
     if (!input || input.trim() === '') return null;
-    const regex = /(.*?)(SW-\d{4}-\d{4}-\d{4})/i;
+    const regex = /(.*?)(SW-?\d{4}-?\d{4}-?\d{4})/i;
     const match = input.match(regex);
     if (!match || !match[1] || !match[2]) return null;
     
-    // Le nom est ce qui précède le FC (nettoyé)
+    // Le nom est ce qui précède le FC (nettoyé) et le format du FC est standardisé
     const name = match[1].replace(/[-:]/g, '').trim(); 
-    return { name: name || 'Joueur', fc: match[2].toUpperCase() };
+    const fcRaw = match[2].toUpperCase().replace(/-/g, ''); // Extract just letters/numbers: SWXXXXYYYYZZZZ
+    const fcFormatted = `SW-${fcRaw.slice(2, 6)}-${fcRaw.slice(6, 10)}-${fcRaw.slice(10, 14)}`;
+    
+    return { name: name || 'Joueur', fc: fcFormatted };
   }
 
   // ÉTAPE 3: Soumission du Modal Principal + Demande éphémère Remplaçants
   private static async handleMainModalSubmit(interaction: any) {
     const tournamentId = interaction.customId.split('_').pop();
+
+    const { data: tournament, error } = await supabase
+      .from('tournaments')
+      .select('status, start_at, start_date, checkin_start_at')
+      .eq('id', tournamentId)
+      .single();
+
+    if (error || !tournament) {
+      return interaction.reply({ content: "❌ Impossible de trouver ce tournoi.", ephemeral: true });
+    }
+
+    const now = new Date();
+    const startDate = tournament.start_at ? new Date(tournament.start_at) : (tournament.start_date ? new Date(tournament.start_date) : null);
+    const checkinStart = tournament.checkin_start_at ? new Date(tournament.checkin_start_at) : null;
+
+    if ((checkinStart && now >= checkinStart) || (startDate && now >= startDate) || tournament.status === 'ACTIVE' || tournament.status === 'COMPLETED' || tournament.status === 'ARCHIVED') {
+      return interaction.reply({ content: "❌ Les inscriptions sont terminées pour ce tournoi.", ephemeral: true });
+    }
     
     const teamName = interaction.fields.getTextInputValue('team_name');
     const p1 = interaction.fields.getTextInputValue('player1');
@@ -151,6 +191,18 @@ export class RegistrationService {
 
     // Sauvegarder dans le cache
     const cacheKey = `${interaction.user.id}_${tournamentId}`;
+
+    // Vérifier si l'utilisateur n'est pas déjà capitaine d'une équipe pour CE tournoi
+    const { count } = await supabase
+      .from('teams')
+      .select('*', { count: 'exact', head: true })
+      .eq('tournament_id', tournamentId)
+      .eq('captain_discord_id', interaction.user.id);
+
+    if (count && count > 0) {
+      return interaction.reply({ content: "❌ Vous êtes déjà capitaine d'une équipe inscrite à ce tournoi. Un capitaine ne peut avoir qu'une seule équipe.", ephemeral: true });
+    }
+
     registrationCache.set(cacheKey, {
         teamName,
         players: parsedPlayers,

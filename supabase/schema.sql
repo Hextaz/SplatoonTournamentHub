@@ -9,6 +9,7 @@ CREATE TABLE server_settings (
     captain_role_id VARCHAR(50),
     checkin_channel_id VARCHAR(50),
     announcement_channel_id TEXT,
+    registration_channel_id VARCHAR(50),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -62,7 +63,8 @@ CREATE TABLE teams (
     is_checked_in BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT unique_team_name_per_tournament UNIQUE(tournament_id, name)
+    CONSTRAINT unique_team_name_per_tournament UNIQUE(tournament_id, name),
+    CONSTRAINT unique_captain_per_tournament UNIQUE(tournament_id, captain_discord_id)
 );
 
 -- 5. Team Members Table (Replacing Players)
