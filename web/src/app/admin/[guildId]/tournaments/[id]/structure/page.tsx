@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { StructureClient } from "./StructureClient";
 
+export const dynamic = 'force-dynamic';
+
 export default async function TournamentStructurePage({
   params,
 }: {

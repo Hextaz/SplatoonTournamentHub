@@ -1,5 +1,6 @@
 import { ModalSubmitInteraction, ButtonInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, TextChannel, StringSelectMenuInteraction, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { supabase } from "../lib/supabase";
+import { LeaderboardService } from "./LeaderboardService";
 
 export class ScoreService {
   public static async handleSelectMenu(interaction: StringSelectMenuInteraction) {
@@ -208,6 +209,11 @@ export class ScoreService {
           .setFooter({ text: "Progression du bracket en cours..." });
 
        await interaction.update({ content: "Match terminé !", embeds: [updatedEmbed], components: [] });
+
+       // CALCUL LEADERBOARD POUR LES GROUPES
+       if (match.group_id) {
+          LeaderboardService.calculateGroupStandings(match.group_id).catch(console.error);
+       }
 
        // ROUTING AUTOMATIQUE ! 🚀
        if (interaction.channel && 'send' in interaction.channel) {

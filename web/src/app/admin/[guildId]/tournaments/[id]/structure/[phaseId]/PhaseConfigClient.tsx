@@ -23,11 +23,19 @@ export function PhaseConfigClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isGroups = phase.format === "ROUND_ROBIN";
-  const defaultSettings = isGroups 
+  const defaultSettings: any = isGroups 
     ? { points_win: 3, points_draw: 1, points_loss: 0, points_forfeit: 0 }
     : { third_place_match: false };
     
-  const initialSettings = phase.settings || defaultSettings;
+  const parsedSettings = phase.settings || {};
+  const initialSettings = { ...defaultSettings, ...parsedSettings };
+  
+  if (isGroups) {
+    if (initialSettings.points_win === '' || initialSettings.points_win === undefined || initialSettings.points_win === null || Number.isNaN(initialSettings.points_win)) initialSettings.points_win = 3;
+    if (initialSettings.points_draw === '' || initialSettings.points_draw === undefined || initialSettings.points_draw === null || Number.isNaN(initialSettings.points_draw)) initialSettings.points_draw = 1;
+    if (initialSettings.points_loss === '' || initialSettings.points_loss === undefined || initialSettings.points_loss === null || Number.isNaN(initialSettings.points_loss)) initialSettings.points_loss = 0;
+    if (initialSettings.points_forfeit === '' || initialSettings.points_forfeit === undefined || initialSettings.points_forfeit === null || Number.isNaN(initialSettings.points_forfeit)) initialSettings.points_forfeit = 0;
+  }
 
   const [formData, setFormData] = useState({
     name: phase.name,
@@ -48,14 +56,14 @@ export function PhaseConfigClient({
         ...prev,
         settings: {
           ...prev.settings,
-          [settingName]: type === "number" ? parseInt(value) : (value === 'true')
+          [settingName]: type === "number" ? (value === '' ? '' : Number(value)) : (type === "checkbox" ? checked : (value === 'true'))
         }
       }));
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: (type === "number" || name === 'bracket_size' || name === 'max_groups') 
-                 ? parseInt(value) 
+                 ? (value === '' ? '' : parseInt(value)) 
                  : value
       }));
     }

@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { PhaseConfigClient } from "./PhaseConfigClient";
 
+export const dynamic = 'force-dynamic';
+
 export default async function PhaseConfigPage({
   params
 }: {
