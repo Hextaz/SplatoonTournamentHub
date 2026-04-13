@@ -1,7 +1,62 @@
-import { ModalSubmitInteraction, ButtonInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, TextChannel } from "discord.js";
+import { ModalSubmitInteraction, ButtonInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, TextChannel, StringSelectMenuInteraction, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { supabase } from "../lib/supabase";
 
 export class ScoreService {
+  public static async handleSelectMenu(interaction: StringSelectMenuInteraction) {
+    if (interaction.customId !== 'select_match_to_score') return;
+
+    const matchId = interaction.values[0];
+    const captainId = interaction.user.id;
+
+    // Use aliases for join to prevent ambiguity
+    const { data: match } = await supabase
+      .from('matches')
+      .select('*, teamA:teams!matches_team1_id_fkey(id, name, captain_discord_id), teamB:teams!matches_team2_id_fkey(id, name, captain_discord_id)')
+      .eq('id', matchId)
+      .single();
+
+    if (!match) {
+      return interaction.reply({ content: '❌ Match introuvable.', ephemeral: true });
+    }
+
+    const isTeam1 = match.teamA?.captain_discord_id === captainId;
+    const isTeam2 = match.teamB?.captain_discord_id === captainId;
+
+    if (!isTeam1 && !isTeam2) {
+      return interaction.reply({ content: '❌ Vous n\'êtes pas capitaine dans ce match.', ephemeral: true });
+    }
+
+    const myTeamId = isTeam1 ? match.team1_id : match.team2_id;
+    const myName = isTeam1 ? match.teamA?.name : match.teamB?.name;
+    const oppName = isTeam1 ? match.teamB?.name || 'Inconnu' : match.teamA?.name || 'Inconnu';
+
+    const modal = new ModalBuilder()
+      .setCustomId(`modal_score_${matchId}_${myTeamId}`)
+      .setTitle('Signaler le score');
+
+    const myScoreInput = new TextInputBuilder()
+      .setCustomId('my_score')
+      .setLabel(`Score de votre équipe (${myName})`)
+      .setPlaceholder('Exemple : 2')
+      .setStyle(TextInputStyle.Short)
+      .setMaxLength(2)
+      .setRequired(true);
+
+    const oppScoreInput = new TextInputBuilder()
+      .setCustomId('opponent_score')
+      .setLabel(`Score adverse (${oppName})`)
+      .setPlaceholder('Exemple : 0')
+      .setStyle(TextInputStyle.Short)
+      .setMaxLength(2)
+      .setRequired(true);
+
+    const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(myScoreInput);
+    const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(oppScoreInput);
+
+    modal.addComponents(row1, row2);
+    await interaction.showModal(modal);
+  }
+
   public static async handleModalSubmit(interaction: ModalSubmitInteraction) {
     if (!interaction.customId.startsWith("modal_score_")) return;
 

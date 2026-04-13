@@ -308,6 +308,16 @@ const bootstrap = async () => {
     client.on("interactionCreate", async (interaction) => {
       const { RegistrationService } = require('./services/RegistrationService');
       try { await RegistrationService.handleInteraction(interaction); } catch(e) { console.error('Registration Error', e); }
+      // -- GESTION DES MENUS DEROULANTS --
+      if (interaction.isStringSelectMenu() && interaction.customId === 'select_match_to_score') {
+        try {
+          await ScoreService.handleSelectMenu(interaction);
+        } catch (e: any) {
+          console.error("SelectMenu Error", e);
+        }
+        return;
+      }
+
       // -- GESTION DES MODALES --
       if (interaction.isModalSubmit()) {
         try {
