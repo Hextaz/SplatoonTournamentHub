@@ -6,6 +6,9 @@
 app = 'tournament-bot'
 primary_region = 'cdg'
 
+[env]
+  NODE_ENV = "production"
+
 [build]
 
 [http_service]
