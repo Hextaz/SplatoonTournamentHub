@@ -1,7 +1,6 @@
 import { REST, Routes } from 'discord.js';
 import dotenv from 'dotenv';
 import { logger } from '../src/utils/logger';
-import * as registerCommand from "../src/commands/register";
 import * as adminTransferCommand from "../src/commands/admin-transfer";
 import * as adminSetupCheckinCommand from "../src/commands/admin-setup-checkin";
 import * as scoreCommand from "../src/commands/score";
@@ -19,7 +18,6 @@ if (!DISCORD_TOKEN || !CLIENT_ID) {
 }
 
 const commands = [
-  registerCommand.data.toJSON(),
   adminTransferCommand.data.toJSON(),
   adminSetupCheckinCommand.data.toJSON(),
   scoreCommand.data.toJSON(),

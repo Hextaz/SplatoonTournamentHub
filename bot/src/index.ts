@@ -11,7 +11,6 @@ import cors from "cors";
 import { logger } from "./utils/logger";
 
 // Importer les commandes locales
-import * as registerCommand from "./commands/register";
 import * as adminTransferCommand from "./commands/admin-transfer";
 import * as adminSetupCheckinCommand from "./commands/admin-setup-checkin";
 import * as scoreCommand from "./commands/score";
@@ -28,7 +27,6 @@ const DEV_GUILD_ID = process.env.DISCORD_GUILD_ID || "";
 
 // Collections pour stocker nos commandes
 const commands = new Collection<string, any>();
-commands.set(registerCommand.data.name, registerCommand);
 commands.set(adminTransferCommand.data.name, adminTransferCommand);
 commands.set(adminSetupCheckinCommand.data.name, adminSetupCheckinCommand);
 commands.set(scoreCommand.data.name, scoreCommand);
