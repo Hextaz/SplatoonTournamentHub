@@ -32,12 +32,23 @@ export default async function PhaseMatchesPage({
     console.error("Matches Error", matchesError);
   }
 
+  // 3. Fetch phase_teams
+  const { data: ptData, error: ptError } = await supabase
+    .from("phase_teams")
+    .select("*, teams(id, name, logo_url)")
+    .eq("phase_id", phase.id);
+
+  if (ptError) {
+    console.error("fetch phase_teams error", ptError);
+  }
+
   return (
     <PhaseMatchesClient 
       tournamentId={tournamentId} 
       guildId={guildId} 
       phase={phase} 
       initialMatches={matches || []}
+      phaseTeams={ptData || []}
     />
   );
 }

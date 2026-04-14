@@ -1,17 +1,37 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { GitCommit } from "lucide-react";
+import { LeaderboardTable } from "@/components/LeaderboardTable";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 type Phase = any;
 type Match = any;
 type Team = any;
 
-export function StagesClientView({ phases, matches, teams }: { phases: Phase[], matches: Match[], teams: Team[] }) {
+export function StagesClientView({ phases, matches, teams, phaseTeams }: { phases: Phase[], matches: Match[], teams: Team[], phaseTeams?: any[] }) {
+  const router = useRouter();
   const sortedPhases = [...phases].sort((a, b) => a.phase_order - b.phase_order);
   const [activePhaseId, setActivePhaseId] = useState<string | null>(sortedPhases[0]?.id || null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [groupTab, setGroupTab] = useState<"ranking" | "rounds">("ranking");
+
+  useEffect(() => {
+    // Écoute des mises à jour des scores et du classement
+    const channel = supabase.channel('public_stages_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
+        router.refresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'phase_teams' }, () => {
+        router.refresh();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
 
   const activePhase = phases.find(p => p.id === activePhaseId);
 
@@ -151,57 +171,11 @@ export function StagesClientView({ phases, matches, teams }: { phases: Phase[], 
   };
 
   const renderGroup = () => {
-    // Generate Standings
-    const teamsStats: Record<string, any> = {};
-    activeGroupMatches.forEach((m) => {
-      if (m.team1_id && !teamsStats[m.team1_id]) {
-        teamsStats[m.team1_id] = { id: m.team1_id, name: m.team1?.name, j: 0, v: 0, n: 0, d: 0, f: 0, sc: 0, diff: 0, pts: 0 };
-      }
-      if (m.team2_id && !teamsStats[m.team2_id]) {
-        teamsStats[m.team2_id] = { id: m.team2_id, name: m.team2?.name, j: 0, v: 0, n: 0, d: 0, f: 0, sc: 0, diff: 0, pts: 0 };
-      }
-
-      if (m.status === "COMPLETED" || m.status === "FF" || m.status === "BYE") {
-        const isBye = m.status === "BYE";
-        
-        if (isBye) {
-          if (m.team1_id) {
-            teamsStats[m.team1_id].j += 1;
-            teamsStats[m.team1_id].v += 1;
-            teamsStats[m.team1_id].pts += 3;
-          }
-        } else {
-          if (m.team1_id) teamsStats[m.team1_id].j += 1;
-          if (m.team2_id) teamsStats[m.team2_id].j += 1;
-  
-          const s1 = m.team1_score || 0;
-          const s2 = m.team2_score || 0;
-  
-          if (m.team1_id) {
-            teamsStats[m.team1_id].sc += s1;
-            teamsStats[m.team1_id].diff += (s1 - s2);
-          }
-          if (m.team2_id) {
-            teamsStats[m.team2_id].sc += s2;
-            teamsStats[m.team2_id].diff += (s2 - s1);
-          }
-  
-          if (s1 > s2) {
-            if (m.team1_id) { teamsStats[m.team1_id].v += 1; teamsStats[m.team1_id].pts += 3; }
-            if (m.team2_id) { teamsStats[m.team2_id].d += 1; }
-          } else if (s2 > s1) {
-            if (m.team2_id) { teamsStats[m.team2_id].v += 1; teamsStats[m.team2_id].pts += 3; }
-            if (m.team1_id) { teamsStats[m.team1_id].d += 1; }
-          } else {
-            // Draw
-            if (m.team1_id) { teamsStats[m.team1_id].n += 1; teamsStats[m.team1_id].pts += 1; }
-            if (m.team2_id) { teamsStats[m.team2_id].n += 1; teamsStats[m.team2_id].pts += 1; }
-          }
-        }
-      }
-    });
-
-    const sortedTeams = Object.values(teamsStats).sort((a: any, b: any) => b.pts - a.pts || b.diff - a.diff);
+    // Collect `phase_teams` and pass them to LeaderboardTable
+    const currentGroupPhaseTeams = phaseTeams?.filter((pt) => 
+      pt.phase_id === activePhaseId && 
+      (activeGroupId ? pt.group_id === activeGroupId : true)
+    ) || [];
 
     // Matches grouped by round
     const rounds = activeGroupMatches.reduce((acc: any, m: any) => {
@@ -257,50 +231,7 @@ export function StagesClientView({ phases, matches, teams }: { phases: Phase[], 
         </div>
 
         {groupTab === "ranking" ? (
-          <div className="overflow-x-auto bg-[#151722] rounded-lg border border-slate-800/80">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase border-b border-slate-800/80 bg-[#12141d]">
-                <tr>
-                  <th className="px-4 py-3 text-center w-10">#</th>
-                  <th className="px-4 py-3">Nom</th>
-                  <th className="px-3 py-3 text-center">J</th>
-                  <th className="px-3 py-3 text-center">V</th>
-                  <th className="px-3 py-3 text-center">N</th>
-                  <th className="px-3 py-3 text-center">D</th>
-                  <th className="px-3 py-3 text-center">F</th>
-                  <th className="px-3 py-3 text-center">SP</th>
-                  <th className="px-3 py-3 text-center">SC</th>
-                  <th className="px-3 py-3 text-center">+/-</th>
-                  <th className="px-4 py-3 text-center font-bold text-white">Pts</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/50">
-                {sortedTeams.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
-                      Aucune donnée trouvée.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedTeams.map((t, idx) => (
-                    <tr key={t.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-3 text-center font-bold text-slate-400">{idx + 1}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-200">{t.name}</td>
-                      <td className="px-3 py-3 text-center text-slate-400">{t.j}</td>
-                      <td className="px-3 py-3 text-center text-slate-400">{t.v}</td>
-                      <td className="px-3 py-3 text-center text-slate-400">{t.n}</td>
-                      <td className="px-3 py-3 text-center text-slate-400">{t.d}</td>
-                      <td className="px-3 py-3 text-center text-slate-400">{t.f}</td>
-                      <td className="px-3 py-3 text-center text-slate-400">{t.sc}</td>
-                        <td className="px-3 py-3 text-center text-slate-400">0</td>
-                      <td className="px-3 py-3 text-center text-slate-400">{t.diff}</td>
-                      <td className="px-4 py-3 text-center font-bold text-white">{t.pts}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <LeaderboardTable teams={currentGroupPhaseTeams} />
         ) : (
           <div className="space-y-8">
             {roundNumbers.map(roundNum => (

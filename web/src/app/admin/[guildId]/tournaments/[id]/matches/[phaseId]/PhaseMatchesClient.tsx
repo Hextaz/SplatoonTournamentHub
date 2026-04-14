@@ -1,17 +1,39 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Trophy, Check, X, CalendarDays, Loader2, ArrowLeft, Users } from "lucide-react";
+import { Search, Trophy, Check, X, CalendarDays, Loader2, ArrowLeft, Users, AlertCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { LeaderboardTable } from "@/components/LeaderboardTable";
 
-export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatches }: any) {
+export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatches, phaseTeams }: any) {
   const router = useRouter();
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
 
+  useEffect(() => {
+    const channel = supabase.channel('admin_phase_matches')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
+        router.refresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'phase_teams' }, () => {
+        router.refresh();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
+
   const isGroups = phase.format === "ROUND_ROBIN";
   
+  // Checking completion
+  const totalMatches = initialMatches.length;
+  const completedMatches = initialMatches.filter((m: any) => m.status === "COMPLETED" || m.status === "FF" || m.status === "BYE").length;
+  const isPhaseFinished = totalMatches > 0 && completedMatches === totalMatches;
+
   // --- STATE FOR MODAL ---
   const [mTeam1Score, setMTeam1Score] = useState(0);
   const [mTeam2Score, setMTeam2Score] = useState(0);
@@ -124,41 +146,10 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
       return acc;
     }, {});
 
-    // Compute basic standings from activeGroupMatches
-    const teamsStats: Record<string, any> = {};
-    activeGroupMatches.forEach((m: any) => {
-        if (m.team1_id && !teamsStats[m.team1_id]) teamsStats[m.team1_id] = { id: m.team1_id, name: m.team1?.name || "Équipe " + m.team1_id.slice(0,4), j:0, v:0, n:0, d:0, f:0, sc:0, diff:0, pts:0 };
-        if (m.team2_id && !teamsStats[m.team2_id]) teamsStats[m.team2_id] = { id: m.team2_id, name: m.team2?.name || "Équipe " + m.team2_id.slice(0,4), j:0, v:0, n:0, d:0, f:0, sc:0, diff:0, pts:0 };
-
-          if (m.status === "COMPLETED" || m.status === "FF" || m.status === "BYE") {
-              const isFf = m.status === "FF";
-              const isBye = m.status === "BYE";
-
-              if (isBye) {
-                if (m.team1_id) {
-                    teamsStats[m.team1_id].j++;
-                    teamsStats[m.team1_id].v++;
-                    teamsStats[m.team1_id].pts += 3;
-                }
-              } else {
-                if (m.team1_id) { teamsStats[m.team1_id].j++; teamsStats[m.team1_id].sc += m.team1_score || 0; teamsStats[m.team1_id].diff += ((m.team1_score || 0) - (m.team2_score || 0)); }
-                if (m.team2_id) { teamsStats[m.team2_id].j++; teamsStats[m.team2_id].sc += m.team2_score || 0; teamsStats[m.team2_id].diff += ((m.team2_score || 0) - (m.team1_score || 0)); }
-    
-                if (m.team1_score > m.team2_score) {
-                  if (m.team1_id) { teamsStats[m.team1_id].v++; teamsStats[m.team1_id].pts += 3; }
-                  if (m.team2_id) { isFf ? teamsStats[m.team2_id].f++ : teamsStats[m.team2_id].d++; }
-                } else if (m.team1_score < m.team2_score) {
-                  if (m.team2_id) { teamsStats[m.team2_id].v++; teamsStats[m.team2_id].pts += 3; }
-                  if (m.team1_id) { isFf ? teamsStats[m.team1_id].f++ : teamsStats[m.team1_id].d++; }
-                } else {
-                  if (m.team1_id) { teamsStats[m.team1_id].n++; teamsStats[m.team1_id].pts += 1; }
-                  if (m.team2_id) { teamsStats[m.team2_id].n++; teamsStats[m.team2_id].pts += 1; }
-                }
-              }
-          }
-    });
-
-    const sortedTeams = Object.values(teamsStats).sort((a:any, b:any) => b.pts - a.pts || b.diff - a.diff);
+    // Filter Phase Teams matching this group
+    const currentGroupPhaseTeams = phaseTeams?.filter((pt: any) => 
+      String(pt.group_id) === String(selectedGroup)
+    ) || [];
 
     return (
       <div className="p-6 md:p-8 flex flex-col gap-8">
@@ -175,49 +166,8 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
         </div>
 
         {/* Classement */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
-            <h3 className="text-xl font-bold text-slate-800">Classement</h3>
-            <span className="text-sm font-medium text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">(non-validé)</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-white border-b border-slate-100">
-                <tr>
-                  <th className="px-6 py-4 font-bold w-12 text-center">#</th>
-                  <th className="px-6 py-4 font-bold">Nom</th>
-                  <th className="px-4 py-4 font-bold text-center w-12">J</th>
-                  <th className="px-4 py-4 font-bold text-center w-12">V</th>
-                  <th className="px-4 py-4 font-bold text-center w-12">N</th>
-                  <th className="px-4 py-4 font-bold text-center w-12">D</th>
-                  <th className="px-4 py-4 font-bold text-center w-12">F</th>
-                  <th className="px-4 py-4 font-bold text-center w-16">Score</th>
-                  <th className="px-4 py-4 font-bold text-center w-16">+/-</th>
-                  <th className="px-4 py-4 font-bold text-center w-12 text-blue-600">Pts</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sortedTeams.length === 0 ? (
-                  <tr><td colSpan={10} className="px-6 py-8 text-center text-slate-500">Aucune donnée trouvée.</td></tr>
-                ) : (
-                  sortedTeams.map((t: any, idx: number) => (
-                    <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 text-center font-bold text-slate-400">{idx + 1}</td>
-                      <td className="px-6 py-4 font-bold text-slate-800">{t.name}</td>
-                      <td className="px-4 py-4 text-center text-slate-600">{t.j}</td>
-                      <td className="px-4 py-4 text-center text-slate-600">{t.v}</td>
-                      <td className="px-4 py-4 text-center text-slate-600">{t.n}</td>
-                      <td className="px-4 py-4 text-center text-slate-600">{t.d}</td>
-                      <td className="px-4 py-4 text-center text-slate-600">{t.f}</td>
-                      <td className="px-4 py-4 text-center text-slate-600">{t.sc}</td>
-                      <td className="px-4 py-4 text-center text-slate-600">{t.diff}</td>
-                      <td className="px-4 py-4 text-center font-bold text-blue-600">{t.pts}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div className="mb-8">
+          <LeaderboardTable teams={currentGroupPhaseTeams} />
         </div>
 
         {/* Rounds matches */}
@@ -354,6 +304,18 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
   return (
     <div className="relative flex-1 flex flex-col bg-slate-950">
       
+      {/* Banner for completed phase */}
+      {isPhaseFinished && (
+        <div className="bg-green-500/10 border-b border-green-500/20 px-6 py-3 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3 text-green-400">
+            <Check className="w-5 h-5" />
+            <p className="font-semibold text-sm">
+              Phase terminée ! Les résultats finaux ont été validés. ({completedMatches}/{totalMatches} matchs joués)
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
          {isGroups ? renderGroups() : renderBracket()}

@@ -18,6 +18,7 @@ export default async function PublicStagesPage({
   ]);
 
   let matches: any[] = [];
+  let phaseTeams: any[] = [];
   if (phases && phases.length > 0) {
     const phaseIds = phases.map(p => p.id);
     const { data } = await supabase
@@ -26,6 +27,12 @@ export default async function PublicStagesPage({
       .in("phase_id", phaseIds)
       .order("round_number", { ascending: true });
     if (data) matches = data;
+
+    const { data: ptData } = await supabase
+      .from("phase_teams")
+      .select("*, teams(id, name, logo_url)")
+      .in("phase_id", phaseIds);
+    if (ptData) phaseTeams = ptData;
   }
 
   if (!phases || phases.length === 0) {
@@ -42,7 +49,8 @@ export default async function PublicStagesPage({
       <StagesClientView 
         phases={phases} 
         matches={matches || []} 
-        teams={teams || []} 
+        teams={teams || []}
+        phaseTeams={phaseTeams || []}
       />
     </div>
   );

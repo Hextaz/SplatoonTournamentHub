@@ -18,7 +18,7 @@ phaseRouter.post("/", async (req, res) => {
         format: format || "SINGLE_ELIM",
         bracket_size: bracket_size || 8,
         phase_order: phase_order || 1,
-      })
+  })
       .select()
       .single();
 
