@@ -1,6 +1,8 @@
 ﻿"use client";
 
 import { useState, useEffect } from "react";
+import { getBotApiUrl } from '@/utils/api';
+
 import { useRouter } from "next/navigation";
 import { Search, Trophy, Check, X, CalendarDays, Loader2, ArrowLeft, Users, AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -61,7 +63,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     };
 
     try {
-      const res = await fetch(`http://localhost:8080/api/matches/${selectedMatch.id}/force-score`, {
+      const res = await fetch(`${getBotApiUrl()}/api/matches/${selectedMatch.id}/force-score`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(finalData)

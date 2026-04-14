@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import { getBotApiUrl } from '@/utils/api';
+
 import { revalidatePath } from "next/cache";
 
 export default async function SettingsPage() {
@@ -8,10 +10,10 @@ export default async function SettingsPage() {
   let roles: any[] = [];
   let channels: any[] = [];
   try {
-    const rolesRes = await fetch("http://localhost:8080/api/discord/roles", { cache: "no-store" });
+    const rolesRes = await fetch(`${getBotApiUrl()}/api/discord/roles?guildId=${guildId}`, { cache: "no-store" });
     if (rolesRes.ok) roles = await rolesRes.json();
     
-    const channelsRes = await fetch("http://localhost:8080/api/discord/channels", { cache: "no-store" });
+    const channelsRes = await fetch(`${getBotApiUrl()}/api/discord/channels?guildId=${guildId}`, { cache: "no-store" });
     if (channelsRes.ok) channels = await channelsRes.json();
   } catch (error) {
     console.error("Bot API is unreachable. Is Express running?", error);
@@ -56,7 +58,7 @@ export default async function SettingsPage() {
   async function triggerAutoSetup() {
     "use server";
     try {
-      const res = await fetch("http://localhost:8080/api/discord/auto-setup", { 
+      const res = await fetch(`${getBotApiUrl()}/api/discord/auto-setup?guildId=${process.env.NEXT_PUBLIC_DISCORD_GUILD_ID || ""}`, { 
         method: "POST" 
       });
       const data = (await res.json()) as AutoSetupResponse;

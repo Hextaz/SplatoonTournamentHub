@@ -8,6 +8,7 @@ import {
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import { logger } from "./utils/logger";
 
 // Importer les commandes locales
 import * as registerCommand from "./commands/register";
@@ -23,7 +24,7 @@ dotenv.config();
 const PORT = process.env.PORT || 8080;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN || "";
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
-const GUILD_ID = process.env.DISCORD_GUILD_ID || "";
+const DEV_GUILD_ID = process.env.DISCORD_GUILD_ID || "";
 
 // Collections pour stocker nos commandes
 const commands = new Collection<string, any>();
@@ -56,14 +57,13 @@ app.get("/health", (req, res) => {
 
 // Endpoint: Fetch Roles for the connected Discord Guild
 app.get("/api/discord/roles", async (req, res) => {
-  if (!GUILD_ID) {
-    return res
-      .status(500)
-      .json({ error: "DISCORD_GUILD_ID is not configured in .env" });
+  const guildId = (req.query.guildId || req.body?.guildId) as string;
+  if (!guildId) {
+    return res.status(400).json({ error: "Missing guildId parameter." });
   }
 
   try {
-    const guild = await client.guilds.fetch(GUILD_ID).catch(() => null);
+    const guild = await client.guilds.fetch(guildId).catch(() => null);
     if (!guild) {
       return res
         .status(404)
@@ -81,7 +81,7 @@ app.get("/api/discord/roles", async (req, res) => {
 
     return res.status(200).json(rolesInfo);
   } catch (error) {
-    console.error("Error fetching roles:", error);
+    logger.error("Error fetching roles:", error);
     return res.status(500).json({ error: "Failed to fetch roles." });
   }
 });
@@ -99,14 +99,14 @@ app.post("/api/discord/publish-phase", async (req, res) => {
     res.status(500).json({ error: "Failed to publish phase on Discord." });
   }
 });
-const getGuild = async (res: any) => {
-  if (!GUILD_ID) {
+const getGuild = async (res: any, guildId: string) => {
+  if (!guildId) {
     res
-      .status(500)
-      .json({ error: "DISCORD_GUILD_ID is not configured in .env" });
+      .status(400)
+      .json({ error: "Missing guildId parameter" });
     return null;
   }
-  const guild = await client.guilds.fetch(GUILD_ID).catch(() => null);
+  const guild = await client.guilds.fetch(guildId).catch(() => null);
   if (!guild) {
     res
       .status(404)
@@ -119,7 +119,8 @@ const getGuild = async (res: any) => {
 // Endpoint: Fetch Channels for Check-in configurations
 app.get("/api/discord/channels", async (req, res) => {
   try {
-    const guild = await getGuild(res);
+    const guildId = (req.query.guildId || req.body?.guildId) as string;
+    const guild = await getGuild(res, guildId);
     if (!guild) return;
 
     const channelsInfo = guild.channels.cache
@@ -132,7 +133,7 @@ app.get("/api/discord/channels", async (req, res) => {
 
     return res.status(200).json(channelsInfo);
   } catch (error) {
-    console.error("Error fetching channels:", error);
+    logger.error("Error fetching channels:", error);
     return res.status(500).json({ error: "Failed to fetch channels." });
   }
 });
@@ -140,7 +141,8 @@ app.get("/api/discord/channels", async (req, res) => {
 // Endpoint: Fetch Guild Members for Manual Input Combobox
 app.get("/api/discord/members", async (req, res) => {
   try {
-    const guild = await getGuild(res);
+    const guildId = (req.query.guildId || req.body?.guildId) as string;
+    const guild = await getGuild(res, guildId);
     if (!guild) return;
 
     // Fetch members (limited to 1000 for safety, could be adjusted)
@@ -158,7 +160,7 @@ app.get("/api/discord/members", async (req, res) => {
 
     return res.status(200).json(membersInfo);
   } catch (error) {
-    console.error("Error fetching members:", error);
+    logger.error("Error fetching members:", error);
     return res.status(500).json({ error: "Failed to fetch members." });
   }
 });
@@ -166,7 +168,8 @@ app.get("/api/discord/members", async (req, res) => {
 // Endpoint: Auto-setup for Checkin requirements
 app.post("/api/discord/auto-setup", async (req, res) => {
   try {
-    const guild = await getGuild(res);
+    const guildId = (req.query.guildId || req.body?.guildId) as string;
+    const guild = await getGuild(res, guildId);
     if (!guild) return;
 
     // 1. Création du rôle "Capitaine de Tournoi"
@@ -204,7 +207,7 @@ app.post("/api/discord/auto-setup", async (req, res) => {
       checkin_channel_id: checkinChannel.id,
     });
   } catch (error) {
-    console.error("Erreur durant l'auto-setup Discord:", error);
+    logger.error("Erreur durant l'auto-setup Discord:", error);
     return res
       .status(500)
       .json({ error: "Échec de l'auto-setup sur Discord." });
@@ -244,21 +247,45 @@ app.post("/api/discord/sync-schedule", async (req, res) => {
   // NOUVEAU ENDPOINT: Archivage
   app.post('/api/tournaments/archive-and-init', async (req, res) => {
     const { name, start_at, checkin_start_at, checkin_end_at } = req.body;
+    const guildId = (req.query.guildId || req.body?.guildId) as string;
+    
+    if (!guildId) return res.status(400).json({ error: 'Missing guildId parameter' });
+
     const { supabase } = require('./lib/supabase');
     const { ArchiveService } = require('./services/ArchiveService');
-    if (!GUILD_ID) return res.status(500).json({ error: 'Guild ID manquant' });
+
     try {
-      await supabase.from('tournaments').update({ status: 'ARCHIVED' })
-        .eq('guild_id', GUILD_ID).neq('status', 'ARCHIVED');
+      await supabase.from('tournaments')
+        .update({ status: 'ARCHIVED' })
+        .eq('guild_id', guildId)
+        .neq('status', 'ARCHIVED');
+        
       const { data: newTourney, error: insertErr } = await supabase.from('tournaments')
-        .insert({ guild_id: GUILD_ID, name: name || 'Nouveau Tournoi', start_at: start_at || null, checkin_start_at: checkin_start_at || null, checkin_end_at: checkin_end_at || null, status: 'DRAFT' })
+        .insert({ 
+          guild_id: guildId, 
+          name: name || 'Nouveau Tournoi', 
+          start_at: start_at || null, 
+          checkin_start_at: checkin_start_at || null, 
+          checkin_end_at: checkin_end_at || null, 
+          status: 'DRAFT' 
+        })
         .select().single();
+        
       if (insertErr) throw insertErr;
-      const { data: settings } = await supabase.from('server_settings').select('captain_role_id').eq('guild_id', GUILD_ID).single();
-      ArchiveService.backgroundDiscordCleanup(client, GUILD_ID, settings?.captain_role_id).catch((e: any) => console.error(e));
+      
+      const { data: settings } = await supabase.from('server_settings')
+        .select('captain_role_id')
+        .eq('guild_id', guildId)
+        .single();
+        
+      ArchiveService.backgroundDiscordCleanup(client, guildId, settings?.captain_role_id).catch((e: any) => logger.error(e));
+      
       if (newTourney) SchedulerService.scheduleTournament(newTourney);
       return res.status(202).json({ message: 'OK', tournament: newTourney });
-    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+    } catch (err: any) { 
+      logger.error('Error during archive-and-init:', err);
+      return res.status(500).json({ error: err.message }); 
+    }
   });
 
   const { phaseRouter } = require('./routes/PhaseRouter');
@@ -273,41 +300,18 @@ const bootstrap = async () => {
   try {
     // Connect Discord Bot
     await client.login(DISCORD_TOKEN);
-    console.log(`[Bot] Logged in as ${client.user?.tag}`);
+    logger.info(`[Bot] Logged in as ${client.user?.tag}`);
 
     // Démarrer le Scheduler de Tournoi
     await SchedulerService.init(client);
 
-    // Register simple Slash Commands (/register, /score)
-    if (DISCORD_TOKEN && CLIENT_ID) {
-      const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
-
-      // Clean up global commands to force Discord to update immediately
-      if (GUILD_ID) {
-        await rest.put(Routes.applicationCommands(CLIENT_ID), { body: [] });
-      }
-
-      const route = GUILD_ID
-        ? Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID)
-        : Routes.applicationCommands(CLIENT_ID);
-
-      await rest.put(route, {
-        body: [
-          registerCommand.data.toJSON(),
-          adminTransferCommand.data.toJSON(),
-          adminSetupCheckinCommand.data.toJSON(),
-          scoreCommand.data.toJSON(),
-        ],
-      });
-      console.log(
-        `[Bot] Slash commands refreshed ${GUILD_ID ? "for guild" : "globally"}`,
-      );
-    }
-
+    // MIGRATION SPRINT 11 : Le registre de commandes slash a été déporté dans bot/scripts/deploy-commands.ts
+    // pour éviter des conflits et du lag inutile au démarrage sur plusieurs serveurs.
+    
     // Gérer les interactions des Commandes Slash
     client.on("interactionCreate", async (interaction) => {
       const { RegistrationService } = require('./services/RegistrationService');
-      try { await RegistrationService.handleInteraction(interaction); } catch(e) { console.error('Registration Error', e); }
+      try { await RegistrationService.handleInteraction(interaction); } catch(e) { logger.error('Registration Error', e); }
       // -- GESTION DES MENUS DEROULANTS --
       if (interaction.isStringSelectMenu() && interaction.customId === 'select_match_to_score') {
         try {
@@ -392,7 +396,7 @@ const bootstrap = async () => {
               .eq("id", team.id);
 
             if (updateError) {
-              console.error("Failed to check in team:", updateError);
+              logger.error("Failed to check in team:", updateError);
               return interaction.reply({
                 content:
                   "❌ Une erreur base de données est survenue lors de votre Check-in. Veuillez contacter un TO.",
@@ -405,7 +409,7 @@ const bootstrap = async () => {
               ephemeral: true,
             });
           } catch (err: any) {
-            console.error("Check-in interaction error", err);
+            logger.error("Check-in interaction error", err);
           }
         }
         return;
@@ -423,7 +427,7 @@ const bootstrap = async () => {
             await command.autocomplete(interaction);
           }
         } catch (error) {
-          console.error(error);
+          logger.error(error);
         }
         return;
       }
@@ -433,7 +437,7 @@ const bootstrap = async () => {
       try {
         await command.execute(interaction);
       } catch (error) {
-        console.error(error);
+        logger.error(error);
         await interaction.reply({
           content:
             "Il y a eu une erreur lors de l'exécution de cette commande !",
@@ -444,10 +448,10 @@ const bootstrap = async () => {
 
     // Start Express Web API
     app.listen(PORT, () => {
-      console.log(`[API] Express listening on port ${PORT}`);
+      logger.info(`[API] Express listening on port ${PORT}`);
     });
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     process.exit(1);
   }
 };

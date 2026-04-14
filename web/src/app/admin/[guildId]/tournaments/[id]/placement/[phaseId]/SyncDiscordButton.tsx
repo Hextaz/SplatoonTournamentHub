@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { getBotApiUrl } from '@/utils/api';
+
 import { RefreshCcw, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -14,14 +16,14 @@ export function SyncDiscordButton({ guildId, tournamentId, phaseId }: Props) {
   const [isSyncing, setIsSyncing] = useState(false);
   const router = useRouter();
 
-  const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:8080";
+  
 
   const handleSync = async () => {
     if (!window.confirm("Générer/Synchroniser les salons Discord pour cette phase ? Les capitaines de cette phase auront accès à leurs salons respectifs.")) return;
 
     setIsSyncing(true);
     try {
-      const res = await fetch(`${BOT_API_URL}/api/phases/${phaseId}/sync`, {
+      const res = await fetch(`${getBotApiUrl()}/api/phases/${phaseId}/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ guildId, tournamentId })

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { getBotApiUrl } from '@/utils/api';
+
 import { RefreshCw, Send } from "lucide-react";
 
 export function OpenRegistrationButton({ tournamentId, isRegistrationOpen, isPublic, hasStartedOrCheckin }: { tournamentId: string, isRegistrationOpen: boolean, isPublic: boolean, hasStartedOrCheckin: boolean }) {
@@ -13,7 +15,7 @@ export function OpenRegistrationButton({ tournamentId, isRegistrationOpen, isPub
     setIsGeneratingEmbed(true);
     setMessage(null);
     try {
-      const res = await fetch(`http://localhost:8080/api/tournaments/${tournamentId}/registrations`, {
+      const res = await fetch(`${getBotApiUrl()}/api/tournaments/${tournamentId}/registrations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "open" })

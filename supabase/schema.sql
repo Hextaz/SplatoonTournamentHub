@@ -34,6 +34,7 @@ CREATE TABLE tournaments (
     discord_captain_role_id TEXT,
     discord_to_role_id TEXT,
     discord_category_id VARCHAR(50),
+    admin_ids VARCHAR(50)[],
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -123,3 +124,65 @@ CREATE TABLE matches (
 );
 
 
+-- Sprint 11: Set up RLS to restrict edits to tournament owners
+
+-- Active l'RLS pour les tables
+ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE server_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE phases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
+
+-- TOURNAMENTS
+-- Les admins et l'owner peuvent tout faire, tout le monde peut lire
+CREATE POLICY "Public can view tournaments"
+  ON tournaments FOR SELECT
+  USING (true);
+
+CREATE POLICY "Owner can edit tournaments"
+  ON tournaments FOR UPDATE
+  USING ((auth.jwt() ->> 'discord_id') = ANY(admin_ids));
+
+CREATE POLICY "Owner can insert tournaments"
+  ON tournaments FOR INSERT
+  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY(admin_ids));
+
+CREATE POLICY "Owner can delete tournaments"
+  ON tournaments FOR DELETE
+  USING ((auth.jwt() ->> 'discord_id') = ANY(admin_ids));
+
+-- SERVER_SETTINGS
+CREATE POLICY "Public can view server settings"
+  ON server_settings FOR SELECT
+  USING (true);
+
+CREATE POLICY "Owner can edit server settings"
+  ON server_settings FOR UPDATE
+  USING ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE tournaments.guild_id = server_settings.guild_id LIMIT 1)));
+
+CREATE POLICY "Owner can insert server settings"
+  ON server_settings FOR INSERT
+  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE tournaments.guild_id = server_settings.guild_id LIMIT 1)));
+
+-- PHASES, TEAMS, MATCHES
+-- M��mes r��gles : lecture pour tous, modif pour le owner du tournoi concern��
+CREATE POLICY "Public can view child items"
+  ON phases FOR SELECT USING (true);
+CREATE POLICY "Owner can modify phases"
+  ON phases FOR ALL
+  USING ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)))
+  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)));
+
+CREATE POLICY "Public can view teams"
+  ON teams FOR SELECT USING (true);
+CREATE POLICY "Owner can modify teams"
+  ON teams FOR ALL
+  USING ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)))
+  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)));
+
+CREATE POLICY "Public can view matches"
+  ON matches FOR SELECT USING (true);
+CREATE POLICY "Owner can modify matches"
+  ON matches FOR ALL
+  USING ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)))
+  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)));

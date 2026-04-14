@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { getBotApiUrl } from '@/utils/api';
+
 import { useRouter } from "next/navigation";
 import {
   Lock,
@@ -163,7 +165,7 @@ export function PlacementPhaseClient({
 
     try {
       const res = await fetch(
-        `http://localhost:8080/api/phases/${phase.id}/seeding`,
+        `${getBotApiUrl()}/api/phases/${phase.id}/seeding`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

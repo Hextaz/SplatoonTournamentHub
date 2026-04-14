@@ -1,6 +1,8 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import { getBotApiUrl } from '@/utils/api';
+
 import { supabase } from "@/lib/supabase";
 import dayjs from "dayjs";
 import { Save, CalendarDays, RefreshCw, MessageSquare, Shield, Send } from "lucide-react";
@@ -18,10 +20,14 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
 
   useEffect(() => {
     const fetchDiscordData = async () => {
+      if (!guildId) {
+        setIsLoadingDiscord(false);
+        return;
+      }
       try {
         const [channelsRes, rolesRes] = await Promise.all([
-          fetch(`http://localhost:8080/api/discord/channels?guildId=${guildId}`),
-          fetch(`http://localhost:8080/api/discord/roles?guildId=${guildId}`)
+          fetch(`${getBotApiUrl()}/api/discord/channels?guildId=${guildId}`),
+          fetch(`${getBotApiUrl()}/api/discord/roles?guildId=${guildId}`)
         ]);
 
         if (channelsRes.ok) {

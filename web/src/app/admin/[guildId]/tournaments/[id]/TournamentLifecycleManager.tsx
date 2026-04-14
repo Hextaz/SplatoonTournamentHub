@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { getBotApiUrl } from '@/utils/api';
+
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Rocket, Loader2, AlertOctagon } from "lucide-react";
@@ -16,14 +18,14 @@ export function TournamentLifecycleManager({ tournamentId, guildId, status }: Pr
   const [loadingLaunch, setLoadingLaunch] = useState(false);
   const [loadingClose, setLoadingClose] = useState(false);
 
-  const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:8080";
+  
 
   const handleLaunch = async () => {
     if (!window.confirm("Êtes-vous sûr de vouloir LONCER le tournoi ? Cela créera une catégorie Discord et annoncera le début de l'évènement.")) return;
     
     setLoadingLaunch(true);
     try {
-      const res = await fetch(`${BOT_API_URL}/api/tournaments/${tournamentId}/launch`, {
+      const res = await fetch(`${getBotApiUrl()}/api/tournaments/${tournamentId}/launch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ guildId })
@@ -54,7 +56,7 @@ export function TournamentLifecycleManager({ tournamentId, guildId, status }: Pr
 
     setLoadingClose(true);
     try {
-      const res = await fetch(`${BOT_API_URL}/api/tournaments/${tournamentId}/close`, {
+      const res = await fetch(`${getBotApiUrl()}/api/tournaments/${tournamentId}/close`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ guildId })

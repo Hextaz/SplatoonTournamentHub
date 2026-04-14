@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { getBotApiUrl } from '@/utils/api';
+
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, XCircle, UserPlus, Trash2, Search, Pencil, MoreVertical } from "lucide-react";
@@ -36,8 +38,9 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!guildId) return;
     if (isAdding && members.length === 0) {
-      fetch(`http://localhost:8080/api/discord/members`)
+      fetch(`${getBotApiUrl()}/api/discord/members?guildId=${guildId}`)
         .then((res) => res.json())
         .then((data) => {
           if(Array.isArray(data)) setMembers(data);
@@ -264,8 +267,9 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     for(let i=1; i<6; i++) editMembers[i].is_captain = false;
     setTeamMembers(editMembers);
 
+    if (!guildId) return;
     if (members.length === 0) {
-      fetch('http://localhost:8080/api/discord/members')
+      fetch(`${getBotApiUrl()}/api/discord/members?guildId=${guildId}`)
         .then((res) => res.json())
         .then((data) => {
           if(Array.isArray(data)) {

@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import { getBotApiUrl } from '@/utils/api';
+
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 
@@ -55,7 +57,7 @@ export default async function TournamentsPage() {
     // 3. Prévenir le Scheduler du Bot
     if (savedId) {
       try {
-        await fetch("http://localhost:8080/api/discord/sync-schedule", {
+        await fetch(`${getBotApiUrl()}/api/discord/sync-schedule?guildId=${process.env.NEXT_PUBLIC_DISCORD_GUILD_ID || ""}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tournament_id: savedId }),
