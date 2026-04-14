@@ -38,15 +38,15 @@ CREATE POLICY "Public can view tournaments"
 
 CREATE POLICY "Owner can edit tournaments"
   ON tournaments FOR UPDATE
-  USING ((auth.jwt() ->> 'discord_id') = ANY(admin_ids));
+  USING ((auth.jwt() ->> 'discord_id')::varchar = ANY(admin_ids));
 
 CREATE POLICY "Owner can insert tournaments"
   ON tournaments FOR INSERT
-  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY(admin_ids));
+  WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar = ANY(admin_ids));
 
 CREATE POLICY "Owner can delete tournaments"
   ON tournaments FOR DELETE
-  USING ((auth.jwt() ->> 'discord_id') = ANY(admin_ids));
+  USING ((auth.jwt() ->> 'discord_id')::varchar = ANY(admin_ids));
 
 -- SERVER_SETTINGS
 CREATE POLICY "Public can view server settings"
@@ -55,11 +55,11 @@ CREATE POLICY "Public can view server settings"
 
 CREATE POLICY "Owner can edit server settings"
   ON server_settings FOR UPDATE
-  USING ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE tournaments.guild_id = server_settings.guild_id LIMIT 1)));
+  USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE tournaments.guild_id = server_settings.guild_id));
 
 CREATE POLICY "Owner can insert server settings"
   ON server_settings FOR INSERT
-  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE tournaments.guild_id = server_settings.guild_id LIMIT 1)));
+  WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE tournaments.guild_id = server_settings.guild_id));
 
 -- PHASES, TEAMS, MATCHES
 -- Mêmes règles : lecture pour tous, modif pour le owner du tournoi concerné
@@ -67,19 +67,19 @@ CREATE POLICY "Public can view child items"
   ON phases FOR SELECT USING (true);
 CREATE POLICY "Owner can modify phases"
   ON phases FOR ALL
-  USING ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)))
-  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)));
+  USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = tournament_id))
+  WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = tournament_id));
 
 CREATE POLICY "Public can view teams"
   ON teams FOR SELECT USING (true);
 CREATE POLICY "Owner can modify teams"
   ON teams FOR ALL
-  USING ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)))
-  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)));
+  USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = tournament_id))
+  WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = tournament_id));
 
 CREATE POLICY "Public can view matches"
   ON matches FOR SELECT USING (true);
 CREATE POLICY "Owner can modify matches"
   ON matches FOR ALL
-  USING ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)))
-  WITH CHECK ((auth.jwt() ->> 'discord_id') = ANY((SELECT admin_ids FROM tournaments WHERE id = tournament_id)));
+  USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM phases WHERE phases.id = matches.phase_id LIMIT 1)))
+  WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM phases WHERE phases.id = matches.phase_id LIMIT 1)));
