@@ -45,11 +45,17 @@ matchRouter.put("/:id/force-score", async (req, res) => {
     }
 
     // 3. Progress teams in the bracket
-    // @ts-ignore - accessing private static method or ensuring we can call it.
-    // In TS, if progressTeams is private, we might need to bypass it or make it public.
-    // Let's assume it can be called via ScoreService['progressTeams'] or we use a public wrapper.
-    // If it's private, we use ts-ignore.
-    await ScoreService["progressTeams"](updatedMatch, channel as any);
+    let winnerId: string | null = null;
+    let loserId: string | null = null;
+    if (team1_score > team2_score) {
+      winnerId = updatedMatch.team1_id;
+      loserId = updatedMatch.team2_id;
+    } else if (team2_score > team1_score) {
+      winnerId = updatedMatch.team2_id;
+      loserId = updatedMatch.team1_id;
+    }
+
+    await ScoreService["progressTeams"](updatedMatch, channel as any, winnerId, loserId);
 
     res.status(200).json({ message: "Score forced and bracket updated", match: updatedMatch });
   } catch (error: any) {

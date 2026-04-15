@@ -12,34 +12,53 @@ export class RoundRobinGeneratorService {
     if (seedError) throw seedError;
     const teams = seededRows || [];
     
-    // Distribute into groups (Snake seeding for balance)
-    const groups: { [key: string]: { team_id: string, seed: number }[] } = {};
+    // Clear old groups for safety
+    await supabase.from("groups").delete().eq("phase_id", phaseId);
+
+    // Create DB groups
+    const newGroups = [];
     for (let i = 1; i <= groupCount; i++) {
-        groups[i.toString()] = [];
+        newGroups.push({ phase_id: phaseId, name: "Groupe " + i });
     }
 
-    let currentGroup = 1;
+    const { data: insertedGroups, error: groupErr } = await supabase
+       .from("groups")
+       .insert(newGroups)
+       .select();
+
+    if (groupErr || !insertedGroups) throw new Error("Erreur insertion groupes");
+
+    // Distribute into groups (Snake seeding)
+    const groups: { group_id: string, group_name: string, teams: any[] }[] = insertedGroups.map(g => ({
+        group_id: g.id,
+        group_name: g.name,
+        teams: []
+    }));
+
+    let currentGroup = 0;
     let direction = 1;
 
-    for (const t of teams) {
-      groups[currentGroup.toString()]!.push(t as any);
-      currentGroup += direction;
-      // Bounce logic for snake seeding
-      if (currentGroup > groupCount) {
-        currentGroup = groupCount;
-        direction = -1;
-      } else if (currentGroup < 1) {
-        currentGroup = 1;
-        direction = 1;
+    if (groups.length > 0) {
+      for (const t of teams) {
+          groups[currentGroup]?.teams.push(t);
+        currentGroup += direction;
+        // Bounce logic for snake seeding
+        if (currentGroup >= groupCount) {
+          currentGroup = groupCount - 1;
+          direction = -1;
+        } else if (currentGroup < 0) {
+          currentGroup = 0;
+          direction = 1;
+        }
       }
     }
 
     // Update phase_teams with their assigned group_name
-    for (const [groupName, groupTeams] of Object.entries(groups)) {
-      for (const t of groupTeams) {
+    for (const g of groups) {
+      for (const t of g.teams) {
         const { error } = await supabase
            .from("phase_teams")
-           .update({ group_name: groupName })
+           .update({ group_name: g.group_name, group_id: g.group_id })
            .match({ phase_id: phaseId, team_id: t.team_id });
         if (error) console.error("Error setting group_name", error);
       }
@@ -48,9 +67,9 @@ export class RoundRobinGeneratorService {
     const matchesToInsert: any[] = [];
     let matchCounter = 1;
 
-    for (const [groupName, groupTeams] of Object.entries(groups)) {
+    for (const g of groups) {
       // Round Robin algorithm (Circle Method)
-      const teamIds = groupTeams.map(t => t.team_id);
+      const teamIds = g.teams.map((t: any) => t.team_id);
       
       if (teamIds.length < 2) continue; // Not enough teams
 
@@ -75,7 +94,7 @@ export class RoundRobinGeneratorService {
 
             matchesToInsert.push({
               phase_id: phaseId,
-              group_id: groupName,
+              group_id: g.group_id,
               team1_id: realTeam1,
               team2_id: realTeam2,
               round_number: r,

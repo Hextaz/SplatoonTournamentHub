@@ -222,12 +222,14 @@ export class ScoreService {
     }
   }
 
-  public static async progressTeams(match: any, channel: TextChannel, winnerId: string | null, loserId: string | null) {
+  public static async progressTeams(match: any, channel: TextChannel | undefined, winnerId: string | null, loserId: string | null) {
     if (!winnerId || !loserId) {
        // Egalité stricte, ce qui est rare dans un bracket. Le TO devra forcer l'avancée.
-       const { data: settings } = await supabase.from("server_settings").select("to_role_id").eq("guild_id", channel.guildId).single();
-       const toPing = settings?.to_role_id ? `<@&${settings.to_role_id}>` : "TO (Arbitre)";
-       await channel.send(`⚠️ **MATCH NUL** pour le Match #${match.match_number || '?'}.\nLe système ne peut pas déterminer de vainqueur pour l'auto-routing.\n${toPing} - Une intervention manuelle est requise via le panel web.`);
+       if (channel) {
+         const { data: settings } = await supabase.from("server_settings").select("to_role_id").eq("guild_id", channel.guildId).single();
+         const toPing = settings?.to_role_id ? `<@&${settings.to_role_id}>` : "TO (Arbitre)";
+         await channel.send(`⚠️ **MATCH NUL** pour le Match #${match.match_number || '?'}.\nLe système ne peut pas déterminer de vainqueur pour l'auto-routing.\n${toPing} - Une intervention manuelle est requise via le panel web.`);
+       }
        return;
     }
 
@@ -239,7 +241,7 @@ export class ScoreService {
     }
   }
 
-  private static async assignTeamToNextMatch(targetMatchId: string, teamId: string, channel: TextChannel) {
+  private static async assignTeamToNextMatch(targetMatchId: string, teamId: string, channel: TextChannel | undefined) {
      const { data: targetMatch } = await supabase.from("matches").select("*").eq("id", targetMatchId).single();
      if (!targetMatch) return;
 
@@ -265,7 +267,7 @@ export class ScoreService {
             supabase.from("teams").select("captain_discord_id, name").eq("id", newTeamB).single()
         ]);
 
-        if (ta && tb) {
+        if (ta && tb && channel) {
              await channel.send(`⚔️ **NOUVEAU MATCH DE BRACKET** ⚔️\n👉 L'équipe **${ta.name}** (<@${ta.captain_discord_id}>) affronte l'équipe **${tb.name}** (<@${tb.captain_discord_id}>) !\nPréparez-vous.`);
         }
      }

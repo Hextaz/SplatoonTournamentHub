@@ -91,6 +91,13 @@ export class LifecycleService {
         })
         .eq('id', tournamentId);
 
+      const { data: phasesIds_1 } = await supabase.from("phases").select("id").eq("tournament_id", tournamentId);
+      if (phasesIds_1 && phasesIds_1.length > 0) {
+         for (const p of phasesIds_1) {
+            await this.syncPhaseChannels(p.id, guildId, discordClient).catch(err => console.error(err));
+         }
+      }
+
       return true;
 
     } catch (error) {

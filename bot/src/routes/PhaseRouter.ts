@@ -2,7 +2,8 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { BracketGeneratorService } from "../services/BracketGeneratorService";
 import { RoundRobinGeneratorService } from "../services/RoundRobinGeneratorService";
-import { LifecycleService } from "../services/LifecycleService";
+
+
 
 export const phaseRouter = Router();
 
@@ -90,7 +91,14 @@ phaseRouter.put("/:id/seeding", async (req, res) => {
     } else {
       await BracketGeneratorService.generateBracket(phaseId, phaseData.bracket_size || 8);
     }
-
+    const { data: phaseWithTourney } = await supabase.from("phases").select("tournaments!inner(guild_id, status)").eq("id", phaseId).single();
+    const tourneyInfo = phaseWithTourney?.tournaments;
+const ts = Array.isArray(tourneyInfo) ? tourneyInfo[0]?.status : (tourneyInfo as any)?.status;
+const tg = Array.isArray(tourneyInfo) ? tourneyInfo[0]?.guild_id : (tourneyInfo as any)?.guild_id;
+if (ts === "ACTIVE") {
+const discordClient = req.app.locals.discordClient;
+await LifecycleService.syncPhaseChannels(phaseId, tg, discordClient).catch(e => console.error("Auto Sync Failed", e));
+}
     res.status(200).json({ message: 'Placement et arbre mis à jour avec succès' });
   } catch (error: any) {
     console.error(error);
@@ -126,3 +134,5 @@ phaseRouter.post("/:id/sync", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+import { LifecycleService } from "../services/LifecycleService";
+

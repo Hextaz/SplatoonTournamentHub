@@ -1,7 +1,6 @@
 ﻿import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { PlacementPhaseClient } from "./PlacementPhaseClient";
-import { SyncDiscordButton } from "./SyncDiscordButton";
 
 export default async function PlacementPhasePage({
   params
@@ -42,7 +41,7 @@ export default async function PlacementPhasePage({
             {phase.name}
           </h1>
         </div>
-        <SyncDiscordButton guildId={guildId} tournamentId={tournamentId} phaseId={phaseId} />
+        
       </header>
 
       <PlacementPhaseClient 
