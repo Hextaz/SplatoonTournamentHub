@@ -36,7 +36,7 @@ export default async function PhaseMatchesPage({
   // 3. Fetch phase_teams
   const { data: ptData, error: ptError } = await supabase
     .from("phase_teams")
-    .select("*, teams(id, name, logo_url)")
+    .select("*, teams(id, name)")
     .eq("phase_id", phase.id);
 
   if (ptError) {
