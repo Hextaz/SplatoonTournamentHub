@@ -141,17 +141,15 @@ CREATE POLICY "Public can view tournaments"
 
 CREATE POLICY "Owner can edit tournaments"
   ON tournaments FOR UPDATE
-  USING ((auth.jwt() ->> 'discord_id')::varchar = ANY(admin_ids));
+    USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids)));
 
 CREATE POLICY "Owner can insert tournaments"
-  ON tournaments FOR INSERT
-  WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar = ANY(admin_ids));
+    ON tournaments FOR INSERT
+    WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids)));
 
 CREATE POLICY "Owner can delete tournaments"
-  ON tournaments FOR DELETE
-  USING ((auth.jwt() ->> 'discord_id')::varchar = ANY(admin_ids));
-
--- SERVER_SETTINGS
+    ON tournaments FOR DELETE
+    USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids)));
 CREATE POLICY "Public can view server settings"
   ON server_settings FOR SELECT
   USING (true);
@@ -192,3 +190,65 @@ ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE phase_teams ENABLE ROW LEVEL SECURITY;
+-- Crï¿½ation d'une fonction pour dï¿½finir le crï¿½ateur en tant qu'administrateur
+CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
+RETURNS TRIGGER AS C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sql
+BEGIN
+  IF NEW.admin_ids IS NULL OR array_length(NEW.admin_ids, 1) IS NULL THEN
+    IF auth.jwt() ->> 'discord_id' IS NOT NULL THEN
+      NEW.admin_ids := ARRAY[(auth.jwt() ->> 'discord_id')::varchar];
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sqlC:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sqlC:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubix_trigger.js LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_set_tournament_admin ON tournaments;
+
+CREATE TRIGGER trg_set_tournament_admin
+BEFORE INSERT ON tournaments
+FOR EACH ROW
+EXECUTE FUNCTION set_tournament_creator_as_admin();
+
+
+-- Crï¿½ation d'une fonction pour dï¿½finir le crï¿½ateur en tant qu'administrateur
+CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
+RETURNS TRIGGER AS C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sql
+BEGIN
+  IF NEW.admin_ids IS NULL OR array_length(NEW.admin_ids, 1) IS NULL THEN
+    IF auth.jwt() ->> 'discord_id' IS NOT NULL THEN
+      NEW.admin_ids := ARRAY[(auth.jwt() ->> 'discord_id')::varchar];
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sqlC:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sqlC:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubix_trigger.js LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_set_tournament_admin ON tournaments;
+
+CREATE TRIGGER trg_set_tournament_admin
+BEFORE INSERT ON tournaments
+FOR EACH ROW
+EXECUTE FUNCTION set_tournament_creator_as_admin();
+
+
+
+-- Création d'une fonction pour définir le créateur en tant qu'administrateur
+CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.admin_ids IS NULL OR array_length(NEW.admin_ids, 1) IS NULL THEN
+    IF auth.jwt() ->> 'discord_id' IS NOT NULL THEN
+      NEW.admin_ids := ARRAY[(auth.jwt() ->> 'discord_id')::varchar];
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_set_tournament_admin ON tournaments;
+
+CREATE TRIGGER trg_set_tournament_admin
+BEFORE INSERT ON tournaments
+FOR EACH ROW
+EXECUTE FUNCTION set_tournament_creator_as_admin();

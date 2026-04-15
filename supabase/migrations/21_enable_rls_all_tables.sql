@@ -74,3 +74,20 @@ CREATE POLICY "Owner can modify team_members"
   ON team_members FOR ALL
   USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM teams WHERE teams.id = team_members.team_id LIMIT 1)))
   WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM teams WHERE teams.id = team_members.team_id LIMIT 1)));
+
+-- Correction des policies de la table 'tournaments' (problème d'arrêts de type array varchar != varchar[])
+DROP POLICY IF EXISTS "Owner can edit tournaments" ON tournaments;
+DROP POLICY IF EXISTS "Owner can insert tournaments" ON tournaments;
+DROP POLICY IF EXISTS "Owner can delete tournaments" ON tournaments;
+
+CREATE POLICY "Owner can edit tournaments"
+  ON tournaments FOR UPDATE
+  USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids)));
+
+CREATE POLICY "Owner can insert tournaments"
+  ON tournaments FOR INSERT
+  WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids)));
+
+CREATE POLICY "Owner can delete tournaments"
+  ON tournaments FOR DELETE
+  USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids)));
