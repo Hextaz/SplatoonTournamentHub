@@ -53,7 +53,7 @@ export default function SettingsPage({
 
         // Fetch Discord Roles via Express Bot API
         try {
-          const rolesRes = await fetch(`${BOT_API_URL}/api/discord/roles`);
+          const rolesRes = await fetch(`${BOT_API_URL}/api/discord/roles?guildId=${guildId}`);
           if (rolesRes.ok) {
             const roles = await rolesRes.json();
             setDiscordRoles(roles);
@@ -64,10 +64,9 @@ export default function SettingsPage({
 
         // Fetch Discord Channels via Express Bot API
         try {
-          const channelsRes = await fetch(`${BOT_API_URL}/api/discord/channels`);
+          const channelsRes = await fetch(`${BOT_API_URL}/api/discord/channels?guildId=${guildId}`);
           if (channelsRes.ok) {
             const channels = await channelsRes.json();
-            // Filter out voice channels if needed, but here we take everything returned by bot
             setDiscordChannels(channels);
           }
         } catch (e) {}
