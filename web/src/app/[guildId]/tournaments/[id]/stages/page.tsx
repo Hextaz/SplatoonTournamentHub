@@ -30,7 +30,7 @@ export default async function PublicStagesPage({
 
     const { data: ptData } = await supabase
       .from("phase_teams")
-      .select("*, teams(id, name, logo_url)")
+      .select("*, teams(id, name)")
       .in("phase_id", phaseIds);
     if (ptData) phaseTeams = ptData;
   }
