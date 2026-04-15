@@ -173,7 +173,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
 
         {/* Classement */}
         <div className="mb-8">
-          <LeaderboardTable teams={currentGroupPhaseTeams} />
+          <LeaderboardTable teams={currentGroupPhaseTeams} matches={activeGroupMatches} />
         </div>
 
         {/* Rounds matches */}

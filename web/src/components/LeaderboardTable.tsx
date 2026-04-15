@@ -21,9 +21,59 @@ export interface PhaseTeamStat {
   };
 }
 
-export function LeaderboardTable({ teams }: { teams: PhaseTeamStat[] }) {
+export function LeaderboardTable({ teams, matches }: { teams: PhaseTeamStat[], matches?: any[] }) {
+  // Option: dynamically override stats based on matches array if provided
+  const computedTeams = teams.map((t) => {
+    if (!matches || matches.length === 0) return t;
+
+    let played = 0, wins = 0, draws = 0, losses = 0, forfeits = 0, score_for = 0, score_against = 0;
+
+    matches.forEach((m) => {
+      const isCompleted = m.status === "COMPLETED" || m.status === "FF";
+      if (!isCompleted) return;
+
+      const isTeam1 = m.team1_id === t.team_id;
+      const isTeam2 = m.team2_id === t.team_id;
+
+      if (!isTeam1 && !isTeam2) return;
+
+      played += 1;
+
+      const myScore = isTeam1 ? (m.team1_score || 0) : (m.team2_score || 0);
+      const theirScore = isTeam1 ? (m.team2_score || 0) : (m.team1_score || 0);
+
+      score_for += myScore;
+      score_against += theirScore;
+
+      if (myScore > theirScore) {
+        wins += 1;
+      } else if (myScore < theirScore) {
+        losses += 1;
+        // Check FF
+        if (m.status === "FF") {
+           forfeits += 1;
+        }
+      } else {
+        draws += 1;
+      }
+    });
+
+    return {
+      ...t,
+      played,
+      wins,
+      draws,
+      losses,
+      forfeits,
+      score_for,
+      score_against,
+      differential: score_for - score_against,
+      points: wins * 1 // standard 1 point per win
+    };
+  });
+
   // Sort teams: points DESC, differential DESC, score_for DESC
-  const sortedTeams = [...teams].sort((a, b) => {
+  const sortedTeams = [...computedTeams].sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     if (b.differential !== a.differential) return b.differential - a.differential;
     return b.score_for - a.score_for;
