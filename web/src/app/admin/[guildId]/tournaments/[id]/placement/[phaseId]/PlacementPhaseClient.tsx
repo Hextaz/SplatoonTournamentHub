@@ -176,7 +176,7 @@ export function PlacementPhaseClient({
       if (!res.ok) { let b={error: "Erreur de sauvegarde"}; try { b = await res.json(); } catch(e){} throw new Error(b.error || "Erreur de sauvegarde"); }
       alert("Placement enregistré avec succès !");
       router.refresh();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       alert("Erreur: " + (e.message || e));
     } finally {
