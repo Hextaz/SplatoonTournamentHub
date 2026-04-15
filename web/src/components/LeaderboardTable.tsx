@@ -21,7 +21,13 @@ export interface PhaseTeamStat {
   };
 }
 
-export function LeaderboardTable({ teams, matches }: { teams: PhaseTeamStat[], matches?: any[] }) {
+export function LeaderboardTable({ teams, matches, settings }: { teams: PhaseTeamStat[], matches?: any[], settings?: any }) {
+  // Config defaults (from backend LeaderboardService)
+  const pointsWin = settings?.points_win ?? 3;
+  const pointsDraw = settings?.points_draw ?? 1;
+  const pointsLoss = settings?.points_loss ?? 0;
+  const pointsForfeit = settings?.points_forfeit ?? 0;
+
   // Option: dynamically override stats based on matches array if provided
   const computedTeams = teams.map((t) => {
     if (!matches || matches.length === 0) return t;
@@ -49,7 +55,6 @@ export function LeaderboardTable({ teams, matches }: { teams: PhaseTeamStat[], m
         wins += 1;
       } else if (myScore < theirScore) {
         losses += 1;
-        // Check FF
         if (m.status === "FF") {
            forfeits += 1;
         }
@@ -68,7 +73,7 @@ export function LeaderboardTable({ teams, matches }: { teams: PhaseTeamStat[], m
       score_for,
       score_against,
       differential: score_for - score_against,
-      points: wins * 1 // standard 1 point per win
+      points: (wins * pointsWin) + (draws * pointsDraw) + (losses * pointsLoss) + (forfeits * pointsForfeit)
     };
   });
 

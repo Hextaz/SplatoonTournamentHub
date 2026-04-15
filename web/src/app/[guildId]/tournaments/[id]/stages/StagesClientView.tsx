@@ -231,7 +231,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
         </div>
 
         {groupTab === "ranking" ? (
-          <LeaderboardTable teams={currentGroupPhaseTeams} matches={activeGroupMatches} />
+          <LeaderboardTable teams={currentGroupPhaseTeams} matches={activeGroupMatches} settings={activePhase?.settings} />
         ) : (
           <div className="space-y-8">
             {roundNumbers.map(roundNum => (
