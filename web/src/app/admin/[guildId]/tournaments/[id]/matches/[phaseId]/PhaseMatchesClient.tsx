@@ -84,7 +84,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     if (res !== target) return "bg-slate-800 text-slate-500 border border-slate-700";
     if (target === "V") return "bg-green-500 text-white font-bold border border-green-600 shadow-sm";
     if (target === "D") return "bg-red-500 text-white font-bold border border-red-600 shadow-sm";
-    return "bg-slate-500 text-white font-bold border border-slate-600 shadow-sm"; // N
+    return "bg-[#0f111a]0 text-white font-bold border border-slate-600 shadow-sm"; // N
   };
 
   const renderBadgeRow = (isTeam1: boolean) => {
@@ -190,16 +190,16 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                       <div 
                         key={match.id}
                         onClick={() => !isPending && openMatchEdit(match)}
-                        className={`bg-white rounded border ${isPending ? 'border-slate-100 opacity-50 cursor-not-allowed' : 'border-slate-200 cursor-pointer hover:border-blue-400'} shadow-sm flex flex-col overflow-hidden transition-colors`}
+                        className={`bg-[#151722] rounded border ${isPending ? 'border-slate-700/50 opacity-50 cursor-not-allowed' : 'border-slate-800/50 cursor-pointer hover:border-blue-400'} shadow-sm flex flex-col overflow-hidden transition-colors`}
                       >
-                         <div className="flex items-center justify-between p-3 border-b border-slate-100">
-                            <span className={`text-sm font-semibold truncate ${match.team1_score > match.team2_score ? 'text-slate-900' : 'text-slate-500'}`}>
+                         <div className="flex items-center justify-between p-3 border-b border-slate-700/50">
+                            <span className={`text-sm font-semibold truncate ${match.team1_score > match.team2_score ? 'text-white' : 'text-slate-500'}`}>
                               {match.team1?.name || 'TBD'}
                             </span>
                             {isCompleted && <span className="text-sm font-bold ml-2">{match.team1_score}</span>}
                          </div>
                          <div className="flex items-center justify-between p-3">
-                            <span className={`text-sm font-semibold truncate ${match.team2_score > match.team1_score ? 'text-slate-900' : 'text-slate-500'}`}>
+                            <span className={`text-sm font-semibold truncate ${match.team2_score > match.team1_score ? 'text-white' : 'text-slate-500'}`}>
                               {match.team2?.name || 'TBD'}
                             </span>
                             {isCompleted && <span className="text-sm font-bold ml-2">{match.team2_score}</span>}
@@ -229,14 +229,14 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     const roundNumbers = Object.keys(rounds).map(Number).sort((a,b) => a-b);
 
     return (
-      <div className="bg-slate-50 p-8 min-h-[600px] overflow-auto">
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start gap-12 w-max">
+      <div className="bg-[#0f111a] p-8 min-h-[600px] overflow-auto">
+        <div className="bg-[#151722] p-6 rounded-xl border border-slate-800/50 shadow-sm flex items-start gap-12 w-max">
           {roundNumbers.map((r, rIndex) => {
             const matches = rounds[r].sort((a:any, b:any) => a.match_number - b.match_number);
             
             return (
               <div key={r} className="flex flex-col min-w-[240px] justify-around" style={{ minHeight: `${matches.length * 100}px` }}>
-                <div className="bg-slate-100 text-slate-600 font-bold text-sm text-center py-2 rounded mb-6 uppercase tracking-wider">
+                <div className="bg-slate-800 text-slate-400 font-bold text-sm text-center py-2 rounded mb-6 uppercase tracking-wider">
                   Round {r}
                 </div>
                 
@@ -256,39 +256,39 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                       {/* Flexbox Tree Connectors */}
                       {rIndex < roundNumbers.length - 1 && (
                         <>
-                          <div className={`absolute top-1/2 -mt-px -right-6 w-6 border-t-2 border-slate-200 z-0`} />
+                          <div className={`absolute top-1/2 -mt-px -right-6 w-6 border-t-2 border-slate-800/50 z-0`} />
                           {mIndex % 2 === 0 ? (
-                            <div className="absolute top-1/2 -right-6 w-0.5 h-[calc(50%+1.5rem)] border-r-2 border-slate-200 z-0"></div>
+                            <div className="absolute top-1/2 -right-6 w-0.5 h-[calc(50%+1.5rem)] border-r-2 border-slate-800/50 z-0"></div>
                           ) : (
-                            <div className="absolute bottom-1/2 -right-6 w-0.5 h-[calc(50%+1.5rem)] border-r-2 border-slate-200 z-0"></div>
+                            <div className="absolute bottom-1/2 -right-6 w-0.5 h-[calc(50%+1.5rem)] border-r-2 border-slate-800/50 z-0"></div>
                           )}
                         </>
                       )}
 
                       <div 
                         onClick={() => !isTBD && openMatchEdit(match)}
-                        className={`relative z-10 bg-white border ${isTBD ? 'border-slate-100' : 'border-slate-200 cursor-pointer hover:border-blue-400'} rounded-lg shadow-sm flex flex-col overflow-hidden text-sm transition-colors`}
+                        className={`relative z-10 bg-[#151722] border ${isTBD ? 'border-slate-700/50' : 'border-slate-800/50 cursor-pointer hover:border-blue-400'} rounded-lg shadow-sm flex flex-col overflow-hidden text-sm transition-colors`}
                       >
-                         <div className="flex items-stretch border-b border-slate-100 h-10">
-                            <div className={`flex-1 px-3 flex flex-col justify-center truncate ${team1Bold ? 'font-bold text-slate-800' : 'font-medium text-slate-500'}`}>
+                         <div className="flex items-stretch border-b border-slate-700/50 h-10">
+                            <div className={`flex-1 px-3 flex flex-col justify-center truncate ${team1Bold ? 'font-bold text-slate-200' : 'font-medium text-slate-500'}`}>
                                {match.team1?.name ? (
                                   <div className="flex flex-col leading-tight"><span className="text-[10px] text-slate-400">Seed -</span><span>{match.team1?.name}</span></div>
                                ) : "TBD"}
                             </div>
                             {isCompleted && (
-                               <div className="px-3 border-l border-slate-100 flex items-center justify-center font-bold text-slate-700 w-10 shrink-0 bg-slate-50">
+                               <div className="px-3 border-l border-slate-700/50 flex items-center justify-center font-bold text-slate-300 w-10 shrink-0 bg-[#0f111a]">
                                  {match.team1_score}
                                </div>
                             )}
                          </div>
                          <div className="flex items-stretch h-10">
-                            <div className={`flex-1 px-3 flex flex-col justify-center truncate ${team2Bold ? 'font-bold text-slate-800' : 'font-medium text-slate-500'}`}>
+                            <div className={`flex-1 px-3 flex flex-col justify-center truncate ${team2Bold ? 'font-bold text-slate-200' : 'font-medium text-slate-500'}`}>
                                {match.team2?.name ? (
                                   <div className="flex flex-col leading-tight"><span className="text-[10px] text-slate-400">Seed -</span><span>{match.team2?.name}</span></div>                                 ) : isBye ? (
                                     <span className="text-slate-400 font-bold italic">BYE (TBD)</span>                               ) : "TBD"}
                             </div>
                             {isCompleted && (
-                               <div className="px-3 border-l border-slate-100 flex items-center justify-center font-bold text-slate-700 w-10 shrink-0 bg-slate-50">
+                               <div className="px-3 border-l border-slate-700/50 flex items-center justify-center font-bold text-slate-300 w-10 shrink-0 bg-[#0f111a]">
                                  {match.team2_score}
                                </div>
                             )}
@@ -330,7 +330,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
       {/* MATCH EDIT MODAL */}
       {selectedMatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-[#151722] rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             
             {/* Header */}
             <div className="p-6 pb-0 flex flex-col items-center text-center shrink-0">
@@ -338,38 +338,38 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                  Match #{selectedMatch.round_number}.{selectedMatch.match_number}
                </h2>
                <div className="flex items-center gap-12 w-full justify-center">
-                 <span className="text-2xl font-bold text-slate-800 flex-1 text-right truncate bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">{selectedMatch.team1?.name}</span>
+                 <span className="text-2xl font-bold text-slate-200 flex-1 text-right truncate bg-[#0f111a] px-4 py-2 rounded-lg border border-slate-700/50">{selectedMatch.team1?.name}</span>
                  <span className="text-sm font-bold text-slate-400 uppercase">VS</span>
-                 <span className="text-2xl font-bold text-slate-800 flex-1 text-left truncate bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">{selectedMatch.team2?.name}</span>
+                 <span className="text-2xl font-bold text-slate-200 flex-1 text-left truncate bg-[#0f111a] px-4 py-2 rounded-lg border border-slate-700/50">{selectedMatch.team2?.name}</span>
                </div>
-               <div className="mt-4 text-sm font-semibold text-slate-500 bg-slate-100 px-4 py-1.5 rounded-full flex items-center gap-2">
+               <div className="mt-4 text-sm font-semibold text-slate-500 bg-slate-800 px-4 py-1.5 rounded-full flex items-center gap-2">
                  <CalendarDays className="w-4 h-4"/>
                  {getMatchStatusText(selectedMatch)}
                </div>
             </div>
 
             {/* Tabs Mock */}
-            <div className="px-8 mt-6 border-b border-slate-200 flex gap-6 shrink-0">
+            <div className="px-8 mt-6 border-b border-slate-800/50 flex gap-6 shrink-0">
               <div className="pb-3 border-b-2 border-blue-500 text-blue-600 font-bold text-sm cursor-pointer">Résultat</div>
               <div className="pb-3 border-transparent text-slate-500 font-bold text-sm cursor-pointer">Infos</div>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto bg-white p-8">
-               <h3 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-2">Match</h3>
+            <div className="flex-1 overflow-y-auto bg-[#151722] p-8">
+               <h3 className="text-xl font-bold text-slate-200 mb-6 border-b border-slate-700/50 pb-2">Match</h3>
                
                <table className="w-full">
                   <thead>
-                    <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700/50">
                       <th className="text-left pb-4 w-1/2">Nom</th>
                       <th className="text-center pb-4 w-24">Forfait</th>
                       <th className="text-center pb-4 w-32">Score</th>
                       <th className="text-right pb-4 w-32 pr-2">Résultat</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    <tr className="hover:bg-slate-50/50">
-                      <td className="py-4 font-bold text-slate-800 text-lg">
+                  <tbody className="divide-y divide-slate-800/50">
+                    <tr className="hover:bg-slate-800/30">
+                      <td className="py-4 font-bold text-slate-200 text-lg">
                         {selectedMatch.team1?.name}
                       </td>
                       <td className="py-4 text-center">
@@ -387,15 +387,15 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                            value={mTeam1Score}
                            onChange={(e) => setMTeam1Score(Number(e.target.value))}
                            disabled={mTeam1Ff}
-                           className="w-20 px-3 py-2 border border-slate-300 rounded shadow-sm text-center font-bold text-slate-800 bg-white disabled:opacity-50"
+                           className="w-20 px-3 py-2 border border-slate-600/50 rounded shadow-sm text-center font-bold text-slate-200 bg-[#151722] disabled:opacity-50"
                          />
                       </td>
                       <td className="py-4 flex justify-end">
                          {renderBadgeRow(true)}
                       </td>
                     </tr>
-                    <tr className="hover:bg-slate-50/50">
-                      <td className="py-4 font-bold text-slate-800 text-lg">
+                    <tr className="hover:bg-slate-800/30">
+                      <td className="py-4 font-bold text-slate-200 text-lg">
                         {selectedMatch.team2?.name}
                       </td>
                       <td className="py-4 text-center">
@@ -413,7 +413,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                            value={mTeam2Score}
                            onChange={(e) => setMTeam2Score(Number(e.target.value))}
                            disabled={mTeam2Ff}
-                           className="w-20 px-3 py-2 border border-slate-300 rounded shadow-sm text-center font-bold text-slate-800 bg-white disabled:opacity-50"
+                           className="w-20 px-3 py-2 border border-slate-600/50 rounded shadow-sm text-center font-bold text-slate-200 bg-[#151722] disabled:opacity-50"
                          />
                       </td>
                       <td className="py-4 flex justify-end">
@@ -425,11 +425,11 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
             </div>
 
             {/* Footer */}
-            <div className="bg-slate-50 px-8 py-5 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+            <div className="bg-[#0f111a] px-8 py-5 border-t border-slate-800/50 flex justify-end gap-3 shrink-0">
                <button 
                  onClick={() => setSelectedMatch(null)}
                  disabled={isSubmitting}
-                 className="px-6 py-2.5 bg-slate-500 hover:bg-slate-600 text-white font-bold rounded shadow-sm transition-colors flex items-center gap-2"
+                 className="px-6 py-2.5 bg-[#0f111a]0 hover:bg-slate-600 text-white font-bold rounded shadow-sm transition-colors flex items-center gap-2"
                >
                  <ArrowLeft className="w-4 h-4"/> Retour
                </button>
