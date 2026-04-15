@@ -186,3 +186,9 @@ CREATE POLICY "Owner can modify matches"
   ON matches FOR ALL
   USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM phases WHERE phases.id = matches.phase_id LIMIT 1)))
   WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM phases WHERE phases.id = matches.phase_id LIMIT 1)));
+
+ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE phase_teams ENABLE ROW LEVEL SECURITY;
