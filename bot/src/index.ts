@@ -299,7 +299,40 @@ const bootstrap = async () => {
     // Connect Discord Bot
     await client.login(DISCORD_TOKEN);
     logger.info(`[Bot] Logged in as ${client.user?.tag}`);
-
+    // --- SPRINT 11 FIX: Synchroniser les serveurs dans Supabase ---
+    try {
+      const { supabase } = require("./lib/supabase");
+      const guildsInCache = Array.from(client.guilds.cache.keys());
+      if (guildsInCache.length > 0) {
+        const { data: existingSettings } = await supabase
+          .from("server_settings")
+          .select("guild_id");
+          
+        const existingIds = new Set(existingSettings?.map((s: any) => s.guild_id) || []);
+        const missingGuilds = guildsInCache.filter((id) => !existingIds.has(id));
+        
+        if (missingGuilds.length > 0) {
+          const inserts = missingGuilds.map((id) => ({ guild_id: id }));
+          await supabase.from("server_settings").insert(inserts);
+          logger.info(`[Sync] Inserted ${missingGuilds.length} missing guilds to DB.`);
+        }
+      }
+    } catch (err) {
+      logger.error("Failed to sync connected guilds:", err);
+    }
+    
+    // GÃ©rer l'ajout du bot sur de nouveaux serveurs en direct
+    client.on("guildCreate", async (guild) => {
+      try {
+        const { supabase } = require("./lib/supabase");
+        const { error } = await supabase.from("server_settings").insert({ guild_id: guild.id });
+        if (!error) {
+          logger.info(`[Sync] Registered new server: ${guild.name} (${guild.id})`);
+        }
+      } catch (e) {
+        logger.error(`Failed to register server ${guild.id}:`, e);
+      }
+    });
     // Démarrer le Scheduler de Tournoi
     await SchedulerService.init(client);
 
