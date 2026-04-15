@@ -173,7 +173,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
 
         {/* Classement */}
         <div className="mb-8">
-          <LeaderboardTable teams={currentGroupPhaseTeams} />
+          <div style={{color:'red', fontSize:20}}>DBGroups: {dbGroups?.length} | PhaseTeams: {phaseTeams?.length} | Sel: {selectedGroup} | CurrentGroupTeams: {currentGroupPhaseTeams?.length}</div><LeaderboardTable teams={currentGroupPhaseTeams} />
         </div>
 
         {/* Rounds matches */}

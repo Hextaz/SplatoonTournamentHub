@@ -150,7 +150,7 @@ export function PlacementPhaseClient({
   const handleSaveSeeding = async () => {
     if (
       !confirm(
-        "Sauvegarder le placement pour cette phase ? Cela r�g�n�rera les matchs associ�s.",
+        "Sauvegarder le placement pour cette phase ? Cela régénérera les matchs associés.",
       )
     )
       return;
@@ -173,12 +173,12 @@ export function PlacementPhaseClient({
         },
       );
 
-      if (!res.ok) throw new Error("Erreur de sauvegarde");
-      alert("Placement enregistr� avec succ�s !");
+      if (!res.ok) { let b={error: "Erreur de sauvegarde"}; try { b = await res.json(); } catch(e){} throw new Error(b.error || "Erreur de sauvegarde"); }
+      alert("Placement enregistré avec succès !");
       router.refresh();
     } catch (e) {
       console.error(e);
-      alert("Erreur lors de la sauvegarde.");
+      alert("Erreur: " + (e.message || e));
     } finally {
       setIsSaving(false);
     }
@@ -498,7 +498,7 @@ export function PlacementPhaseClient({
           <div className="px-6 py-4 border-b border-slate-800 bg-slate-800/50 shrink-0 flex justify-between items-center">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Maximize2 className="w-5 h-5 text-slate-400" />
-              Aper�u{" "}
+              Aperçu{" "}
               <span className="opacity-50 font-normal">
                 ({isGroups ? "Groupes" : "�limination directe"})
               </span>
