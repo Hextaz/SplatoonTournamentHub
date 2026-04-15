@@ -91,7 +91,7 @@ phaseRouter.put("/:id/seeding", async (req, res) => {
       await BracketGeneratorService.generateBracket(phaseId, phaseData.bracket_size || 8);
     }
     const { data: phaseWithTourney } = await supabase.from("phases").select("tournaments!inner(guild_id, status)").eq("id", phaseId).single();
-const tourneyInfo = phaseWithTourney?.tournaments;
+    const tourneyInfo: any = phaseWithTourney?.tournaments;
     const tourneyStatus = Array.isArray(tourneyInfo) ? tourneyInfo[0]?.status : tourneyInfo?.status;
     const tourneyGuild = Array.isArray(tourneyInfo) ? tourneyInfo[0]?.guild_id : tourneyInfo?.guild_id;
 
