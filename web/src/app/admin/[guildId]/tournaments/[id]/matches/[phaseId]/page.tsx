@@ -42,6 +42,17 @@ export default async function PhaseMatchesPage({
     console.error("fetch phase_teams error", ptError);
   }
 
+  // 4. Fetch groups
+  const { data: groupsData, error: groupsError } = await supabase
+    .from("groups")
+    .select("*")
+    .eq("phase_id", phase.id)
+    .order("name", { ascending: true });
+
+  if (groupsError) {
+    console.error("fetch groups error", groupsError);
+  }
+
   return (
     <PhaseMatchesClient 
       tournamentId={tournamentId} 
@@ -49,6 +60,7 @@ export default async function PhaseMatchesPage({
       phase={phase} 
       initialMatches={matches || []}
       phaseTeams={ptData || []}
+      dbGroups={groupsData || []}
     />
   );
 }

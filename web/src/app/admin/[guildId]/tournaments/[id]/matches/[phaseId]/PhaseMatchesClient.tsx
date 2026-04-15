@@ -8,11 +8,11 @@ import { Search, Trophy, Check, X, CalendarDays, Loader2, ArrowLeft, Users, Aler
 import { supabase } from "@/lib/supabase";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
 
-export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatches, phaseTeams }: any) {
+export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatches, phaseTeams, dbGroups }: any) {
   const router = useRouter();
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
   useEffect(() => {
     const channel = supabase.channel('admin_phase_matches')
@@ -117,20 +117,24 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
   const renderGroups = () => {
     if (selectedGroup === null) {
       const groupCount = phase.max_groups || 1;
+      const displayGroups = dbGroups?.length 
+        ? dbGroups 
+        : Array.from({length: groupCount}).map((_, i) => ({ id: String(i + 1), name: `Group ${i + 1}` }));
+
       return (
         <div className="p-6 md:p-8">
           <h2 className="text-2xl font-bold text-white mb-6">Groupes</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {Array.from({length: groupCount}).map((_, i) => (
+            {displayGroups.map((g: any, i: number) => (
               <div 
-                key={i} 
-                onClick={() => setSelectedGroup(i + 1)}
+                key={g.id || i} 
+                onClick={() => setSelectedGroup(g.id)}
                 className="bg-slate-900 border border-slate-800 rounded-xl p-6 cursor-pointer hover:border-blue-500 hover:bg-slate-800 transition-all flex flex-col items-center justify-center group shadow-md"
               >
                 <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Users className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-white">Group {i + 1}</h3>
+                <h3 className="text-lg font-bold text-white">{g.name || `Group ${i + 1}`}</h3>
                 <span className="text-sm text-slate-500 mt-2">Cliquez pour voir les détails</span>
               </div>
             ))}
