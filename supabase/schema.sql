@@ -1,4 +1,4 @@
--- 1. Enum Types
+﻿-- 1. Enum Types
 CREATE TYPE tournament_status AS ENUM ('DRAFT', 'REGISTRATION', 'ACTIVE', 'COMPLETED', 'ARCHIVED');
 CREATE TYPE phase_type AS ENUM ('ROUND_ROBIN', 'SINGLE_ELIM', 'SWISS', 'DOUBLE_ELIM');
 
@@ -163,7 +163,7 @@ CREATE POLICY "Owner can insert server settings"
   WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE tournaments.guild_id = server_settings.guild_id));
 
 -- PHASES, TEAMS, MATCHES
--- M��mes r��gles : lecture pour tous, modif pour le owner du tournoi concern��
+-- Mï¿½ï¿½mes rï¿½ï¿½gles : lecture pour tous, modif pour le owner du tournoi concernï¿½ï¿½
 CREATE POLICY "Public can view child items"
   ON phases FOR SELECT USING (true);
 CREATE POLICY "Owner can modify phases"
@@ -190,7 +190,7 @@ ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE phase_teams ENABLE ROW LEVEL SECURITY;
--- Cr�ation d'une fonction pour d�finir le cr�ateur en tant qu'administrateur
+-- Crï¿½ation d'une fonction pour dï¿½finir le crï¿½ateur en tant qu'administrateur
 CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
 RETURNS TRIGGER AS C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sql
 BEGIN
@@ -211,7 +211,7 @@ FOR EACH ROW
 EXECUTE FUNCTION set_tournament_creator_as_admin();
 
 
--- Cr�ation d'une fonction pour d�finir le cr�ateur en tant qu'administrateur
+-- Crï¿½ation d'une fonction pour dï¿½finir le crï¿½ateur en tant qu'administrateur
 CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
 RETURNS TRIGGER AS C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sql
 BEGIN
@@ -233,7 +233,7 @@ EXECUTE FUNCTION set_tournament_creator_as_admin();
 
 
 
--- Cr�ation d'une fonction pour d�finir le cr�ateur en tant qu'administrateur
+-- Crï¿½ation d'une fonction pour dï¿½finir le crï¿½ateur en tant qu'administrateur
 CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -252,3 +252,95 @@ CREATE TRIGGER trg_set_tournament_admin
 BEFORE INSERT ON tournaments
 FOR EACH ROW
 EXECUTE FUNCTION set_tournament_creator_as_admin();
+
+
+
+-- Migration 24 : Simplification et sécurisation de la vérification Admin
+CREATE OR REPLACE FUNCTION is_admin_of_tournament(tid UUID) RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM tournaments
+    WHERE id = tid
+    AND (auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids))
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Mettre à jour 'teams'
+DROP POLICY IF EXISTS "Owner can modify teams" ON teams;
+CREATE POLICY "Owner can modify teams" ON teams
+  FOR ALL
+  USING (is_admin_of_tournament(tournament_id))
+  WITH CHECK (is_admin_of_tournament(tournament_id));
+
+-- Mettre à jour 'team_members'
+DROP POLICY IF EXISTS "Owner can modify team_members" ON team_members;
+CREATE POLICY "Owner can modify team_members" ON team_members
+  FOR ALL
+  USING (is_admin_of_tournament((SELECT tournament_id FROM teams WHERE id = team_id LIMIT 1)))
+  WITH CHECK (is_admin_of_tournament((SELECT tournament_id FROM teams WHERE id = team_id LIMIT 1)));
+
+-- Mettre à jour 'groups'
+DROP POLICY IF EXISTS "Owner can modify groups" ON groups;
+CREATE POLICY "Owner can modify groups" ON groups
+  FOR ALL
+  USING (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)))
+  WITH CHECK (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)));
+
+-- Mettre à jour 'phase_teams'
+DROP POLICY IF EXISTS "Owner can modify phase_teams" ON phase_teams;
+CREATE POLICY "Owner can modify phase_teams" ON phase_teams
+  FOR ALL
+  USING (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)))
+  WITH CHECK (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)));
+
+
+-- Migration 25 : Application de 'is_admin_of_tournament' à toutes les sous-structures restantes (phases, matches)
+-- Mettre à jour 'phases'
+DROP POLICY IF EXISTS "Owner can modify phases" ON phases;
+CREATE POLICY "Owner can modify phases" ON phases
+  FOR ALL
+  USING (is_admin_of_tournament(tournament_id))
+  WITH CHECK (is_admin_of_tournament(tournament_id));
+
+-- Mettre à jour 'matches'
+DROP POLICY IF EXISTS "Owner can modify matches" ON matches;
+CREATE POLICY "Owner can modify matches" ON matches
+  FOR ALL
+  USING (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)))
+  WITH CHECK (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)));
+
+
+-- Migration 25 : Application de 'is_admin_of_tournament' à toutes les sous-structures restantes (phases, matches)
+-- Mettre à jour 'phases'
+DROP POLICY IF EXISTS "Owner can modify phases" ON phases;
+CREATE POLICY "Owner can modify phases" ON phases
+  FOR ALL
+  USING (is_admin_of_tournament(tournament_id))
+  WITH CHECK (is_admin_of_tournament(tournament_id));
+
+-- Mettre à jour 'matches'
+DROP POLICY IF EXISTS "Owner can modify matches" ON matches;
+CREATE POLICY "Owner can modify matches" ON matches
+  FOR ALL
+  USING (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)))
+  WITH CHECK (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)));
+
+
+
+-- Migration 26 : Nettoyage des permissions obsolètes des capitaines (inscriptions gérées via Discord)
+DROP POLICY IF EXISTS "Captains can create teams" ON teams;
+DROP POLICY IF EXISTS "Captains can modify their team" ON teams;
+DROP POLICY IF EXISTS "Captains can delete their team" ON teams;
+DROP POLICY IF EXISTS "Captains can insert team members" ON team_members;
+DROP POLICY IF EXISTS "Captains can modify team members" ON team_members;
+DROP POLICY IF EXISTS "Captains can delete team members" ON team_members;
+
+
+-- Migration 26 : Nettoyage des permissions obsolètes des capitaines (inscriptions gérées via Discord)
+DROP POLICY IF EXISTS "Captains can create teams" ON teams;
+DROP POLICY IF EXISTS "Captains can modify their team" ON teams;
+DROP POLICY IF EXISTS "Captains can delete their team" ON teams;
+DROP POLICY IF EXISTS "Captains can insert team members" ON team_members;
+DROP POLICY IF EXISTS "Captains can modify team members" ON team_members;
+DROP POLICY IF EXISTS "Captains can delete team members" ON team_members;
