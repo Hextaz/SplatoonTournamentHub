@@ -143,7 +143,7 @@ export default async function TournamentDashboard({ params }: { params: Promise<
                     {!phase.matches || phase.matches.length === 0 
                       ? 'Brouillon' 
                       : phase.matches.every((m: any) => m.status === 'COMPLETED') 
-                        ? 'TerminÃ©' 
+                        ? 'Terminée' 
                         : 'En cours'}
                   </span>
                 </div>

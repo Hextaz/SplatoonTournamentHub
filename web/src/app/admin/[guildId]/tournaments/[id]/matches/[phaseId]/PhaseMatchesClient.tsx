@@ -228,46 +228,43 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     
     const roundNumbers = Object.keys(rounds).map(Number).sort((a,b) => a-b);
 
+    if (roundNumbers.length === 0) {
+      return (
+        <div className="py-12 text-center flex flex-col items-center">
+          <p className="text-slate-400">L'arbre n'a pas encore été généré.</p>
+        </div>
+      );
+    }
+
     return (
-      <div className="bg-[#0f111a] p-8 min-h-[600px] overflow-auto">
-        <div className="bg-[#151722] p-6 rounded-xl border border-slate-800/50 shadow-sm flex items-start gap-12 w-max">
+      <div className="bg-[#0f111a] overflow-x-auto pb-8 pt-4 custom-scrollbar min-h-[600px]">
+        <div className="flex items-stretch gap-10 min-w-max px-8">
           {roundNumbers.map((r, rIndex) => {
-            const matches = rounds[r].sort((a:any, b:any) => a.match_number - b.match_number);
+            const rMatches = rounds[r].sort((a:any, b:any) => a.match_number - b.match_number);
             
             return (
-              <div key={r} className="flex flex-col min-w-[240px] justify-around" style={{ minHeight: `${matches.length * 100}px` }}>
-                <div className="bg-slate-800 text-slate-400 font-bold text-sm text-center py-2 rounded mb-6 uppercase tracking-wider">
+              <div key={r} className="flex flex-col min-w-[240px] relative justify-around pt-12" style={{ minHeight: `${(rounds[roundNumbers[0]]?.length || 1) * 110}px` }}>
+                <div className="absolute top-0 left-0 right-0 text-slate-500 text-xs font-bold text-center py-2 uppercase tracking-wider bg-[#151722] rounded-md border border-slate-800/50">
                   Round {r}
                 </div>
                 
-                {matches.map((match: any, mIndex: number) => {
-                  // LOGIC BYE (Asymetric): if team2_id is null and it's Round 1, visually skip blocks or render empty.
-                  // For a robust flexbox layout, if it's a BYE, we still render a placeholder or hidden block to maintain spacing.
-                  const isBye = !match.team2_id && r === 1 && match.team1_id;
+                {Array.from({ length: Math.ceil(rMatches.length / 2) }).map((_, pairIndex) => {
+                  const match1 = rMatches[pairIndex * 2];
+                  const match2 = rMatches[pairIndex * 2 + 1];
 
-                  const isTBD = !match.team1_id && !match.team2_id;
-                  const isCompleted = match.status === "COMPLETED" || match.status === "FF";
-                  const team1Bold = match.team1_score > match.team2_score;
-                  const team2Bold = match.team2_score > match.team1_score;
+                  const renderMatchBox = (match: any, index: number) => {
+                    if (!match) return null;
+                    const isBye = !match.team2_id && r === 1 && match.team1_id;
+                    const isTBD = !match.team1_id && !match.team2_id;
+                    const isCompleted = match.status === "COMPLETED" || match.status === "FF";
+                    const team1Bold = match.team1_score > match.team2_score;
+                    const team2Bold = match.team2_score > match.team1_score;
 
-                  return (
-                    <div key={match.id} className="relative w-full mb-6 group">
-                      
-                      {/* Flexbox Tree Connectors */}
-                      {rIndex < roundNumbers.length - 1 && (
-                        <>
-                          <div className={`absolute top-1/2 -mt-px -right-6 w-6 border-t-2 border-slate-800/50 z-0`} />
-                          {mIndex % 2 === 0 ? (
-                            <div className="absolute top-1/2 -right-6 w-0.5 h-[calc(50%+1.5rem)] border-r-2 border-slate-800/50 z-0"></div>
-                          ) : (
-                            <div className="absolute bottom-1/2 -right-6 w-0.5 h-[calc(50%+1.5rem)] border-r-2 border-slate-800/50 z-0"></div>
-                          )}
-                        </>
-                      )}
-
-                      <div 
+                    return (
+                      <div key={match.id}
                         onClick={() => !isTBD && openMatchEdit(match)}
-                        className={`relative z-10 bg-[#151722] border ${isTBD ? 'border-slate-700/50' : 'border-slate-800/50 cursor-pointer hover:border-blue-400'} rounded-lg shadow-sm flex flex-col overflow-hidden text-sm transition-colors`}
+                        className={`relative z-10 bg-[#151722] border ${isTBD ? 'border-slate-700/50' : 'border-slate-800/50 cursor-pointer hover:border-blue-400'} rounded-lg shadow-sm flex flex-col overflow-hidden text-sm transition-colors text-slate-400 mb-2 mt-2`} 
+                        style={{ height: '80px' }}
                       >
                          <div className="flex items-stretch border-b border-slate-700/50 h-10">
                             <div className={`flex-1 px-3 flex flex-col justify-center truncate ${team1Bold ? 'font-bold text-slate-200' : 'font-medium text-slate-500'}`}>
@@ -294,7 +291,26 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                             )}
                          </div>
                       </div>
+                    );
+                  };
 
+                  return (
+                    <div key={pairIndex} className="relative flex flex-col justify-around flex-1" style={{ margin: match2 ? '0' : '0 0' }}>
+                      {renderMatchBox(match1, 0)}
+                      {renderMatchBox(match2, 1)}
+
+                      {/* Flexbox Tree Connectors */}
+                      {rIndex < roundNumbers.length - 1 && match2 && (
+                        <div className="absolute top-[48px] bottom-[48px] -right-5 w-5 border-r-2 border-y-2 border-slate-700/60 rounded-r-md z-0 pointer-events-none"></div>
+                      )}
+
+                      {rIndex < roundNumbers.length - 1 && match1 && !match2 && (
+                        <div className="absolute top-[48px] -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                      )}
+
+                      {rIndex < roundNumbers.length - 1 && match2 && (
+                        <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                      )}
                     </div>
                   );
                 })}
