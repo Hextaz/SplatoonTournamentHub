@@ -335,36 +335,9 @@ export class RegistrationService {
         // Nettoyage Cache
         registrationCache.delete(cacheKey);
 
-        // 3. Actions Discord (Assigner le rôle Captain + Changer Pseudo)
-        let renameStatus = "—";
-        let roleStatus = "—";
-
-        if (interaction.member && tournament) {
-            const member = interaction.member as any;
-            
-            // Renommer
-            try {
-               const newNickname = `${cachedData.teamName} | ${member.user.username}`.substring(0, 32);
-               await member.setNickname(newNickname);
-               renameStatus = "✅ Fait";
-            } catch(e: any) {
-               console.error("Non fatal discord error (rename):", e.message);
-               renameStatus = "⚠️ Permissions insuffisantes";
-            }
-            
-            // Rôle Capitaine
-            if (tournament.discord_captain_role_id) {
-               try {
-                   await member.roles.add(tournament.discord_captain_role_id);
-                   roleStatus = "✅ Fait";
-               } catch (e: any) {
-                   console.error("Non fatal discord error (role):", e.message);
-                   roleStatus = "⚠️ Permissions insuffisantes";
-               }
-            } else {
-               roleStatus = "Non configuré";
-            }
-        }
+        // 3. Actions Discord (Ceci a été déplacé au Check-In !)
+        let renameStatus = "En attente du checkin";
+        let roleStatus = "En attente du checkin";
 
         // 4. Message Public dans le salon d'inscription
         if (tournament && tournament.discord_registration_channel_id) {

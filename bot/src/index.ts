@@ -336,6 +336,11 @@ const bootstrap = async () => {
     // Démarrer le Scheduler de Tournoi
     await SchedulerService.init(client);
 
+    // Initialiser le gestionnaire de présence temps-réel
+    const { PresenceRolesService } = require('./services/PresenceRolesService');
+    const presenceRolesService = new PresenceRolesService(client);
+    presenceRolesService.init();
+
     // MIGRATION SPRINT 11 : Le registre de commandes slash a été déporté dans bot/scripts/deploy-commands.ts
     // pour éviter des conflits et du lag inutile au démarrage sur plusieurs serveurs.
     
