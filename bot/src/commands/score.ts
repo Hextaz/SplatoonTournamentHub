@@ -26,7 +26,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     .select("id, round_number, match_number, team1_id, team2_id, phases(name), status")
     .in("status", ["PENDING", "IN_PROGRESS"])
     .not("team1_id", "is", null)
-    .not("team2_id", "is", null);
+    .not("team2_id", "is", null)
+    .order("round_number", { ascending: true });
 
   if (matchesError || !matches || matches.length === 0) {
     return interaction.reply({ content: "⏳ Vous n'avez aucun match en attente de score pour le moment.", ephemeral: true });
