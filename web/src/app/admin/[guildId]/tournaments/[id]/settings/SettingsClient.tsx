@@ -5,18 +5,19 @@ import { botApiFetch } from '@/utils/api';
 
 import { supabase } from "@/lib/supabase";
 import dayjs from "dayjs";
-import { Save, CalendarDays, RefreshCw, MessageSquare, Shield, Send } from "lucide-react";
+import { Save, CalendarDays, RefreshCw, MessageSquare, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export function SettingsClient({ tournament, guildId }: { tournament: any; guildId: string }) {
+export function SettingsClient({ tournament, guildId, initialChannels = [], initialRoles = [] }: { tournament: any; guildId: string; initialChannels?: any[]; initialRoles?: any[] }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
-  const [channels, setChannels] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
+  const [channels, setChannels] = useState<any[]>(initialChannels);
+  const [roles, setRoles] = useState<any[]>(initialRoles);
   const [isLoadingDiscord, setIsLoadingDiscord] = useState(true);
+  const [discordError, setDiscordError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDiscordData = async () => {
@@ -33,14 +34,23 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
         if (channelsRes.ok) {
           const channelsData = await channelsRes.json();
           setChannels(channelsData);
+        } else {
+          const errText = await channelsRes.text();
+          console.error("Failed to fetch Discord channels:", errText);
+          setDiscordError("Impossible de charger les salons Discord. Vérifiez que le bot est bien connecté et que la variable d'environnement BOT_API_SECRET est configurée.");
         }
 
         if (rolesRes.ok) {
           const rolesData = await rolesRes.json();
           setRoles(rolesData);
+        } else {
+          const errText = await rolesRes.text();
+          console.error("Failed to fetch Discord roles:", errText);
+          setDiscordError("Impossible de charger les rôles Discord.");
         }
       } catch (e) {
         console.error("Failed to fetch Discord data", e);
+        setDiscordError("Erreur lors du chargement des données Discord.");
       } finally {
         setIsLoadingDiscord(false);
       }
@@ -108,6 +118,12 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
       {message && (
         <div className={`p-4 rounded-lg font-medium border ${message.type === 'success' ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-red-500/20 text-red-400 border-red-500/50'}`}>
           {message.text}
+        </div>
+      )}
+
+      {discordError && (
+        <div className="p-4 rounded-lg font-medium border bg-amber-500/20 text-amber-400 border-amber-500/50">
+          ⚠️ {discordError}
         </div>
       )}
 
