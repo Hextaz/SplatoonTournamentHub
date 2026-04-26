@@ -17,7 +17,6 @@ export class SchedulerService {
     this.client = client;
     console.log("[Scheduler] Initializing SchedulerService...");
 
-    // Au démarrage, on récupère tous les tournois (REGISTRATION ou ACTIVE) dont la phase de check-in n'est pas complètement terminée
     const { data: tournaments, error } = await supabase
       .from("tournaments")
       .select("*")
@@ -30,9 +29,7 @@ export class SchedulerService {
     }
 
     if (tournaments && tournaments.length > 0) {
-      console.log(
-        `[Scheduler] Found ${tournaments.length} active tournaments to schedule.`,
-      );
+      console.log(`[Scheduler] Found ${tournaments.length} active tournaments to schedule.`);
       for (const t of tournaments) {
         if (t.checkin_start_at && t.checkin_end_at && t.guild_id) {
           this.scheduleTournament(t);
@@ -42,67 +39,54 @@ export class SchedulerService {
   }
 
   public static scheduleTournament(tournament: any) {
-    // 1. Annuler les anciens jobs si on reschedule
     this.cancelTournamentJobs(tournament.id);
 
     const now = new Date();
     const startAt = new Date(tournament.checkin_start_at);
     const endAt = new Date(tournament.checkin_end_at);
 
-    // --- Action Ouverture ---
+    // --- Open Check-in ---
     if (now < startAt) {
       const openJob = schedule.scheduleJob(startAt, async () => {
-        await this.handleOpenCheckin(tournament);
+        await this.handleOpenCheckin(tournament.id);
       });
       this.activeJobs.set(`${tournament.id}_open`, openJob);
     } else if (now >= startAt && now < endAt) {
-      // Rattrapage immédiat (Catch-up) : Si l'heure de check-in est déjà passée,
-      // MAIS qu'on n'a pas encore de checkin_message_id (donc l'embed n'a jamais été publié),
-      // on doit le lancer immédiatement pour rattraper le retard dû au redémarrage.
-      if (!tournament.checkin_message_id) {
-        console.log(`[Scheduler] Catch-up: Starting missed check-in for tournament ${tournament.id} immediately.`);
-        // On ne bloque pas le reste du lancement du Scheduler
-        setTimeout(() => {
-          this.handleOpenCheckin(tournament).catch((err) =>
-            console.error(`[Scheduler] Catch-up failed for ${tournament.id}:`, err)
-          );
-        }, 1000); // Exécuté presque tout de suite
-      } else {
-        console.log(`[Scheduler] Check-in already triggered for ${tournament.id}, resume reminders and close jobs.`);
-      }
+      // Catch-up: check-in window already started
+      // Refresh from DB to get the latest checkin_message_id
+      this.catchUpCheckin(tournament.id).catch((err) =>
+        console.error(`[Scheduler] Catch-up failed for ${tournament.id}:`, err)
+      );
     }
 
-    // --- Actions Rappels ---
-    // Calcul de la durée en minutes
+    // --- Reminders ---
     const diffMs = endAt.getTime() - startAt.getTime();
     const durationMin = Math.floor(diffMs / 60000);
 
-    // Rappel - 30 min (si la durée totale est > 30min)
     if (durationMin >= 30) {
       const remind30Time = new Date(endAt.getTime() - 30 * 60000);
       if (now < remind30Time) {
         const remind30Job = schedule.scheduleJob(remind30Time, async () => {
-          await this.handleReminders(tournament, 30);
+          await this.handleReminders(tournament.id, 30);
         });
         this.activeJobs.set(`${tournament.id}_remind30`, remind30Job);
       }
     }
 
-    // Rappel - 10 min
     if (durationMin >= 10) {
       const remind10Time = new Date(endAt.getTime() - 10 * 60000);
       if (now < remind10Time) {
         const remind10Job = schedule.scheduleJob(remind10Time, async () => {
-          await this.handleReminders(tournament, 10);
+          await this.handleReminders(tournament.id, 10);
         });
         this.activeJobs.set(`${tournament.id}_remind10`, remind10Job);
       }
     }
 
-    // --- Action Fermeture ---
+    // --- Close Check-in ---
     if (now < endAt) {
       const closeJob = schedule.scheduleJob(endAt, async () => {
-        await this.handleCloseCheckin(tournament);
+        await this.handleCloseCheckin(tournament.id);
       });
       this.activeJobs.set(`${tournament.id}_close`, closeJob);
     }
@@ -128,26 +112,107 @@ export class SchedulerService {
     }
   }
 
-  // ============== HANDLERS D'ACTIONS ==============
+  public static cancelAllJobs() {
+    for (const [key, job] of this.activeJobs.entries()) {
+      job.cancel();
+      this.activeJobs.delete(key);
+    }
+    console.log("[Scheduler] All jobs cancelled.");
+  }
 
-  private static async handleOpenCheckin(tournament: any) {
+  // ============== HANDLERS ==============
+
+  private static async catchUpCheckin(tournamentId: string) {
+    const { data: tournament } = await supabase
+      .from("tournaments")
+      .select("id, checkin_message_id, discord_checkin_channel_id")
+      .eq("id", tournamentId)
+      .single();
+
+    if (!tournament) return;
+
+    // Already has a message ID — the embed was published, skip
+    if (tournament.checkin_message_id) {
+      console.log(`[Scheduler] Check-in already triggered for ${tournamentId}, resuming reminders and close jobs.`);
+      return;
+    }
+
+    // No message ID — but maybe the message was sent and the ID wasn't saved (crash before DB write).
+    // Check if the bot already sent a recent message in the check-in channel.
+    if (tournament.discord_checkin_channel_id) {
+      const alreadySent = await this.botAlreadySentCheckinMessage(tournament.discord_checkin_channel_id, tournamentId);
+      if (alreadySent) {
+        console.log(`[Scheduler] Catch-up: bot already sent a check-in message in channel ${tournament.discord_checkin_channel_id}. Updating DB and skipping.`);
+        // Save the message ID so future restarts won't re-trigger
+        await supabase
+          .from("tournaments")
+          .update({ checkin_message_id: alreadySent })
+          .eq("id", tournamentId);
+        return;
+      }
+    }
+
+    // No message found — genuinely missed, send it now
+    console.log(`[Scheduler] Catch-up: Starting missed check-in for tournament ${tournamentId} immediately.`);
+    await this.handleOpenCheckin(tournamentId);
+  }
+
+  private static async botAlreadySentCheckinMessage(channelId: string, _tournamentId: string): Promise<string | null> {
     try {
-      console.log(
-        `[Scheduler] Executing Check-in Open for tournament ${tournament.id}`,
-      );
+      const channel = (await this.client.channels.fetch(channelId)) as TextChannel | null;
+      if (!channel || !channel.isTextBased()) return null;
 
-      // On utilise les nouveaux champs de configuration de tournoi
+      const messages = await channel.messages.fetch({ limit: 10 });
+      const botId = this.client.user?.id;
+      if (!botId) return null;
+
+      for (const [msgId, msg] of messages) {
+        if (msg.author.id !== botId) continue;
+        if (!msg.components || msg.components.length === 0) continue;
+
+        for (const row of msg.components) {
+          if (!row || !("components" in row)) continue;
+          for (const component of (row as any).components) {
+            if (component?.customId === "btn_checkin" || component?.data?.custom_id === "btn_checkin") {
+              return msgId;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[Scheduler] Failed to check existing messages in channel ${channelId}:`, err);
+    }
+    return null;
+  }
+
+  private static async handleOpenCheckin(tournamentId: string) {
+    try {
+      console.log(`[Scheduler] Executing Check-in Open for tournament ${tournamentId}`);
+
+      // Always fetch fresh tournament data
+      const { data: tournament } = await supabase
+        .from("tournaments")
+        .select("*")
+        .eq("id", tournamentId)
+        .single();
+
+      if (!tournament) return;
+
+      // Double-check: if message already exists, skip
+      if (tournament.checkin_message_id) {
+        console.log(`[Scheduler] Check-in message already exists for ${tournamentId}, skipping.`);
+        return;
+      }
+
       const checkinChannelId = tournament.discord_checkin_channel_id;
       const captainRoleId = tournament.discord_captain_role_id;
 
       if (!checkinChannelId) {
-        console.warn(`[Scheduler] Missing discord_checkin_channel_id for tournament ${tournament.id}`);
+        console.warn(`[Scheduler] Missing discord_checkin_channel_id for tournament ${tournamentId}`);
         return;
       }
 
-      const channel = (await this.client.channels.fetch(
-        checkinChannelId,
-      )) as TextChannel;
+      const channel = (await this.client.channels.fetch(checkinChannelId)) as TextChannel;
       if (!channel || !("send" in channel)) return;
 
       const mentionsMessage = captainRoleId ? `<@&${captainRoleId}>, le check-in est ouvert !` : "Le check-in est ouvert !";
@@ -173,40 +238,40 @@ export class SchedulerService {
         components: [row],
       });
 
-      // Saving message ID to DB so next restarts won't re-ping
+      // Save message ID immediately
       await supabase
         .from("tournaments")
         .update({ checkin_message_id: msg.id })
-        .eq("id", tournament.id);
+        .eq("id", tournamentId);
 
-      console.log(`[Scheduler] Check-in Embed fully published and checkin_message_id saved for ${tournament.id}.`);
+      console.log(`[Scheduler] Check-in Embed published and checkin_message_id saved for ${tournamentId}.`);
     } catch (e) {
       console.error("[Scheduler] Failed opening checkin:", e);
     }
   }
 
-  private static async handleReminders(tournament: any, minutesLeft: number) {
+  private static async handleReminders(tournamentId: string, minutesLeft: number) {
     try {
-      console.log(
-        `[Scheduler] Warning Check-in closes in ${minutesLeft}min for tournament ${tournament.id}`,
-      );
+      console.log(`[Scheduler] Warning: Check-in closes in ${minutesLeft}min for tournament ${tournamentId}`);
 
-      // On utilise le channel Discord du tournoi
-      const checkinChannelId = tournament.discord_checkin_channel_id;
-      if (!checkinChannelId) return;
+      // Fetch fresh tournament data
+      const { data: tournament } = await supabase
+        .from("tournaments")
+        .select("discord_checkin_channel_id")
+        .eq("id", tournamentId)
+        .single();
 
-      // Get teams that haven't checked in
+      if (!tournament?.discord_checkin_channel_id) return;
+
       const { data: teams } = await supabase
         .from("teams")
         .select("captain_discord_id")
-        .eq("tournament_id", tournament.id)
+        .eq("tournament_id", tournamentId)
         .eq("is_checked_in", false);
 
-      if (!teams || teams.length === 0) return; // All checked in
+      if (!teams || teams.length === 0) return;
 
-      const channel = (await this.client.channels.fetch(
-        checkinChannelId,
-      )) as TextChannel;
+      const channel = (await this.client.channels.fetch(tournament.discord_checkin_channel_id)) as TextChannel;
       if (!channel || !("send" in channel)) return;
 
       const mentions = teams.map((t) => `<@${t.captain_discord_id}>`).join(" ");
@@ -218,17 +283,14 @@ export class SchedulerService {
     }
   }
 
-  private static async handleCloseCheckin(tournament: any) {
+  private static async handleCloseCheckin(tournamentId: string) {
     try {
-      console.log(
-        `[Scheduler] Closing checkin for tournament ${tournament.id}`,
-      );
+      console.log(`[Scheduler] Closing checkin for tournament ${tournamentId}`);
 
-      // Refresh tournament data to get the latest message_id
       const { data: latestTournament } = await supabase
         .from("tournaments")
-        .select("checkin_message_id, guild_id, discord_checkin_channel_id")
-        .eq("id", tournament.id)
+        .select("checkin_message_id, discord_checkin_channel_id")
+        .eq("id", tournamentId)
         .single();
 
       if (!latestTournament?.checkin_message_id) return;
@@ -236,18 +298,14 @@ export class SchedulerService {
       const checkinChannelId = latestTournament.discord_checkin_channel_id;
       if (!checkinChannelId) return;
 
-      const channel = (await this.client.channels.fetch(
-        checkinChannelId,
-      )) as TextChannel;
+      const channel = (await this.client.channels.fetch(checkinChannelId)) as TextChannel;
       if (!channel || !("messages" in channel)) return;
 
-      const msg = await channel.messages.fetch(
-        latestTournament.checkin_message_id,
-      );
+      const msg = await channel.messages.fetch(latestTournament.checkin_message_id).catch(() => null);
       if (msg) {
         const checkinEmbed = new EmbedBuilder()
           .setTitle("🛑 Check-in Terminé !")
-          .setDescription(`Le check-in pour ce tournoi est maintenant clos.`)
+          .setDescription("Le check-in pour ce tournoi est maintenant clos.")
           .setColor(0xff0000);
 
         await msg.edit({

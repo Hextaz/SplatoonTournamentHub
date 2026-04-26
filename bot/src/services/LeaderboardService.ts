@@ -1,22 +1,41 @@
 import { supabase } from "../lib/supabase";
 
+// Mutex map: prevents concurrent calculations for the same group
+const groupLocks: Map<string, Promise<void>> = new Map();
+
 export class LeaderboardService {
   /**
    * Recalculates stats for all teams in a specific group and updates the phase_teams table.
-   * Calculates played, wins, draws, losses, forfeits, score_for, score_against, differential, and points.
+   * Uses a per-group mutex to prevent concurrent calculations from overwriting each other.
    */
   public static async calculateGroupStandings(groupId: string): Promise<void> {
+    // Wait for any in-progress calculation for this group, then re-run
+    const existingLock = groupLocks.get(groupId);
+    if (existingLock) {
+      await existingLock;
+      // After waiting, re-run to pick up any changes that occurred during the lock
+    }
+
+    const lockPromise = this.doCalculateGroupStandings(groupId);
+    groupLocks.set(groupId, lockPromise);
+
     try {
-      // 1. Get the group to find its phase_id
+      await lockPromise;
+    } finally {
+      groupLocks.delete(groupId);
+    }
+  }
+
+  private static async doCalculateGroupStandings(groupId: string): Promise<void> {
+    try {
       const { data: group } = await supabase
         .from("groups")
         .select("phase_id")
         .eq("id", groupId)
         .single();
-        
+
       if (!group) return;
 
-      // 2. Fetch phase settings for points configuration
       const { data: phase } = await supabase
         .from("phases")
         .select("settings")
@@ -25,13 +44,17 @@ export class LeaderboardService {
 
       if (!phase) return;
 
-      const settings = typeof phase.settings === 'string' ? JSON.parse(phase.settings) : (phase.settings || {});
+      let settings: any = {};
+      try {
+        settings = typeof phase.settings === 'string' ? JSON.parse(phase.settings) : (phase.settings || {});
+      } catch {
+        console.error(`[LeaderboardService] Malformed settings JSON for phase ${group.phase_id}, using defaults.`);
+      }
       const pointsWin = settings.points_win ?? 3;
       const pointsDraw = settings.points_draw ?? 1;
       const pointsLoss = settings.points_loss ?? 0;
       const pointsForfeit = settings.points_forfeit ?? 0;
 
-      // 3. Fetch all teams currently in this group
       const { data: groupTeams } = await supabase
         .from("phase_teams")
         .select("team_id, phase_id")
@@ -39,54 +62,53 @@ export class LeaderboardService {
 
       if (!groupTeams || groupTeams.length === 0) return;
 
-      // Initialize stats map for each team
       const statsMap: Record<string, any> = {};
       for (const t of groupTeams) {
         statsMap[t.team_id] = {
-          played: 0,
-          wins: 0,
-          draws: 0,
-          losses: 0,
-          forfeits: 0, // Currently no explicit 'FORFEIT' status mapped in ScoreService, but reserved for future
-          score_for: 0,
-          score_against: 0,
-          differential: 0,
-          points: 0
+          played: 0, wins: 0, draws: 0, losses: 0, forfeits: 0,
+          score_for: 0, score_against: 0, differential: 0, points: 0
         };
       }
 
-      // 4. Fetch all COMPLETED matches for this group
+      // Include both COMPLETED and BYE matches — BYE matches count as wins
       const { data: matches } = await supabase
         .from("matches")
         .select("team1_id, team2_id, team1_score, team2_score, status")
         .eq("group_id", groupId)
-        .eq("status", "COMPLETED");
+        .in("status", ["COMPLETED", "BYE"]);
 
-      // 5. Calculate statistics
       if (matches && matches.length > 0) {
         for (const match of matches) {
           const t1 = match.team1_id;
           const t2 = match.team2_id;
+          const isBye = match.status === "BYE";
           const s1 = match.team1_score || 0;
           const s2 = match.team2_score || 0;
 
-          // Process Team 1
+          // For BYE matches, the real team gets a win
+          if (isBye) {
+            const realTeamId = t1 || t2;
+            if (realTeamId && statsMap[realTeamId]) {
+              statsMap[realTeamId].played += 1;
+              statsMap[realTeamId].wins += 1;
+              statsMap[realTeamId].score_for += Math.max(s1, s2);
+            }
+            continue;
+          }
+
           if (t1 && statsMap[t1]) {
             statsMap[t1].played += 1;
             statsMap[t1].score_for += s1;
             statsMap[t1].score_against += s2;
-
             if (s1 > s2) statsMap[t1].wins += 1;
             else if (s1 < s2) statsMap[t1].losses += 1;
             else statsMap[t1].draws += 1;
           }
 
-          // Process Team 2
           if (t2 && statsMap[t2]) {
             statsMap[t2].played += 1;
             statsMap[t2].score_for += s2;
             statsMap[t2].score_against += s1;
-
             if (s2 > s1) statsMap[t2].wins += 1;
             else if (s2 < s1) statsMap[t2].losses += 1;
             else statsMap[t2].draws += 1;
@@ -94,11 +116,7 @@ export class LeaderboardService {
         }
       }
 
-      // 6. Finalize calculations (differential and points) and prepare bulk update
-      // Since Supabase doesn't easily support bulk update via REST without a true upsert on PK safely in this context,
-      // we'll update them one by one considering groups rarely have more than 4-8 teams.
       const updatePromises = [];
-
       for (const t of groupTeams) {
         const stats = statsMap[t.team_id];
         stats.differential = stats.score_for - stats.score_against;
@@ -107,19 +125,14 @@ export class LeaderboardService {
         const promise = supabase
           .from("phase_teams")
           .update({
-            played: stats.played,
-            wins: stats.wins,
-            draws: stats.draws,
-            losses: stats.losses,
-            forfeits: stats.forfeits,
-            score_for: stats.score_for,
-            score_against: stats.score_against,
-            differential: stats.differential,
-            points: stats.points
+            played: stats.played, wins: stats.wins, draws: stats.draws,
+            losses: stats.losses, forfeits: stats.forfeits,
+            score_for: stats.score_for, score_against: stats.score_against,
+            differential: stats.differential, points: stats.points
           })
           .eq("phase_id", t.phase_id)
           .eq("team_id", t.team_id);
-          
+
         updatePromises.push(promise);
       }
 

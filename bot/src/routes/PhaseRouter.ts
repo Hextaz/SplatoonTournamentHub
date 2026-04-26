@@ -18,7 +18,7 @@ phaseRouter.post("/", async (req, res) => {
         format: format || "SINGLE_ELIM",
         bracket_size: bracket_size || 8,
         phase_order: phase_order || 1,
-  })
+      })
       .select()
       .single();
 
@@ -45,43 +45,43 @@ phaseRouter.get("/:tournamentId", async (req, res) => {
   }
 });
 
-// Appliquer le seeding et régénérer l'arbre (Live Edit)
+// Appliquer le seeding et régénérer l'arbre (Live Edit) — transactionnel via RPC
 phaseRouter.put("/:id/seeding", async (req, res) => {
   try {
     const phaseId = req.params.id;
     const { participants } = req.body;
 
     // 0. Sécurité : Vérifier si des matchs ont déjà commencé
-    const { data: activeMatches, error: matchCheckErr} = await supabase
+    const { data: activeMatches, error: matchCheckErr } = await supabase
       .from('matches')
       .select('id, status, team1_score, team2_score, team1_id, team2_id')
       .eq('phase_id', phaseId);
-      
+
     if (matchCheckErr) throw matchCheckErr;
     if (activeMatches && activeMatches.length > 0) {
-      // Ignorer les matchs fictifs (BYE, TBD)
-      const hasStarted = activeMatches.some(m => {
-        // C'est un vrai match s'il y a deux équipes concernées
+      const hasStarted = activeMatches.some((m: any) => {
         const isRealMatch = m.team1_id !== null && m.team2_id !== null;
         if (!isRealMatch) return false;
-        
         return m.status === 'COMPLETED' || m.team1_score > 0 || m.team2_score > 0;
       });
       if (hasStarted) return res.status(400).json({ error: 'Impossible de modifier le placement : des matchs ont déjà des scores ou sont terminés.' });
     }
 
-    const { error: delError } = await supabase.from('phase_teams').delete().eq('phase_id', phaseId);
-    if (delError) throw delError;
-
+    // Use atomic RPC to delete phase_teams + matches, then insert new seeding
     if (participants && participants.length > 0) {
-      const inserts = participants.map((p: any) => ({ phase_id: phaseId, team_id: p.team_id, seed: p.seed }));
-      const { error } = await supabase.from('phase_teams').insert(inserts);
-      if (error) throw error;
+      const { error: rpcError } = await supabase.rpc('regenerate_phase_seeding', {
+        p_phase_id: phaseId,
+        p_participants: participants
+      });
+      if (rpcError) throw rpcError;
+    } else {
+      const { error: delMatches } = await supabase.from('matches').delete().eq('phase_id', phaseId);
+      if (delMatches) throw delMatches;
+      const { error: delTeams } = await supabase.from('phase_teams').delete().eq('phase_id', phaseId);
+      if (delTeams) throw delTeams;
     }
 
-    const { error: delMatchesError } = await supabase.from('matches').delete().eq('phase_id', phaseId);
-    if (delMatchesError) throw delMatchesError;
-
+    // Generate bracket or round-robin matches
     const { data: phaseData, error: phaseErr } = await supabase.from('phases').select('bracket_size, format, max_groups').eq('id', phaseId).single();
     if (phaseErr) throw phaseErr;
 
@@ -90,14 +90,16 @@ phaseRouter.put("/:id/seeding", async (req, res) => {
     } else {
       await BracketGeneratorService.generateBracket(phaseId, phaseData.bracket_size || 8);
     }
+
+    // Sync Discord channels if tournament is active
     const { data: phaseWithTourney } = await supabase.from("phases").select("tournaments!inner(guild_id, status)").eq("id", phaseId).single();
     const tourneyInfo: any = phaseWithTourney?.tournaments;
     const tourneyStatus = Array.isArray(tourneyInfo) ? tourneyInfo[0]?.status : tourneyInfo?.status;
     const tourneyGuild = Array.isArray(tourneyInfo) ? tourneyInfo[0]?.guild_id : tourneyInfo?.guild_id;
 
     if (tourneyStatus === "ACTIVE") {
-       const discordClient = req.app.locals.discordClient;
-       await LifecycleService.syncPhaseChannels(phaseId, tourneyGuild, discordClient).catch(e => console.error("Auto Sync Failed", e));
+      const discordClient = req.app.locals.discordClient;
+      await LifecycleService.syncPhaseChannels(phaseId, tourneyGuild, discordClient).catch(e => console.error("Auto Sync Failed", e));
     }
     res.status(200).json({ message: 'Placement et arbre mis à jour avec succès' });
   } catch (error: any) {

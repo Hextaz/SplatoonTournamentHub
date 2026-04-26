@@ -2,18 +2,20 @@
 
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
-import { LogOut, Menu, LogIn } from "lucide-react";
+import { LogOut, Menu, LogIn, Wifi, WifiOff } from "lucide-react";
 import { useState } from "react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export default function Navbar() {
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
+  const isOnline = useOnlineStatus();
 
   return (
     <nav className="bg-[#0a0a0f] border-b border-slate-800/50 text-white shadow-md relative z-50">
       <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             <Link
               href={session ? "/servers" : "/"}
               className="flex-shrink-0 flex items-center gap-2"
@@ -22,6 +24,7 @@ export default function Navbar() {
                 SplatoonHub
               </span>
             </Link>
+            <ConnectionIndicator isOnline={isOnline} />
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
@@ -58,7 +61,8 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            <ConnectionIndicator isOnline={isOnline} />
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-[#151722] focus:outline-none"
@@ -116,3 +120,16 @@ export default function Navbar() {
   );
 }
 
+function ConnectionIndicator({ isOnline }: { isOnline: boolean }) {
+  if (isOnline) return null;
+
+  return (
+    <div
+      className="flex items-center gap-1.5 text-xs text-red-400"
+      title="Connexion perdue"
+    >
+      <WifiOff size={14} />
+      <span className="hidden sm:inline">Hors ligne</span>
+    </div>
+  );
+}

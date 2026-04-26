@@ -10,11 +10,15 @@ matchRouter.put("/:id/force-score", async (req, res) => {
     const matchId = req.params.id;
     const { team1_score, team2_score } = req.body;
 
-    if (typeof team1_score !== 'number' || typeof team2_score !== 'number') {
-      return res.status(400).json({ error: "team1_score and team2_score must be numbers" });
+    if (
+      typeof team1_score !== 'number' || typeof team2_score !== 'number' ||
+      !Number.isInteger(team1_score) || !Number.isInteger(team2_score) ||
+      team1_score < 0 || team2_score < 0 ||
+      team1_score > 99 || team2_score > 99
+    ) {
+      return res.status(400).json({ error: "team1_score and team2_score must be integers between 0 and 99" });
     }
 
-    // 1. Update match scores and status in DB
     const { data: updatedMatch, error: updateError } = await supabase
       .from("matches")
       .update({
@@ -29,10 +33,9 @@ matchRouter.put("/:id/force-score", async (req, res) => {
     if (updateError) throw updateError;
     if (!updatedMatch) return res.status(404).json({ error: "Match not found" });
 
-    // 2. Fetch the channel if possible to send notifications (optional but good)
     const discordClient = req.app.locals.discordClient;
     let channel: TextChannel | undefined;
-    
+
     if (discordClient && updatedMatch.discord_channel_id) {
       try {
         const fetchedChannel = await discordClient.channels.fetch(updatedMatch.discord_channel_id);
@@ -40,11 +43,10 @@ matchRouter.put("/:id/force-score", async (req, res) => {
           channel = fetchedChannel as TextChannel;
         }
       } catch (err) {
-         console.warn(`Could not fetch channel ${updatedMatch.discord_channel_id} for match ${matchId}`);
+        console.warn(`Could not fetch channel ${updatedMatch.discord_channel_id} for match ${matchId}`);
       }
     }
 
-    // 3. Progress teams in the bracket
     let winnerId: string | null = null;
     let loserId: string | null = null;
     if (team1_score > team2_score) {
@@ -55,7 +57,7 @@ matchRouter.put("/:id/force-score", async (req, res) => {
       loserId = updatedMatch.team1_id;
     }
 
-    await ScoreService["progressTeams"](updatedMatch, channel as any, winnerId, loserId);
+    await ScoreService.progressTeams(updatedMatch, channel, winnerId, loserId);
 
     res.status(200).json({ message: "Score forced and bracket updated", match: updatedMatch });
   } catch (error: any) {

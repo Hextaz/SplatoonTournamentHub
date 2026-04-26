@@ -1,10 +1,25 @@
-import { Client, Guild, ChannelType, CategoryChannel, PermissionFlagsBits, OverwriteData } from 'discord.js';
+import { Client, Guild, ChannelType, CategoryChannel, PermissionFlagsBits, OverwriteData, PermissionResolvable } from 'discord.js';
 import { supabase } from '../lib/supabase';
 
+function hasPerm(list: PermissionResolvable[] | undefined, bit: bigint): boolean {
+  if (!list) return false;
+  for (const item of list) {
+    if (typeof item === 'bigint' && item === bit) return true;
+    if (Array.isArray(item) && item.includes(bit)) return true;
+  }
+  return false;
+}
+
+function permsToEditData(perm: OverwriteData) {
+  return {
+    ViewChannel: hasPerm(perm.deny as any, PermissionFlagsBits.ViewChannel) ? false : hasPerm(perm.allow as any, PermissionFlagsBits.ViewChannel) ? true : undefined,
+    SendMessages: hasPerm(perm.allow as any, PermissionFlagsBits.SendMessages) ? true : hasPerm(perm.deny as any, PermissionFlagsBits.SendMessages) ? false : undefined,
+    ReadMessageHistory: hasPerm(perm.allow as any, PermissionFlagsBits.ReadMessageHistory) ? true : undefined,
+    ManageChannels: hasPerm(perm.allow as any, PermissionFlagsBits.ManageChannels) ? true : undefined,
+  };
+}
+
 export class LifecycleService {
-  /**
-   * Lance le tournoi : crée la catégorie Discord et un salon textuel de bienvenue.
-   */
   static async launchTournament(tournamentId: string, guildId: string, discordClient: Client): Promise<boolean> {
     try {
       const { data: tournament, error } = await supabase
@@ -12,13 +27,12 @@ export class LifecycleService {
         .select('*')
         .eq('id', tournamentId)
         .single();
-      
+
       if (error || !tournament) throw new Error('Tournament not found');
 
       const guild: Guild | undefined = discordClient.guilds.cache.get(guildId) || await discordClient.guilds.fetch(guildId).catch(() => undefined);
       if (!guild) throw new Error(`Guild ${guildId} not found by bot.`);
 
-      // 1. Définir les permissions de base (Catégorie fermée au public, visible pour tous temporairement ou pour T.O. etc)
       const permissions: OverwriteData[] = [
         {
           id: guild.roles.everyone.id,
@@ -26,7 +40,6 @@ export class LifecycleService {
         },
       ];
 
-      // Si y a un rôle TO, on lui donne tout accès
       if (tournament.discord_to_role_id) {
         permissions.push({
           id: tournament.discord_to_role_id,
@@ -34,7 +47,6 @@ export class LifecycleService {
         });
       }
 
-      // Si y a un rôle Capitaine, on lui donne accès en lecture pour l'instant
       if (tournament.discord_captain_role_id) {
         permissions.push({
           id: tournament.discord_captain_role_id,
@@ -43,7 +55,7 @@ export class LifecycleService {
         });
       }
 
-      // 2. Créer la catégorie
+      // 1. Create category
       const categoryName = `🏆 ${tournament.name}`;
       const category = await guild.channels.create({
         name: categoryName,
@@ -53,7 +65,7 @@ export class LifecycleService {
 
       console.log(`[LifecycleService] Created category ${category.name} (${category.id}) for tournament ${tournamentId}`);
 
-      // 3. Créer un salon "#informations" dans la catégorie
+      // 2. Create info channel
       const infoChannel = await guild.channels.create({
         name: 'informations',
         type: ChannelType.GuildText,
@@ -64,7 +76,7 @@ export class LifecycleService {
         embeds: [{
           title: "🚀 Le Tournoi commence !",
           description: `Bienvenue dans la zone sécurisée de l'évènement **${tournament.name}**.\nLes salons de match ainsi que l'arbre final seront générés ici sous peu.\n\nRestez à l'écoute des annonces !`,
-          color: 0x3b82f6, // Blue
+          color: 0x3b82f6,
         }]
       };
 
@@ -74,28 +86,33 @@ export class LifecycleService {
 
       await infoChannel.send(messagePayload);
 
-      // (Optionnel) Si y a un salon d'annonce général, on ping tout le monde
+      // 3. Sync phase channels BEFORE setting status to ACTIVE
+      const { data: phasesIds_1 } = await supabase.from("phases").select("id").eq("tournament_id", tournamentId);
+      if (phasesIds_1 && phasesIds_1.length > 0) {
+        for (const p of phasesIds_1) {
+          try {
+            await this.syncPhaseChannels(p.id, guildId, discordClient);
+          } catch (err) {
+            console.error(`[LifecycleService] Failed to sync phase ${p.id}, but continuing:`, err);
+          }
+        }
+      }
+
+      // 4. Only set ACTIVE after all Discord resources are created
+      await supabase
+        .from('tournaments')
+        .update({
+          status: 'ACTIVE',
+          discord_category_id: category.id
+        })
+        .eq('id', tournamentId);
+
+      // 5. Optional: announce in general channel
       if (tournament.discord_announcement_channel_id) {
         const annChannel = await guild.channels.fetch(tournament.discord_announcement_channel_id).catch(() => null);
         if (annChannel && annChannel.isTextBased()) {
           await annChannel.send(`🏆 **${tournament.name}** est maintenant actif ! Les joueurs concernés ont accès à leur salon privatif.`);
         }
-      }
-
-      // 4. Mettre à jour la DB
-      await supabase
-        .from('tournaments')
-        .update({ 
-          status: 'ACTIVE',
-          discord_category_id: category.id 
-        })
-        .eq('id', tournamentId);
-
-      const { data: phasesIds_1 } = await supabase.from("phases").select("id").eq("tournament_id", tournamentId);
-      if (phasesIds_1 && phasesIds_1.length > 0) {
-         for (const p of phasesIds_1) {
-            await this.syncPhaseChannels(p.id, guildId, discordClient).catch(err => console.error(err));
-         }
       }
 
       return true;
@@ -106,9 +123,6 @@ export class LifecycleService {
     }
   }
 
-  /**
-   * Clôture le tournoi : supprime la catégorie Discord et tous ses salons enfants.
-   */
   static async closeTournament(tournamentId: string, guildId: string, discordClient: Client): Promise<boolean> {
     try {
       const { data: tournament, error } = await supabase
@@ -116,32 +130,28 @@ export class LifecycleService {
         .select('*')
         .eq('id', tournamentId)
         .single();
-      
+
       if (error || !tournament) throw new Error('Tournament not found');
 
       const guild: Guild | undefined = discordClient.guilds.cache.get(guildId) || await discordClient.guilds.fetch(guildId).catch(() => undefined);
       if (!guild) {
         console.warn(`[LifecycleService] Guild ${guildId} not found, proceeding with local DB update only.`);
       } else if (tournament.discord_category_id) {
-        // Find category and its children
         const category = guild.channels.cache.get(tournament.discord_category_id) as CategoryChannel | undefined;
         if (category) {
-          // Delete children first
           for (const [_, child] of category.children.cache) {
             await child.delete('Tournament Closure').catch(e => console.error(`Failed to delete channel ${child.id}:`, e));
           }
-          // Delete category
           await category.delete('Tournament Closure').catch(e => console.error(`Failed to delete category ${category.id}:`, e));
           console.log(`[LifecycleService] Deleted category and children for tournament ${tournamentId}`);
         } else {
-            console.warn(`[LifecycleService] Category ${tournament.discord_category_id} not found on Discord.`);
+          console.warn(`[LifecycleService] Category ${tournament.discord_category_id} not found on Discord.`);
         }
       }
 
-      // Modifier le statut à "COMPLETED" (Optionnel de clear discord_category_id, on garde pr l'historique potentiellement)
       await supabase
         .from('tournaments')
-        .update({ 
+        .update({
           status: 'COMPLETED'
         })
         .eq('id', tournamentId);
@@ -153,13 +163,8 @@ export class LifecycleService {
     }
   }
 
-  /**
-   * Synchronise les channels Discord spécifiques à une phase 
-   * (un channel global pour l'arbre ou un channel par poule)
-   */
   static async syncPhaseChannels(phaseId: string, guildId: string, discordClient: Client): Promise<boolean> {
     try {
-      // 1. Fetch Phase, related Tournament, Groups, and Participants
       const { data: phase, error: phaseErr } = await supabase
         .from('phases')
         .select(`
@@ -169,9 +174,9 @@ export class LifecycleService {
         `)
         .eq('id', phaseId)
         .single();
-        
+
       if (phaseErr || !phase) throw new Error('Phase not found');
-      
+
       const tournament = phase.tournaments;
       if (!tournament.discord_category_id) {
         throw new Error('Tournament does not have an active Discord Category. Please launch the tournament first.');
@@ -180,22 +185,20 @@ export class LifecycleService {
       const guild = discordClient.guilds.cache.get(guildId) || await discordClient.guilds.fetch(guildId).catch(() => undefined);
       if (!guild) throw new Error(`Guild ${guildId} not found.`);
 
-      // 2. Fetch all teams in this phase to get Captain IDs
       const { data: ptData, error: ptErr } = await supabase
         .from('phase_teams')
         .select('group_id, teams ( id, captain_discord_id )')
         .eq('phase_id', phaseId);
-      
+
       if (ptErr) throw ptErr;
 
       const isBracket = phase.format === 'SINGLE_ELIM' || phase.format === 'DOUBLE_ELIM';
-      
-      // Base permissions (everyone denied, TO allowed)
+
       const getBasePerms = (): OverwriteData[] => {
         const perms: OverwriteData[] = [
           {
             id: guild.roles.everyone.id,
-            deny: [PermissionFlagsBits.ViewChannel], // Lock it by default just in case
+            deny: [PermissionFlagsBits.ViewChannel],
           }
         ];
         if (tournament.discord_to_role_id) {
@@ -208,11 +211,8 @@ export class LifecycleService {
       };
 
       if (isBracket) {
-        // Create ONE channel for the whole phase
         let channelId = phase.discord_channel_id;
-
         const perms = getBasePerms();
-        // Add all captains from this phase
         for (const pt of (ptData || [])) {
           const teamDetails: any = Array.isArray(pt.teams) ? pt.teams[0] : pt.teams;
           if (teamDetails?.captain_discord_id) {
@@ -224,7 +224,6 @@ export class LifecycleService {
         }
 
         if (!channelId) {
-          // Create channel
           const phaseChannel = await guild.channels.create({
             name: `bracket-${phase.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
             type: ChannelType.GuildText,
@@ -232,26 +231,21 @@ export class LifecycleService {
             permissionOverwrites: perms,
           });
           channelId = phaseChannel.id;
-
-          // Update DB
           await supabase.from('phases').update({ discord_channel_id: channelId }).eq('id', phaseId);
-          
           await phaseChannel.send(`🏁 Bienvenue dans le bracket **${phase.name}** ! Cet espace est réservé aux capitaines de cette phase.`);
         } else {
-          // Update permissions of existing channel
           const phaseChannel = guild.channels.cache.get(channelId);
           if (phaseChannel && phaseChannel.isTextBased() && 'permissionOverwrites' in phaseChannel) {
-             await phaseChannel.permissionOverwrites.set(perms);
+            for (const perm of perms) {
+              await phaseChannel.permissionOverwrites.edit(perm.id, permsToEditData(perm) as any).catch(() => {});
+            }
           }
         }
       } else {
-        // Round Robin / Swiss -> One channel per group
         const groups = phase.groups || [];
-        
         for (const group of groups) {
           let channelId = group.discord_channel_id;
-          
-          // Find captains for this specific group
+
           const captainsInGroup = (ptData || [])
             .map(pt => ({
               group_id: pt.group_id,
@@ -269,7 +263,6 @@ export class LifecycleService {
           }
 
           if (!channelId) {
-            // Create channel
             const groupChannel = await guild.channels.create({
               name: `groupe-${group.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
               type: ChannelType.GuildText,
@@ -277,16 +270,14 @@ export class LifecycleService {
               permissionOverwrites: perms,
             });
             channelId = groupChannel.id;
-
-            // Update DB
             await supabase.from('groups').update({ discord_channel_id: channelId }).eq('id', group.id);
-            
             await groupChannel.send(`⚔️ Bienvenue dans le **Groupe ${group.name}** de la phase ${phase.name} ! Coordonnez vos matchs ici.`);
           } else {
-            // Update perms
             const groupChannel = guild.channels.cache.get(channelId);
             if (groupChannel && groupChannel.isTextBased() && 'permissionOverwrites' in groupChannel) {
-              await groupChannel.permissionOverwrites.set(perms);
+              for (const perm of perms) {
+                await groupChannel.permissionOverwrites.edit(perm.id, permsToEditData(perm) as any).catch(() => {});
+              }
             }
           }
         }

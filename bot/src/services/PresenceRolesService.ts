@@ -1,18 +1,59 @@
 import { Client } from "discord.js";
 import { supabase } from "../lib/supabase";
 import { logger } from "../utils/logger";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+
+async function retryWithBackoff<T>(fn: () => Promise<T>, label: string): Promise<T | undefined> {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      const isRateLimit = e?.code === 429 || e?.httpStatus === 429;
+      const isMissingAccess = e?.code === 50013;
+      const retryable = isRateLimit || isMissingAccess;
+
+      if (!retryable || attempt === MAX_RETRIES) {
+        logger.error(`${label} failed (attempt ${attempt}/${MAX_RETRIES}):`, e);
+        return undefined;
+      }
+
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      const retryAfter = e?.retryAfter ? e.retryAfter * 1000 : 0;
+      const waitMs = Math.max(delay, retryAfter);
+      logger.warn(`${label} retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+    }
+  }
+  return undefined;
+}
 
 export class PresenceRolesService {
   private client: Client;
+  private initialized = false;
+  private channel: RealtimeChannel | null = null;
 
   constructor(client: Client) {
     this.client = client;
   }
 
   public init() {
+    if (this.initialized) {
+      logger.warn("[PresenceRoles] init() called twice — ignoring duplicate.");
+      return;
+    }
+    this.initialized = true;
+
     logger.info("Initializing Presence Roles Realtime Listener...");
-    
-    supabase
+
+    // Unsubscribe previous channel if it exists
+    if (this.channel) {
+      supabase.removeChannel(this.channel);
+    }
+
+    this.channel = supabase
       .channel('public:teams_presence')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async (payload) => {
         try {
@@ -22,6 +63,14 @@ export class PresenceRolesService {
         }
       })
       .subscribe();
+  }
+
+  public destroy() {
+    if (this.channel) {
+      supabase.removeChannel(this.channel);
+      this.channel = null;
+    }
+    this.initialized = false;
   }
 
   private async handleTeamChange(payload: any) {
@@ -42,18 +91,14 @@ export class PresenceRolesService {
       const newName = newRecord.name;
 
       if (!wasCheckedIn && isCheckedIn) {
-        // Just checked in
         if (newCaptain) await this.applyPresence(newRecord);
       } else if (wasCheckedIn && !isCheckedIn) {
-        // Un-checked in
         if (oldCaptain) await this.removePresence(oldRecord);
       } else if (isCheckedIn && wasCheckedIn) {
-        // Checked in all along, but maybe captain or name changed
         if (oldCaptain !== newCaptain) {
           if (oldCaptain) await this.removePresence(oldRecord);
           if (newCaptain) await this.applyPresence(newRecord);
         } else if (oldName !== newName) {
-          // Name changed, update nickname
           if (newCaptain) await this.applyPresence(newRecord);
         }
       }
@@ -77,33 +122,40 @@ export class PresenceRolesService {
     const tourney = await this.getTournamentInfo(team.tournament_id);
     if (!tourney || !tourney.guild_id) return;
 
-    try {
-      const guild = await this.client.guilds.fetch(tourney.guild_id);
-      if (!guild) return;
+    const guild = await retryWithBackoff(
+      () => this.client.guilds.fetch(tourney.guild_id),
+      `PresenceRoles: fetch guild ${tourney.guild_id}`
+    );
+    if (!guild) return;
 
-      const member = await guild.members.fetch(team.captain_discord_id).catch(() => null);
-      if (!member) return;
+    const member = await retryWithBackoff(
+      () => guild.members.fetch(team.captain_discord_id),
+      `PresenceRoles: fetch member ${team.captain_discord_id}`
+    );
+    if (!member) return;
 
-      // 1. Apply Nickname (Team Name)
-      if (member.manageable) {
-        let nickname = team.name;
-        // Discord limits nickname to 32 max chars
-        if (nickname.length > 32) nickname = nickname.substring(0, 32);
+    // 1. Apply Nickname (Team Name)
+    if (member.manageable) {
+      let nickname = team.name;
+      if (nickname.length > 32) nickname = nickname.substring(0, 32);
 
-        if (member.nickname !== nickname && member.user.displayName !== nickname) {
-          await member.setNickname(nickname, "Check-in au Tournoi").catch((e) => logger.error(`Failed to set nickname for ${team.captain_discord_id}:`, e));
-        }
+      if (member.nickname !== nickname && member.user.displayName !== nickname) {
+        await retryWithBackoff(
+          () => member!.setNickname(nickname, "Check-in au Tournoi"),
+          `PresenceRoles: set nickname for ${team.captain_discord_id}`
+        );
       }
+    }
 
-      // 2. Apply Role
-      if (tourney.discord_captain_role_id) {
-        const role = guild.roles.cache.get(tourney.discord_captain_role_id);
-        if (role && !member.roles.cache.has(role.id)) {
-          await member.roles.add(role, "Check-in au Tournoi").catch((e) => logger.error(`Failed to assign role to ${team.captain_discord_id}:`, e));
-        }
+    // 2. Apply Role
+    if (tourney.discord_captain_role_id) {
+      const role = guild.roles.cache.get(tourney.discord_captain_role_id);
+      if (role && !member.roles.cache.has(role.id)) {
+        await retryWithBackoff(
+          () => member!.roles.add(role, "Check-in au Tournoi"),
+          `PresenceRoles: add role to ${team.captain_discord_id}`
+        );
       }
-    } catch (e) {
-      logger.error(`Error applying presence for team ${team.id}:`, e);
     }
   }
 
@@ -111,27 +163,35 @@ export class PresenceRolesService {
     const tourney = await this.getTournamentInfo(team.tournament_id);
     if (!tourney || !tourney.guild_id) return;
 
-    try {
-      const guild = await this.client.guilds.fetch(tourney.guild_id);
-      if (!guild) return;
+    const guild = await retryWithBackoff(
+      () => this.client.guilds.fetch(tourney.guild_id),
+      `PresenceRoles: fetch guild ${tourney.guild_id}`
+    );
+    if (!guild) return;
 
-      const member = await guild.members.fetch(team.captain_discord_id).catch(() => null);
-      if (!member) return;
+    const member = await retryWithBackoff(
+      () => guild.members.fetch(team.captain_discord_id),
+      `PresenceRoles: fetch member ${team.captain_discord_id}`
+    );
+    if (!member) return;
 
-      // 1. Remove Nickname
-      if (member.manageable && member.nickname === team.name.substring(0, 32)) {
-        await member.setNickname(null, "Annulation du Check-in / Changement d'équipe").catch((e) => logger.error(`Failed to remove nickname for ${team.captain_discord_id}:`, e));
+    // 1. Remove Nickname
+    if (member.manageable && member.nickname === team.name.substring(0, 32)) {
+      await retryWithBackoff(
+        () => member!.setNickname(null, "Annulation du Check-in / Changement d'équipe"),
+        `PresenceRoles: remove nickname for ${team.captain_discord_id}`
+      );
+    }
+
+    // 2. Remove Role
+    if (tourney.discord_captain_role_id) {
+      const role = guild.roles.cache.get(tourney.discord_captain_role_id);
+      if (role && member.roles.cache.has(role.id)) {
+        await retryWithBackoff(
+          () => member!.roles.remove(role, "Annulation du Check-in / Changement d'équipe"),
+          `PresenceRoles: remove role from ${team.captain_discord_id}`
+        );
       }
-
-      // 2. Remove Role
-      if (tourney.discord_captain_role_id) {
-        const role = guild.roles.cache.get(tourney.discord_captain_role_id);
-        if (role && member.roles.cache.has(role.id)) {
-          await member.roles.remove(role, "Annulation du Check-in / Changement d'équipe").catch((e) => logger.error(`Failed to remove role from ${team.captain_discord_id}:`, e));
-        }
-      }
-    } catch (e) {
-      logger.error(`Error removing presence for team ${team.id}:`, e);
     }
   }
 }

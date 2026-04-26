@@ -1,33 +1,48 @@
 import { Client, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Interaction } from 'discord.js';
 import { supabase } from '../lib/supabase';
 
-// Cache to store the initial roster modal submission
-// Key: userId_tournamentId
-const registrationCache = new Map<string, any>();
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+interface CachedRegistration {
+  teamName: string;
+  players: { name: string; fc: string }[];
+  captainDiscordId: string;
+  timer: NodeJS.Timeout;
+}
+
+const registrationCache = new Map<string, CachedRegistration>();
+
+function setCacheWithTTL(key: string, data: Omit<CachedRegistration, 'timer'>) {
+  // Clear existing timer if overwriting
+  const existing = registrationCache.get(key);
+  if (existing) clearTimeout(existing.timer);
+
+  const timer = setTimeout(() => {
+    registrationCache.delete(key);
+  }, CACHE_TTL_MS);
+
+  registrationCache.set(key, { ...data, timer });
+}
 
 export class RegistrationService {
 
-  // ÉTAPE 1: Envoyer le message d'inscription
   static async sendRegistrationEmbed(tournamentId: string, client: Client) {
     try {
-      // 1. Get tournament details
       const { data: tournament, error } = await supabase
         .from('tournaments')
         .select('*')
         .eq('id', tournamentId)
         .single();
-      
+
       if (error || !tournament) throw new Error("Tournoi introuvable dans la base de données.");
 
       if (!tournament.discord_registration_channel_id) {
         throw new Error("Aucun salon d'inscription n'a été défini pour ce tournoi dans ses paramètres. Impossible d'envoyer l'annonce.");
       }
 
-      // 2. Fetch the channel
       const channel = await client.channels.fetch(tournament.discord_registration_channel_id).catch(() => null) as TextChannel | null;
       if (!channel) throw new Error(`Impossible de trouver le salon Discord avec l'ID ${tournament.discord_registration_channel_id}. Vérifiez que le bot y a accès.`);
 
-      // 3. Build Embed & Button
       const embed = {
         title: `📝 Inscriptions: ${tournament.name}`,
         description: tournament.description || `Cliquez sur le bouton ci-dessous pour inscrire votre équipe. Le capitaine doit obligatoirement enregistrer le roster principal (4 joueurs minimum, dont lui-même) incluant les Codes Amis Valides.`,
@@ -61,7 +76,6 @@ export class RegistrationService {
     }
   }
 
-  // Dispatch interactions (Called from index.ts interactionCreate listener)
   static async handleInteraction(interaction: Interaction) {
     if (interaction.isButton()) {
       if (interaction.customId.startsWith('btn_register_')) {
@@ -80,11 +94,9 @@ export class RegistrationService {
     }
   }
 
-  // ÉTAPE 2: Le bouton ouvre la modale du roster principal
   private static async handleRegisterButton(interaction: any) {
     const tournamentId = interaction.customId.split('_').pop();
 
-    // 1. Get tournament details to check dates/status
     const { data: tournament, error } = await supabase
       .from('tournaments')
       .select('status, start_at, start_date, checkin_start_at')
@@ -99,7 +111,6 @@ export class RegistrationService {
     const startDate = tournament.start_at ? new Date(tournament.start_at) : (tournament.start_date ? new Date(tournament.start_date) : null);
     const checkinStart = tournament.checkin_start_at ? new Date(tournament.checkin_start_at) : null;
 
-    // Vérifier si on est en phase de checkin, ou si le tournoi est commencé/terminé
     if ((checkinStart && now >= checkinStart) || (startDate && now >= startDate) || tournament.status === 'ACTIVE' || tournament.status === 'COMPLETED' || tournament.status === 'ARCHIVED') {
       return interaction.reply({ content: "❌ Les inscriptions sont terminées pour ce tournoi.", ephemeral: true });
     }
@@ -129,22 +140,20 @@ export class RegistrationService {
     await interaction.showModal(modal);
   }
 
-  // Regex de validation
   private static parsePlayerInput(input: string): { name: string, fc: string } | null {
     if (!input || input.trim() === '') return null;
-    const regex = /(.*?)(SW-?\d{4}-?\d{4}-?\d{4})/i;
+    // Strict format: SW-XXXX-XXXX-XXXX (with dashes, 4 digits each)
+    const regex = /(.+?)\s*(SW-\d{4}-\d{4}-\d{4})\s*$/i;
     const match = input.match(regex);
     if (!match || !match[1] || !match[2]) return null;
-    
-    // Le nom est ce qui précède le FC (nettoyé) et le format du FC est standardisé
-    const name = match[1].replace(/[-:]/g, '').trim(); 
-    const fcRaw = match[2].toUpperCase().replace(/-/g, ''); // Extract just letters/numbers: SWXXXXYYYYZZZZ
-    const fcFormatted = `SW-${fcRaw.slice(2, 6)}-${fcRaw.slice(6, 10)}-${fcRaw.slice(10, 14)}`;
-    
-    return { name: name || 'Joueur', fc: fcFormatted };
+
+    const name = match[1].replace(/[-:]/g, '').trim();
+    if (!name || name.length === 0) return null; // Name is required
+
+    const fc = match[2].toUpperCase();
+    return { name, fc };
   }
 
-  // ÉTAPE 3: Soumission du Modal Principal + Demande éphémère Remplaçants
   private static async handleMainModalSubmit(interaction: any) {
     const tournamentId = interaction.customId.split('_').pop();
 
@@ -165,7 +174,7 @@ export class RegistrationService {
     if ((checkinStart && now >= checkinStart) || (startDate && now >= startDate) || tournament.status === 'ACTIVE' || tournament.status === 'COMPLETED' || tournament.status === 'ARCHIVED') {
       return interaction.reply({ content: "❌ Les inscriptions sont terminées pour ce tournoi.", ephemeral: true });
     }
-    
+
     const teamName = interaction.fields.getTextInputValue('team_name');
     const p1 = interaction.fields.getTextInputValue('player1');
     const p2 = interaction.fields.getTextInputValue('player2');
@@ -177,22 +186,19 @@ export class RegistrationService {
     const errors = [];
 
     for (let i = 0; i < rawPlayers.length; i++) {
-        const p = this.parsePlayerInput(rawPlayers[i]);
-        if (!p) {
-            errors.push(`Joueur ${i+1} : Code ami Invalide (attendu: SW-XXXX-XXXX-XXXX)`);
-        } else {
-            parsedPlayers.push(p);
-        }
+      const p = this.parsePlayerInput(rawPlayers[i]);
+      if (!p) {
+        errors.push(`Joueur ${i + 1} : Code ami Invalide (attendu: Pseudo SW-XXXX-XXXX-XXXX)`);
+      } else {
+        parsedPlayers.push(p);
+      }
     }
 
     if (errors.length > 0) {
-        return interaction.reply({ content: `**Erreur Code Ami:**\n${errors.join('\n')}\n*Veuillez recommencer l'inscription en respectant le format.*`, ephemeral: true });
+      return interaction.reply({ content: `**Erreur Code Ami:**\n${errors.join('\n')}\n*Veuillez recommencer l'inscription en respectant le format.*`, ephemeral: true });
     }
 
-    // Sauvegarder dans le cache
-    const cacheKey = `${interaction.user.id}_${tournamentId}`;
-
-    // Vérifier si l'utilisateur n'est pas déjà capitaine d'une équipe pour CE tournoi
+    // Check duplicate captain
     const { count } = await supabase
       .from('teams')
       .select('*', { count: 'exact', head: true })
@@ -203,37 +209,37 @@ export class RegistrationService {
       return interaction.reply({ content: "❌ Vous êtes déjà capitaine d'une équipe inscrite à ce tournoi. Un capitaine ne peut avoir qu'une seule équipe.", ephemeral: true });
     }
 
-    registrationCache.set(cacheKey, {
-        teamName,
-        players: parsedPlayers,
-        captainDiscordId: interaction.user.id
+    const cacheKey = `${interaction.user.id}_${tournamentId}`;
+
+    setCacheWithTTL(cacheKey, {
+      teamName,
+      players: parsedPlayers,
+      captainDiscordId: interaction.user.id
     });
 
-    // Demander s'il y a des remplaçants via message éphémère
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`btn_add_subs_${tournamentId}`)
-            .setLabel("Ajouter des Remplaçants")
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji("➕"),
-        new ButtonBuilder()
-            .setCustomId(`btn_skip_subs_${tournamentId}`)
-            .setLabel("Terminer l'inscription")
-            .setStyle(ButtonStyle.Success)
-            .setEmoji("✅")
+      new ButtonBuilder()
+        .setCustomId(`btn_add_subs_${tournamentId}`)
+        .setLabel("Ajouter des Remplaçants")
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji("➕"),
+      new ButtonBuilder()
+        .setCustomId(`btn_skip_subs_${tournamentId}`)
+        .setLabel("Terminer l'inscription")
+        .setStyle(ButtonStyle.Success)
+        .setEmoji("✅")
     );
 
-    await interaction.reply({ 
-        content: `**Roster Principal Validé !**\nAvez-vous des remplaçants (Max 2) à inscrire pour l'équipe **${teamName}** ?`, 
-        components: [row], 
-        ephemeral: true 
+    await interaction.reply({
+      content: `**Roster Principal Validé !**\nAvez-vous des remplaçants (Max 2) à inscrire pour l'équipe **${teamName}** ?`,
+      components: [row],
+      ephemeral: true
     });
   }
 
-  // Si click sur Ajouter Remplaçants -> Ouvre Modal 2
   private static async handleSubsButton(interaction: any) {
     const tournamentId = interaction.customId.split('_').pop();
-    
+
     const modal = new ModalBuilder()
       .setCustomId(`modal_register_subs_${tournamentId}`)
       .setTitle('Inscription - Remplaçants');
@@ -250,16 +256,14 @@ export class RegistrationService {
     await interaction.showModal(modal);
   }
 
-  // Si click sur Terminer -> Enregistrement Final (0 remplaçants)
   private static async handleSkipSubsButton(interaction: any) {
     const tournamentId = interaction.customId.split('_').pop();
     await this.finalizeRegistration(interaction, tournamentId, []);
   }
 
-  // Soumission Modale Remplaçants
   private static async handleSubsModalSubmit(interaction: any) {
     const tournamentId = interaction.customId.split('_').pop();
-    
+
     const sub1 = interaction.fields.getTextInputValue('sub1');
     const sub2 = interaction.fields.getTextInputValue('sub2');
 
@@ -267,111 +271,112 @@ export class RegistrationService {
     const errors = [];
 
     if (sub1 && sub1.trim() !== '') {
-        const p = this.parsePlayerInput(sub1);
-        if(!p) errors.push(`Remplaçant 1 invalide`);
-        else parsedSubs.push(p);
+      const p = this.parsePlayerInput(sub1);
+      if (!p) errors.push(`Remplaçant 1 invalide (format: Pseudo SW-XXXX-XXXX-XXXX)`);
+      else parsedSubs.push(p);
     }
 
     if (sub2 && sub2.trim() !== '') {
-        const p = this.parsePlayerInput(sub2);
-        if(!p) errors.push(`Remplaçant 2 invalide`);
-        else parsedSubs.push(p);
+      const p = this.parsePlayerInput(sub2);
+      if (!p) errors.push(`Remplaçant 2 invalide (format: Pseudo SW-XXXX-XXXX-XXXX)`);
+      else parsedSubs.push(p);
     }
 
     if (errors.length > 0) {
-        return interaction.reply({ content: `**Erreur Code Ami Remplaçant:**\n${errors.join('\n')}`, ephemeral: true });
+      return interaction.reply({ content: `**Erreur Code Ami Remplaçant:**\n${errors.join('\n')}`, ephemeral: true });
     }
 
     await this.finalizeRegistration(interaction, tournamentId, parsedSubs);
   }
 
-  // Finalisation (Sauvegarde DB + Rôles + Annonce)
   private static async finalizeRegistration(interaction: any, tournamentId: string, subs: any[]) {
     await interaction.deferReply({ ephemeral: true });
     try {
-        const cacheKey = `${interaction.user.id}_${tournamentId}`;
-        const cachedData = registrationCache.get(cacheKey);
+      const cacheKey = `${interaction.user.id}_${tournamentId}`;
+      const cachedData = registrationCache.get(cacheKey);
 
-        if (!cachedData) {
-            return interaction.editReply({ content: "⚠️ Session d'inscription introuvable ou expirée. Veuillez recommencer." });
+      if (!cachedData) {
+        return interaction.editReply({ content: "⚠️ Session d'inscription introuvable ou expirée. Veuillez recommencer." });
+      }
+
+      // Clear cache immediately to prevent double-registration
+      clearTimeout(cachedData.timer);
+      registrationCache.delete(cacheKey);
+
+      const { data: tournament } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
+
+      const { data: team, error: teamErr } = await supabase
+        .from('teams')
+        .insert({
+          tournament_id: tournamentId,
+          name: cachedData.teamName,
+          captain_discord_id: interaction.user.id
+        })
+        .select()
+        .single();
+
+      if (teamErr) {
+        if (teamErr.message?.includes('unique_captain_per_tournament') || teamErr.code === '23505') {
+          return interaction.editReply({ content: "❌ **Impossible de s'inscrire** : Tu es déjà associé en tant que capitaine à une autre équipe pour ce tournoi !" });
         }
+        throw teamErr;
+      }
+      if (!team) throw new Error("Équipe non créée");
 
-        // Fetch tournament settings (Captain role, announcement channel)
-        const { data: tournament } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
+      // Insert team members — collect errors and report
+      const allPlayers = [...cachedData.players, ...subs];
+      const insertErrors: string[] = [];
 
-        // 1. Sauvegarder l'équipe
-        const { data: team, error: teamErr } = await supabase
-            .from('teams')
-            .insert({
-                tournament_id: tournamentId,
-                name: cachedData.teamName,
-                captain_discord_id: interaction.user.id
-            })
-            .select()
-            .single();
-
-        if (teamErr) {
-            if (teamErr.message?.includes('unique_captain_per_tournament') || teamErr.code === '23505') {
-                return interaction.editReply({ content: "❌ **Impossible de s'inscrire** : Tu es déjà associé en tant que capitaine à une autre équipe pour ce tournoi !" });
-            }
-            throw teamErr;
+      for (let i = 0; i < allPlayers.length; i++) {
+        const { error: memberErr } = await supabase.from('team_members').insert({
+          team_id: team.id,
+          user_id: i === 0 ? interaction.user.id : null,
+          ingame_name: allPlayers[i].name,
+          is_captain: i === 0 ? true : false,
+          friend_code: allPlayers[i].fc
+        });
+        if (memberErr) {
+          insertErrors.push(`${allPlayers[i].name}: ${memberErr.message}`);
+          console.error("Erreur lors de l'insertion d'un joueur:", memberErr);
         }
-        if (!team) throw new Error("Équipe non créée");
+      }
 
-        // 2. Sauvegarder les joueurs (Main + Subs)
-        const allPlayers = [...cachedData.players, ...subs];
-        
-        for (let i=0; i<allPlayers.length; i++) {
-           const { error: memberErr } = await supabase.from('team_members').insert({
-               team_id: team.id,
-               user_id: i === 0 ? interaction.user.id : null,
-               ingame_name: allPlayers[i].name,
-               is_captain: i === 0 ? true : false,
-               friend_code: allPlayers[i].fc
-           });
-           if (memberErr) console.error("Erreur lors de l'insertion d'un joueur:", memberErr);
+      // Announce in registration channel
+      if (tournament && tournament.discord_registration_channel_id) {
+        const annChannel = await interaction.client.channels.fetch(tournament.discord_registration_channel_id);
+        if (annChannel && annChannel.isTextBased()) {
+          const rosterStr = cachedData.players.map((p: any) => `• ${p.name}`).join('\n');
+          const subsStr = subs.length > 0 ? `\n\n**Remplaçants:**\n` + subs.map((s: any) => `• ${s.name}`).join('\n') : '';
+
+          const embed = {
+            title: `🎊 Nouvelle Inscription: ${cachedData.teamName}`,
+            description: `L'équipe **${cachedData.teamName}** vient de s'inscrire !\n\n**Roster Principal:**\n${rosterStr}${subsStr}`,
+            color: 0x57F287,
+            timestamp: new Date().toISOString()
+          };
+          await annChannel.send({ embeds: [embed] });
         }
+      }
 
-        // Nettoyage Cache
-        registrationCache.delete(cacheKey);
+      const warningStr = insertErrors.length > 0
+        ? `\n\n⚠️ **Avertissement:** ${insertErrors.length} joueur(s) n'ont pas pu être enregistrés suite à une erreur technique. Contactez un TO.`
+        : '';
 
-        // 3. Actions Discord (Ceci a été déplacé au Check-In !)
-        let renameStatus = "En attente du checkin";
-        let roleStatus = "En attente du checkin";
+      const replyEmbed = {
+        title: `✅ Inscription Validée !`,
+        description: `Votre équipe **${cachedData.teamName}** a bien été inscrite au tournoi.${warningStr}`,
+        fields: [
+          { name: "Changement de Pseudo", value: "En attente du checkin", inline: true },
+          { name: "Rôle Capitaine", value: "En attente du checkin", inline: true }
+        ],
+        color: 0x57F287
+      };
 
-        // 4. Message Public dans le salon d'inscription
-        if (tournament && tournament.discord_registration_channel_id) {
-             const annChannel = await interaction.client.channels.fetch(tournament.discord_registration_channel_id);
-             if (annChannel && annChannel.isTextBased()) {
-                 const rosterStr = cachedData.players.map((p: any) => `• ${p.name}`).join('\n');
-                 const subsStr = subs.length > 0 ? `\n\n**Remplaçants:**\n` + subs.map((s: any) => `• ${s.name}`).join('\n') : '';
-                 
-                 const embed = {
-                     title: `🎊 Nouvelle Inscription: ${cachedData.teamName}`,
-                     description: `L'équipe **${cachedData.teamName}** vient de s'inscrire !\n\n**Roster Principal:**\n${rosterStr}${subsStr}`,
-                     color: 0x57F287,
-                     timestamp: new Date().toISOString()
-                 };
-                 await annChannel.send({ embeds: [embed] });
-             }
-        }
-
-        const replyEmbed = {
-            title: `✅ Inscription Validée !`,
-            description: `Votre équipe **${cachedData.teamName}** a bien été inscrite au tournoi.`,
-            fields: [
-                { name: "Changement de Pseudo", value: renameStatus, inline: true },
-                { name: "Rôle Capitaine", value: roleStatus, inline: true }
-            ],
-            color: 0x57F287
-        };
-
-        await interaction.editReply({ content: '', embeds: [replyEmbed] });
+      await interaction.editReply({ content: '', embeds: [replyEmbed] });
 
     } catch (e: any) {
-        console.error("Erreur lors de la finalisation", e);
-        await interaction.editReply({ content: `❌ Une erreur est survenue: ${e.message}` });
+      console.error("Erreur lors de la finalisation", e);
+      await interaction.editReply({ content: `❌ Une erreur est survenue: ${e.message}` });
     }
   }
-
 }

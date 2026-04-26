@@ -49,7 +49,13 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/',
   },
-  secret: process.env.NEXTAUTH_SECRET || "super-secret-default-key-for-dev",
+  secret: (() => {
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret && process.env.NODE_ENV === "production") {
+      throw new Error("NEXTAUTH_SECRET must be set in production");
+    }
+    return secret || "super-secret-default-key-for-dev";
+  })(),
 };
 
 const handler = NextAuth(authOptions);
