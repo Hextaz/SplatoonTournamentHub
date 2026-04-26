@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { getBotApiUrl } from '@/utils/api';
+import { botApiFetch } from '@/utils/api';
 
 import { supabase } from "@/lib/supabase";
 import dayjs from "dayjs";
@@ -26,8 +26,8 @@ export function SettingsClient({ tournament, guildId }: { tournament: any; guild
       }
       try {
         const [channelsRes, rolesRes] = await Promise.all([
-          fetch(`${getBotApiUrl()}/api/discord/channels?guildId=${guildId}`),
-          fetch(`${getBotApiUrl()}/api/discord/roles?guildId=${guildId}`)
+          botApiFetch(`/api/discord/channels?guildId=${guildId}`),
+          botApiFetch(`/api/discord/roles?guildId=${guildId}`)
         ]);
 
         if (channelsRes.ok) {
