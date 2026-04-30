@@ -108,7 +108,7 @@ export default function TournamentsPage({
       if (error) throw error;
 
       try {
-        await fetch(`${BOT_API_URL}/api/archive-and-init`, {
+        await fetch(`/api/bot/tournaments/archive-and-init`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

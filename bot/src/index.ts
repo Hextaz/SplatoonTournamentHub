@@ -240,41 +240,39 @@ app.post("/api/discord/sync-schedule", async (req, res) => {
   }
 });
 
-// Endpoint: Archivage
+// Endpoint: Archivage et Nettoyage Discord
 app.post('/api/tournaments/archive-and-init', async (req, res) => {
-  const { name, start_at, checkin_start_at, checkin_end_at } = req.body;
-  const guildId = (req.query.guildId || req.body?.guildId) as string;
+  const { guildId, newTournamentId } = req.body;
 
   if (!guildId) return res.status(400).json({ error: 'Missing guildId parameter' });
 
   try {
+    // Le front-end (Next.js) s'est déjà chargé d'insérer le nouveau tournoi en DB.
+    // Il faut juste : 
+    // 1. Archiver les autres tournois de la DB (normalement le frontend ou le web le fait ou on le fait ici pour sécurité)
     await supabase.from('tournaments')
       .update({ status: 'ARCHIVED' })
       .eq('guild_id', guildId)
+      .neq('id', newTournamentId)
       .neq('status', 'ARCHIVED');
 
-    const { data: newTourney, error: insertErr } = await supabase.from('tournaments')
-      .insert({
-        guild_id: guildId,
-        name: name || 'Nouveau Tournoi',
-        start_at: start_at || null,
-        checkin_start_at: checkin_start_at || null,
-        checkin_end_at: checkin_end_at || null,
-        status: 'DRAFT'
-      })
-      .select().single();
-
-    if (insertErr) throw insertErr;
+    const { data: newTourney, error: fetchErr } = await supabase.from('tournaments')
+      .select('*')
+      .eq('id', newTournamentId)
+      .single();
 
     const { data: settings } = await supabase.from('server_settings')
       .select('captain_role_id')
       .eq('guild_id', guildId)
       .single();
 
+    // Lancer le nettoyage des salons & rôles discord en arrière-plan
     ArchiveService.backgroundDiscordCleanup(client, guildId, settings?.captain_role_id).catch((e: any) => logger.error(e));
 
-    if (newTourney) SchedulerService.scheduleTournament(newTourney);
-    return res.status(202).json({ message: 'OK', tournament: newTourney });
+    // Démarrer la synchro des plannings
+    if (newTourney && !fetchErr) SchedulerService.scheduleTournament(newTourney);
+    
+    return res.status(202).json({ message: 'Cleanup and init done', tournament: newTourney });
   } catch (err: any) {
     logger.error('Error during archive-and-init:', err);
     return res.status(500).json({ error: err.message });
