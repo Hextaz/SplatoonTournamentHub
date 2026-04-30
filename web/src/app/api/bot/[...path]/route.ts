@@ -9,7 +9,14 @@ async function handleProxy(request: Request, { params }: { params: Promise<{ pat
   }
 
   const resolvedParams = await params;
-  const path = resolvedParams.path.join("/");
+  // If the client fetched /api/bot/phases, path is ['phases'].
+  // If the client fetched /api/bot/api/phases, path is ['api', 'phases'].
+  // We want to ensure we don't duplicate '/api/'.
+  let pathStr = resolvedParams.path.join("/");
+  if (pathStr.startsWith("api/")) {
+    pathStr = pathStr.replace("api/", "");
+  }
+
   const url = new URL(request.url);
   const botApiUrl = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:8080";
   const botApiSecret = process.env.BOT_API_SECRET;
@@ -19,7 +26,7 @@ async function handleProxy(request: Request, { params }: { params: Promise<{ pat
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
 
-  const targetUrl = `${botApiUrl}/api/${path}${url.search}`;
+  const targetUrl = `${botApiUrl}/api/${pathStr}${url.search}`;
 
   try {
     const headers = new Headers(request.headers);
