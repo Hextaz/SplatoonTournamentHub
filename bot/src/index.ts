@@ -119,6 +119,40 @@ const getGuild = async (res: any, guildId: string): Promise<any> => {
   return guild;
 };
 
+// Endpoint: Vérifier si un membre a les droits d'admin/TO sur un serveur
+app.get("/api/discord/permissions", async (req, res) => {
+  try {
+    const guildId = req.query.guildId as string;
+    const userId = req.query.userId as string;
+    const toRoleId = req.query.toRoleId as string;
+    
+    if (!guildId || !userId) return res.status(400).json({ error: "Missing parameters" });
+    
+    const guild = await getGuild(res, guildId);
+    if (!guild) return;
+    
+    const member = await guild.members.fetch(userId).catch(() => null);
+    if (!member) {
+      return res.status(200).json({ hasPermission: false, reason: "Utilisateur non trouvé sur le serveur" });
+    }
+
+    // Le membre a-t-il la permission native Gérer le Serveur ?
+    if (member.permissions.has(PermissionFlagsBits.ManageGuild)) {
+      return res.status(200).json({ hasPermission: true, reason: "ADMIN" });
+    }
+    
+    // Le membre possède-t-il le rôle T.O ?
+    if (toRoleId && member.roles.cache.has(toRoleId)) {
+      return res.status(200).json({ hasPermission: true, reason: "TO_ROLE" });
+    }
+
+    return res.status(200).json({ hasPermission: false, reason: "No sufficient rights" });
+  } catch (error) {
+    logger.error("Error checking permissions:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // Endpoint: Fetch Channels for Check-in configurations
 app.get("/api/discord/channels", async (req, res) => {
   try {

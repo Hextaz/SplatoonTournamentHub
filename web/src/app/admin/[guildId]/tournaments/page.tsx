@@ -61,16 +61,16 @@ export default function TournamentsPage({
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le tournoi "${name}" ? Cette action est irréversible.`)) return;
     try {
       setLoading(true);
-      const { data, error } = await supabase.from("tournaments").delete().eq("id", id).select();
       
-      if (error) {
-        throw error;
+      const response = await fetch(`/api/tournaments/${id}?guildId=${guildId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Accès refusé par le serveur.");
       }
-      
-      if (!data || data.length === 0) {
-        throw new Error("Accès refusé par la base de données (RLS) ou tournoi introuvable. Vous n'avez pas les permissions admin sur ce tournoi.");
-      }
-      
+
       await fetchTournaments();
     } catch (err: any) {
       console.error("Delete Error:", err);
