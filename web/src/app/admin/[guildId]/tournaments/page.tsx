@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useSession } from "next-auth/react";
 
 const formSchema = z.object({
   name: z.string().min(3, "Le nom doit contenir au moins 3 caractères"),
@@ -42,6 +43,8 @@ export default function TournamentsPage({
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
   });
+
+  const { data: session } = useSession();
 
   const fetchTournaments = async () => {
     setLoading(true);
@@ -90,8 +93,7 @@ export default function TournamentsPage({
     try {
       // Pour s'assurer que le créateur ait les droits de modification sur le tournoi en base de données, 
       // on récupère son identifiant Discord et on l'inclut directement dans ses admin_ids à la création.
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentDiscordId = session?.user?.id;
+      const currentDiscordId = (session?.user as any)?.id;
 
       // 1. Récupérer les paramètres par défaut du serveur
       const { data: serverSettings } = await supabase
