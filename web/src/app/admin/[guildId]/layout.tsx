@@ -57,10 +57,13 @@ export default async function AdminLayout({
           // CRITIQUE : Puisque la RLS côté base de données est basée sur la colonne "admin_ids", 
           // Injectons ("Sync") l'ID de cet Organisateur directement dans tous les tournois du serveur
           // Ce qui lui donnera un accès total à Supabase.from('tournaments').update(...) côté client !
-          await supabaseAdmin.rpc('add_admin_to_all_tournaments', {
+          const { error: rpcError } = await supabaseAdmin.rpc('add_admin_to_all_tournaments', {
             target_guild_id: guildId,
             new_admin_id: discordId
-          }).catch(console.error); // RPC exécutée en arrière-plan
+          });
+          if (rpcError) {
+            console.error("Failed to sync admin IDs for RLS:", rpcError);
+          }
         }
       }
     }
