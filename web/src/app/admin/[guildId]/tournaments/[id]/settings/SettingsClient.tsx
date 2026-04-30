@@ -1,7 +1,8 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { botApiFetch } from '@/utils/api';
+import { useSession } from "next-auth/react";
+import { botApiFetch, getBotApiUrl } from '@/utils/api';
 
 import { supabase } from "@/lib/supabase";
 import dayjs from "dayjs";
@@ -11,6 +12,7 @@ import { useRouter } from "next/navigation";
 
 export function SettingsClient({ tournament, guildId, initialChannels = [], initialRoles = [] }: { tournament: any; guildId: string; initialChannels?: any[]; initialRoles?: any[] }) {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
@@ -21,14 +23,22 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
 
   useEffect(() => {
     const fetchDiscordData = async () => {
+      // Don't try fetching if we're still checking auth status and we don't have a token.
+      if (status === 'loading') return;
+      
       if (!guildId) {
         setIsLoadingDiscord(false);
         return;
       }
       try {
+        const token = typeof window !== 'undefined' ? (session as any)?.supabaseAccessToken : null;
+        const fetchOptions: RequestInit = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
+        // Using standard fetch with direct getBotApiUrl instead of botApiFetch to pass the token explicitly
+        // This avoids asynchronous next-auth dynamic imports that might fail or fetch slowly in the Client Component.
         const [channelsRes, rolesRes] = await Promise.all([
-          botApiFetch(`/api/discord/channels?guildId=${guildId}`),
-          botApiFetch(`/api/discord/roles?guildId=${guildId}`)
+          fetch(`${getBotApiUrl()}/api/discord/channels?guildId=${guildId}`, fetchOptions),
+          fetch(`${getBotApiUrl()}/api/discord/roles?guildId=${guildId}`, fetchOptions)
         ]);
 
         if (channelsRes.ok) {
@@ -57,7 +67,7 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
     };
 
     fetchDiscordData();
-  }, [guildId]);
+  }, [guildId, session, status]);
 
   const { register, handleSubmit } = useForm({
     defaultValues: {

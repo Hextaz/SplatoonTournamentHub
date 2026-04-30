@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { supabase } from "@/lib/supabase";
 import { Save, Loader2, RefreshCw } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 export default function SettingsPage({
   params,
@@ -11,6 +12,7 @@ export default function SettingsPage({
 }) {
   const unwrappedParams = use(params);
   const { guildId } = unwrappedParams;
+  const { data: session, status } = useSession();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,10 +34,12 @@ export default function SettingsPage({
 
   useEffect(() => {
     async function loadData() {
+      // Si NextAuth est en train de charger, on attend
+      if (status === "loading") return;
+
       setLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
+        const token = typeof window !== "undefined" ? (session as any)?.supabaseAccessToken : null;
 
         // Fetch Supabase settings
         const { data: dbSettings, error: dbError } = await supabase
@@ -88,7 +92,7 @@ export default function SettingsPage({
       setLoading(false);
     }
     loadData();
-  }, [guildId, BOT_API_URL]);
+  }, [guildId, BOT_API_URL, session, status]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
