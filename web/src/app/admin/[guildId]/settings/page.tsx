@@ -34,6 +34,9 @@ export default function SettingsPage({
     async function loadData() {
       setLoading(true);
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
         // Fetch Supabase settings
         const { data: dbSettings, error: dbError } = await supabase
           .from("server_settings")
@@ -51,25 +54,33 @@ export default function SettingsPage({
           });
         }
 
-        // Fetch Discord Roles via Express Bot API
-        try {
-          const rolesRes = await fetch(`${BOT_API_URL}/api/discord/roles?guildId=${guildId}`);
-          if (rolesRes.ok) {
-            const roles = await rolesRes.json();
-            setDiscordRoles(roles);
-          }
-        } catch (e) {
-          setApiError("Impossible de joindre le Bot pour les rôles/salons. Vous devez renseigner les IDs manuellement.");
-        }
+        if (token) {
+          const fetchOptions = {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          };
 
-        // Fetch Discord Channels via Express Bot API
-        try {
-          const channelsRes = await fetch(`${BOT_API_URL}/api/discord/channels?guildId=${guildId}`);
-          if (channelsRes.ok) {
-            const channels = await channelsRes.json();
-            setDiscordChannels(channels);
+          // Fetch Discord Roles via Express Bot API
+          try {
+            const rolesRes = await fetch(`${BOT_API_URL}/api/discord/roles?guildId=${guildId}`, fetchOptions);
+            if (rolesRes.ok) {
+              const roles = await rolesRes.json();
+              setDiscordRoles(roles);
+            }
+          } catch (e) {
+            setApiError("Impossible de joindre le Bot pour les rôles/salons. Vous devez renseigner les IDs manuellement.");
           }
-        } catch (e) {}
+
+          // Fetch Discord Channels via Express Bot API
+          try {
+            const channelsRes = await fetch(`${BOT_API_URL}/api/discord/channels?guildId=${guildId}`, fetchOptions);
+            if (channelsRes.ok) {
+              const channels = await channelsRes.json();
+              setDiscordChannels(channels);
+            }
+          } catch (e) {}
+        }
 
       } catch (err) {
         console.error(err);
