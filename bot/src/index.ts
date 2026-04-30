@@ -331,6 +331,47 @@ const bootstrap = async () => {
   });
 
   try {
+    // Listen for Role Removals or Member Leaves
+    client.on('guildMemberRemove', async (member) => {
+      try {
+        await supabase.rpc('remove_admin_from_all_tournaments', {
+          target_guild_id: member.guild.id,
+          removed_admin_id: member.user.id
+        });
+        logger.info(`[Bot] Removed admin rights for ${member.user.tag} (left guild ${member.guild.name})`);
+      } catch (err) {
+        logger.error('[Bot] Failed to remove admin on member leave:', err);
+      }
+    });
+
+    client.on('guildMemberUpdate', async (oldMember, newMember) => {
+      try {
+        // If roles haven't changed, ignore
+        if (oldMember.roles.cache.size === newMember.roles.cache.size) return;
+
+        const hasAdminPerm = newMember.permissions.has(PermissionsBitField.Flags.Administrator) || newMember.permissions.has(PermissionsBitField.Flags.ManageGuild);
+        
+        // Fetch TO role for this server
+        const { data: serverSettings } = await supabase
+          .from('server_settings')
+          .select('to_role_id')
+          .eq('guild_id', newMember.guild.id)
+          .single();
+        
+        const hasToRole = serverSettings?.to_role_id && newMember.roles.cache.has(serverSettings.to_role_id);
+
+        if (!hasAdminPerm && !hasToRole) {
+          await supabase.rpc('remove_admin_from_all_tournaments', {
+            target_guild_id: newMember.guild.id,
+            removed_admin_id: newMember.user.id
+          });
+          logger.info(`[Bot] Removed admin rights for ${newMember.user.tag} (lost TO/Admin roles in ${newMember.guild.name})`);
+        }
+      } catch (err) {
+        logger.error('[Bot] Failed to sync roles on member update:', err);
+      }
+    });
+
     // Connect Discord Bot
     await client.login(DISCORD_TOKEN);
     logger.info(`[Bot] Logged in as ${client.user?.tag}`);

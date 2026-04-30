@@ -88,6 +88,11 @@ export default function TournamentsPage({
     setCreating(true);
 
     try {
+      // Pour s'assurer que le créateur ait les droits de modification sur le tournoi en base de données, 
+      // on récupère son identifiant Discord et on l'inclut directement dans ses admin_ids à la création.
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentDiscordId = session?.user?.id;
+
       // 1. Récupérer les paramètres par défaut du serveur
       const { data: serverSettings } = await supabase
         .from("server_settings")
@@ -95,7 +100,7 @@ export default function TournamentsPage({
         .eq("guild_id", guildId)
         .single();
 
-      // 2. Créer le tournoi avec ou sans paramètres par défaut
+      // 2. Créer le tournoi avec ou sans paramètres par défaut, en forçant le rôle admin !
       const { data: created, error } = await supabase
         .from("tournaments")
         .insert({
@@ -111,6 +116,7 @@ export default function TournamentsPage({
           discord_checkin_channel_id: serverSettings?.checkin_channel_id || null,
           discord_captain_role_id: serverSettings?.captain_role_id || null,
           discord_to_role_id: serverSettings?.to_role_id || null,
+          admin_ids: currentDiscordId ? [currentDiscordId] : []
         })
         .select()
         .single();

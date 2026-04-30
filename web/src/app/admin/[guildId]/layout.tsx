@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import Link from "next/link";
 import { ServerSidebarWrapper } from "@/components/ServerSidebarWrapper";
 import {
@@ -28,17 +29,39 @@ export default async function AdminLayout({
 
   let isAdmin = false;
   try {
-    const res = await fetch("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bearer ${(session as any).accessToken}` },
-      // Shorter cache to not be locked out if permissions change suddenly
-      next: { revalidate: 30 },
-    });
+    // 1. On vérifie d'abord via l'API Next.js Proxy/Bot si l'utilisateur a Manage Server OU s'il a le TO Role
+    // (L'appel classique à Discord.com depuis Next.js ne renvoie que les permissions globales, pas les rôles locaux)
+    const discordId = (session.user as any)?.id;
+    const botApiUrl = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:8080";
+    const botApiSecret = process.env.BOT_API_SECRET;
 
-    if (res.ok) {
-      const guilds = await res.json();
-      const guild = guilds.find((g: any) => g.id === guildId);
-      if (guild && (BigInt(guild.permissions) & BigInt(0x8)) === BigInt(0x8)) {
-        isAdmin = true;
+    if (discordId && botApiSecret) {
+      // On récupère d'abord le role TO du serveur
+      const { data: serverSettings } = await supabaseAdmin
+        .from("server_settings")
+        .select("to_role_id")
+        .eq("guild_id", guildId)
+        .single();
+      const toRoleId = serverSettings?.to_role_id || "";
+
+      const permRes = await fetch(
+        `${botApiUrl}/api/discord/permissions?guildId=${guildId}&userId=${discordId}&toRoleId=${toRoleId}`,
+        { headers: { Authorization: `Bearer ${botApiSecret}` }, cache: 'no-store' }
+      );
+      
+      if (permRes.ok) {
+        const permData = await permRes.json();
+        if (permData.hasPermission) {
+          isAdmin = true;
+          
+          // CRITIQUE : Puisque la RLS côté base de données est basée sur la colonne "admin_ids", 
+          // Injectons ("Sync") l'ID de cet Organisateur directement dans tous les tournois du serveur
+          // Ce qui lui donnera un accès total à Supabase.from('tournaments').update(...) côté client !
+          await supabaseAdmin.rpc('add_admin_to_all_tournaments', {
+            target_guild_id: guildId,
+            new_admin_id: discordId
+          }).catch(console.error); // RPC exécutée en arrière-plan
+        }
       }
     }
   } catch (e) {
