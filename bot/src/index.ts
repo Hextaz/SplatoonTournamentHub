@@ -349,7 +349,7 @@ const bootstrap = async () => {
         // If roles haven't changed, ignore
         if (oldMember.roles.cache.size === newMember.roles.cache.size) return;
 
-        const hasAdminPerm = newMember.permissions.has(PermissionsBitField.Flags.Administrator) || newMember.permissions.has(PermissionsBitField.Flags.ManageGuild);
+        const hasAdminPerm = newMember.permissions.has(PermissionFlagsBits.Administrator) || newMember.permissions.has(PermissionFlagsBits.ManageGuild);
         
         // Fetch TO role for this server
         const { data: serverSettings } = await supabase
