@@ -30,8 +30,6 @@ export default function SettingsPage({
   const [discordChannels, setDiscordChannels] = useState<{ id: string; name: string }[]>([]);
   const [apiError, setApiError] = useState("");
 
-  const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:8080";
-
   useEffect(() => {
     async function loadData() {
       // Si NextAuth est en train de charger, on attend
@@ -39,8 +37,6 @@ export default function SettingsPage({
 
       setLoading(true);
       try {
-        const token = typeof window !== "undefined" ? (session as any)?.supabaseAccessToken : null;
-
         // Fetch Supabase settings
         const { data: dbSettings, error: dbError } = await supabase
           .from("server_settings")
@@ -58,33 +54,26 @@ export default function SettingsPage({
           });
         }
 
-        if (token) {
-          const fetchOptions = {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          };
-
-          // Fetch Discord Roles via Express Bot API
-          try {
-            const rolesRes = await fetch(`${BOT_API_URL}/api/discord/roles?guildId=${guildId}`, fetchOptions);
-            if (rolesRes.ok) {
-              const roles = await rolesRes.json();
-              setDiscordRoles(roles);
-            }
-          } catch (e) {
-            setApiError("Impossible de joindre le Bot pour les rôles/salons. Vous devez renseigner les IDs manuellement.");
+        // Now going through our internal Next.js proxy to use BOT_API_SECRET
+        // Fetch Discord Roles via Express Bot API (Proxied)
+        try {
+          const rolesRes = await fetch(`/api/bot/discord/roles?guildId=${guildId}`);
+          if (rolesRes.ok) {
+            const roles = await rolesRes.json();
+            setDiscordRoles(roles);
           }
-
-          // Fetch Discord Channels via Express Bot API
-          try {
-            const channelsRes = await fetch(`${BOT_API_URL}/api/discord/channels?guildId=${guildId}`, fetchOptions);
-            if (channelsRes.ok) {
-              const channels = await channelsRes.json();
-              setDiscordChannels(channels);
-            }
-          } catch (e) {}
+        } catch (e) {
+          setApiError("Impossible de joindre le Bot pour les rôles/salons. Vous devez renseigner les IDs manuellement.");
         }
+
+        // Fetch Discord Channels via Express Bot API (Proxied)
+        try {
+          const channelsRes = await fetch(`/api/bot/discord/channels?guildId=${guildId}`);
+          if (channelsRes.ok) {
+            const channels = await channelsRes.json();
+            setDiscordChannels(channels);
+          }
+        } catch (e) {}
 
       } catch (err) {
         console.error(err);
@@ -92,7 +81,7 @@ export default function SettingsPage({
       setLoading(false);
     }
     loadData();
-  }, [guildId, BOT_API_URL, session, status]);
+  }, [guildId, session, status]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

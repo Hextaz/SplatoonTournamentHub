@@ -31,14 +31,11 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
         return;
       }
       try {
-        const token = typeof window !== 'undefined' ? (session as any)?.supabaseAccessToken : null;
-        const fetchOptions: RequestInit = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-
-        // Using standard fetch with direct getBotApiUrl instead of botApiFetch to pass the token explicitly
-        // This avoids asynchronous next-auth dynamic imports that might fail or fetch slowly in the Client Component.
+        // Calling our proxy Next.js API routes that use BOT_API_SECRET instead of the user's JWT token
+        // This solves the JWT "Invalid or expired token" errors when talking directly to the bot.
         const [channelsRes, rolesRes] = await Promise.all([
-          fetch(`${getBotApiUrl()}/api/discord/channels?guildId=${guildId}`, fetchOptions),
-          fetch(`${getBotApiUrl()}/api/discord/roles?guildId=${guildId}`, fetchOptions)
+          fetch(`/api/bot/discord/channels?guildId=${guildId}`),
+          fetch(`/api/bot/discord/roles?guildId=${guildId}`)
         ]);
 
         if (channelsRes.ok) {
