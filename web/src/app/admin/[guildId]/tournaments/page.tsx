@@ -61,11 +61,21 @@ export default function TournamentsPage({
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le tournoi "${name}" ? Cette action est irréversible.`)) return;
     try {
       setLoading(true);
-      await supabase.from("tournaments").delete().eq("id", id);
+      const { data, error } = await supabase.from("tournaments").delete().eq("id", id).select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        throw new Error("Accès refusé par la base de données (RLS) ou tournoi introuvable. Vous n'avez pas les permissions admin sur ce tournoi.");
+      }
+      
       await fetchTournaments();
-    } catch (err) {
-      console.error(err);
-      alert("Une erreur est survenue lors de la suppression.");
+    } catch (err: any) {
+      console.error("Delete Error:", err);
+      alert(`Erreur de suppression: ${err.message || "Erreur inconnue"}`);
+    } finally {
       setLoading(false);
     }
   };
