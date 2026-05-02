@@ -70,7 +70,7 @@ export default async function TournamentDashboard({ params }: { params: Promise<
               <p className="text-slate-400 text-sm font-medium">Splatoon 3</p>
             </div>
             {/* Composant Client */}
-            <VisibilityToggle tournamentId={tournamentId} initialIsPublic={!!tournament.is_public} />
+            <VisibilityToggle tournamentId={tournamentId} guildId={guildId} initialIsPublic={!!tournament.is_public} />
           </div>
           <div className="mt-4 pt-4 border-t border-slate-800 space-y-4">
             <p className="text-xs text-slate-500">

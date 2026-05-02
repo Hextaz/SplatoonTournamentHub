@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { getBotApiUrl } from '@/utils/api';
+import { botApiFetch } from '@/utils/api';
 
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { Rocket, Loader2, AlertOctagon } from "lucide-react";
 
 interface Props {
@@ -18,27 +17,23 @@ export function TournamentLifecycleManager({ tournamentId, guildId, status }: Pr
   const [loadingLaunch, setLoadingLaunch] = useState(false);
   const [loadingClose, setLoadingClose] = useState(false);
 
-  
-
   const handleLaunch = async () => {
     if (!window.confirm("Êtes-vous sûr de vouloir LONCER le tournoi ? Cela créera une catégorie Discord et annoncera le début de l'évènement.")) return;
-    
+
     setLoadingLaunch(true);
     try {
-      const res = await fetch(`${getBotApiUrl()}/api/tournaments/${tournamentId}/launch`, {
+      const res = await botApiFetch(`/api/tournaments/${tournamentId}/launch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guildId })
+        body: JSON.stringify({ guildId }),
       });
-      
+
       if (!res.ok) {
         const errorData = await res.text();
         throw new Error(errorData || "Erreur de communication avec le bot Discord");
       }
 
-      await supabase.from("tournaments").update({ status: "ACTIVE" }).eq("id", tournamentId);
       router.refresh();
-      
     } catch(err: any) {
       console.error(err);
       alert(`Erreur lors du lancement : ${err.message}`);
@@ -56,19 +51,17 @@ export function TournamentLifecycleManager({ tournamentId, guildId, status }: Pr
 
     setLoadingClose(true);
     try {
-      const res = await fetch(`${getBotApiUrl()}/api/tournaments/${tournamentId}/close`, {
+      const res = await botApiFetch(`/api/tournaments/${tournamentId}/close`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guildId })
+        body: JSON.stringify({ guildId }),
       });
 
       if (!res.ok) {
-         console.warn("Discord Bot returned non-ok, finishing closure locally.");
+        console.warn("Discord Bot returned non-ok, finishing closure locally.");
       }
 
-      await supabase.from("tournaments").update({ status: "COMPLETED" }).eq("id", tournamentId);
       router.refresh();
-
     } catch(err: any) {
       console.error(err);
       alert(`Erreur lors de la clôture : ${err.message}`);
@@ -94,7 +87,7 @@ export function TournamentLifecycleManager({ tournamentId, guildId, status }: Pr
 
       <div className="flex flex-col sm:flex-row items-center gap-3">
         {status !== "ACTIVE" && (
-          <button 
+          <button
             onClick={handleLaunch}
             disabled={loadingLaunch || loadingClose}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold px-6 py-2.5 rounded-lg transition-colors"
@@ -105,7 +98,7 @@ export function TournamentLifecycleManager({ tournamentId, guildId, status }: Pr
         )}
 
         {status === "ACTIVE" && (
-          <button 
+          <button
             onClick={handleClose}
             disabled={loadingLaunch || loadingClose}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold px-6 py-2.5 rounded-lg transition-colors"

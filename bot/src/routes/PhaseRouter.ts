@@ -121,6 +121,55 @@ phaseRouter.get("/:id/seeding", async (req, res) => {
   }
 });
 
+// DELETE /api/phases/:id — Delete a phase and its matches
+phaseRouter.delete("/:id", async (req, res) => {
+  try {
+    const phaseId = req.params.id;
+
+    const { error: matchErr } = await supabase.from("matches").delete().eq("phase_id", phaseId);
+    if (matchErr) throw matchErr;
+
+    const { error: ptErr } = await supabase.from("phase_teams").delete().eq("phase_id", phaseId);
+    if (ptErr) throw ptErr;
+
+    const { error } = await supabase.from("phases").delete().eq("id", phaseId);
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("[PhaseRouter] Delete error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/phases/:id — Update phase config (name, order, bracket_size, max_groups, settings)
+phaseRouter.put("/:id", async (req, res) => {
+  try {
+    const phaseId = req.params.id;
+    const { name, phase_order, bracket_size, max_groups, settings } = req.body;
+
+    const updatePayload: any = {};
+    if (name !== undefined) updatePayload.name = name;
+    if (phase_order !== undefined) updatePayload.phase_order = phase_order;
+    if (bracket_size !== undefined) updatePayload.bracket_size = bracket_size;
+    if (max_groups !== undefined) updatePayload.max_groups = max_groups;
+    if (settings !== undefined) updatePayload.settings = settings;
+
+    const { data, error } = await supabase
+      .from("phases")
+      .update(updatePayload)
+      .eq("id", phaseId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    console.error("[PhaseRouter] Update error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Synchroniser les salons Discord
 phaseRouter.post("/:id/sync", async (req, res) => {
   try {

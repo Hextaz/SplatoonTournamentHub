@@ -10,7 +10,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import http from "http";
 import { logger } from "./utils/logger";
-import { authMiddleware } from "./middleware/auth";
+import { authMiddleware, requireGuildAdmin } from "./middleware/auth";
 import { supabase } from "./lib/supabase";
 import { SchedulerService } from "./services/SchedulerService";
 import { ScoreService } from "./services/ScoreService";
@@ -20,6 +20,8 @@ import { PresenceRolesService } from "./services/PresenceRolesService";
 import { phaseRouter } from "./routes/PhaseRouter";
 import { matchRouter } from "./routes/MatchRouter";
 import { tournamentRouter } from "./routes/TournamentRouter";
+import { teamRouter } from "./routes/TeamRouter";
+import { serverSettingsRouter } from "./routes/ServerSettingsRouter";
 
 // Importer les commandes locales
 import * as adminTransferCommand from "./commands/admin-transfer";
@@ -125,22 +127,27 @@ app.get("/api/discord/permissions", async (req, res) => {
     const guildId = req.query.guildId as string;
     const userId = req.query.userId as string;
     const toRoleId = req.query.toRoleId as string;
-    
+
     if (!guildId || !userId) return res.status(400).json({ error: "Missing parameters" });
-    
+
     const guild = await getGuild(res, guildId);
     if (!guild) return;
-    
+
     const member = await guild.members.fetch(userId).catch(() => null);
     if (!member) {
       return res.status(200).json({ hasPermission: false, reason: "Utilisateur non trouvé sur le serveur" });
     }
 
+    // Server Owner always has permission
+    if (guild.ownerId === userId) {
+      return res.status(200).json({ hasPermission: true, reason: "SERVER_OWNER" });
+    }
+
     // Le membre a-t-il la permission native Gérer le Serveur ?
-    if (member.permissions.has(PermissionFlagsBits.ManageGuild)) {
+    if (member.permissions.has(PermissionFlagsBits.Administrator) || member.permissions.has(PermissionFlagsBits.ManageGuild)) {
       return res.status(200).json({ hasPermission: true, reason: "ADMIN" });
     }
-    
+
     // Le membre possède-t-il le rôle T.O ?
     if (toRoleId && member.roles.cache.has(toRoleId)) {
       return res.status(200).json({ hasPermission: true, reason: "TO_ROLE" });
@@ -282,7 +289,7 @@ app.post('/api/tournaments/archive-and-init', async (req, res) => {
 
   try {
     // Le front-end (Next.js) s'est déjà chargé d'insérer le nouveau tournoi en DB.
-    // Il faut juste : 
+    // Il faut juste :
     // 1. Archiver les autres tournois de la DB (normalement le frontend ou le web le fait ou on le fait ici pour sécurité)
     await supabase.from('tournaments')
       .update({ status: 'ARCHIVED' })
@@ -305,7 +312,7 @@ app.post('/api/tournaments/archive-and-init', async (req, res) => {
 
     // Démarrer la synchro des plannings
     if (newTourney && !fetchErr) SchedulerService.scheduleTournament(newTourney);
-    
+
     return res.status(202).json({ message: 'Cleanup and init done', tournament: newTourney });
   } catch (err: any) {
     logger.error('Error during archive-and-init:', err);
@@ -313,9 +320,13 @@ app.post('/api/tournaments/archive-and-init', async (req, res) => {
   }
 });
 
-app.use('/api/phases', phaseRouter);
-app.use('/api/matches', matchRouter);
-app.use('/api/tournaments', tournamentRouter);
+// Mutation routes: protected by authMiddleware + requireGuildAdmin (live Discord perm check)
+const guildAdminGuard = requireGuildAdmin(client);
+app.use('/api/phases', guildAdminGuard, phaseRouter);
+app.use('/api/matches', guildAdminGuard, matchRouter);
+app.use('/api/tournaments', guildAdminGuard, tournamentRouter);
+app.use('/api/teams', guildAdminGuard, teamRouter);
+app.use('/api/server-settings', guildAdminGuard, serverSettingsRouter);
 
 // 3. Connect DB and Start Systems
 let server: http.Server;
@@ -334,9 +345,16 @@ const bootstrap = async () => {
     // Listen for Role Removals or Member Leaves
     client.on('guildMemberRemove', async (member) => {
       try {
+        const guildId = member.guild.id;
+        const userId = member.user.id;
+
+        await supabase.from('guild_admins').delete()
+          .eq('guild_id', guildId)
+          .eq('discord_id', userId);
+
         await supabase.rpc('remove_admin_from_all_tournaments', {
-          target_guild_id: member.guild.id,
-          removed_admin_id: member.user.id
+          target_guild_id: guildId,
+          removed_admin_id: userId
         });
         logger.info(`[Bot] Removed admin rights for ${member.user.tag} (left guild ${member.guild.name})`);
       } catch (err) {
@@ -346,24 +364,58 @@ const bootstrap = async () => {
 
     client.on('guildMemberUpdate', async (oldMember, newMember) => {
       try {
-        // If roles haven't changed, ignore
-        if (oldMember.roles.cache.size === newMember.roles.cache.size) return;
+        const guildId = newMember.guild.id;
+        const userId = newMember.user.id;
 
-        const hasAdminPerm = newMember.permissions.has(PermissionFlagsBits.Administrator) || newMember.permissions.has(PermissionFlagsBits.ManageGuild);
-        
-        // Fetch TO role for this server
+        // P0-2 FIX: Compare actual role sets, not just size count.
+        // The old code used `size === size` which misses cases where
+        // one role is removed and another added simultaneously.
+        const oldRoleIds = new Set(oldMember.roles.cache.keys());
+        const newRoleIds = new Set(newMember.roles.cache.keys());
+        const rolesChanged =
+          oldRoleIds.size !== newRoleIds.size ||
+          [...newRoleIds].some(id => !oldRoleIds.has(id));
+
+        // Also check if admin-level permissions changed
+        // (e.g., a role with Administrator was removed even if role count stayed the same)
+        const oldHadAdmin = oldMember.permissions.has(PermissionFlagsBits.Administrator) ||
+          oldMember.permissions.has(PermissionFlagsBits.ManageGuild);
+        const newHasAdmin = newMember.permissions.has(PermissionFlagsBits.Administrator) ||
+          newMember.permissions.has(PermissionFlagsBits.ManageGuild);
+        const adminPermChanged = oldHadAdmin !== newHasAdmin;
+
+        if (!rolesChanged && !adminPermChanged) return;
+
+        const isOwner = newMember.guild.ownerId === userId;
+        const hasAdminPerm = newHasAdmin;
+
         const { data: serverSettings } = await supabase
           .from('server_settings')
           .select('to_role_id')
-          .eq('guild_id', newMember.guild.id)
+          .eq('guild_id', guildId)
           .single();
-        
-        const hasToRole = serverSettings?.to_role_id && newMember.roles.cache.has(serverSettings.to_role_id);
 
-        if (!hasAdminPerm && !hasToRole) {
+        const hasToRole = serverSettings?.to_role_id && newMember.roles.cache.has(serverSettings.to_role_id);
+        const shouldAdmin = isOwner || hasAdminPerm || hasToRole;
+
+        if (shouldAdmin) {
+          const reason = isOwner ? 'SERVER_OWNER' : hasAdminPerm ? 'ADMINISTRATOR' : 'TO_ROLE';
+          await supabase.from('guild_admins').upsert(
+            { guild_id: guildId, discord_id: userId, reason },
+            { onConflict: 'guild_id,discord_id' }
+          );
+          await supabase.rpc('add_admin_to_all_tournaments', {
+            target_guild_id: guildId,
+            new_admin_id: userId
+          });
+          logger.info(`[Bot] Synced admin rights for ${newMember.user.tag} (${reason})`);
+        } else {
+          await supabase.from('guild_admins').delete()
+            .eq('guild_id', guildId)
+            .eq('discord_id', userId);
           await supabase.rpc('remove_admin_from_all_tournaments', {
-            target_guild_id: newMember.guild.id,
-            removed_admin_id: newMember.user.id
+            target_guild_id: guildId,
+            removed_admin_id: userId
           });
           logger.info(`[Bot] Removed admin rights for ${newMember.user.tag} (lost TO/Admin roles in ${newMember.guild.name})`);
         }
@@ -395,6 +447,43 @@ const bootstrap = async () => {
       }
     } catch (err) {
       logger.error("Failed to sync connected guilds:", err);
+    }
+
+    // Bootstrap guild_admins table from live Discord member data
+    try {
+      for (const [guildId, guild] of client.guilds.cache) {
+        const { data: settings } = await supabase
+          .from('server_settings')
+          .select('to_role_id')
+          .eq('guild_id', guildId)
+          .single();
+
+        const members = await guild.members.fetch();
+        const adminRecords: { guild_id: string; discord_id: string; reason: string }[] = [];
+
+        for (const [memberId, member] of members) {
+          const isOwner = guild.ownerId === memberId;
+          const hasAdminPerm = member.permissions.has(PermissionFlagsBits.Administrator) ||
+            member.permissions.has(PermissionFlagsBits.ManageGuild);
+          const hasToRole = settings?.to_role_id && member.roles.cache.has(settings.to_role_id);
+
+          if (isOwner || hasAdminPerm || hasToRole) {
+            const reason = isOwner ? 'SERVER_OWNER' : hasAdminPerm ? 'ADMINISTRATOR' : 'TO_ROLE';
+            adminRecords.push({ guild_id: guildId, discord_id: memberId, reason });
+            await supabase.rpc('add_admin_to_all_tournaments', {
+              target_guild_id: guildId,
+              new_admin_id: memberId
+            });
+          }
+        }
+
+        if (adminRecords.length > 0) {
+          await supabase.from('guild_admins').upsert(adminRecords, { onConflict: 'guild_id,discord_id' });
+          logger.info(`[Sync] Bootstrapped ${adminRecords.length} guild_admins for ${guild.name}`);
+        }
+      }
+    } catch (err) {
+      logger.error("Failed to bootstrap guild_admins:", err);
     }
 
     // Register new guilds when bot joins a server

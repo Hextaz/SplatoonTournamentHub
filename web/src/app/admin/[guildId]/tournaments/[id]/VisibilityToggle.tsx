@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { botApiFetch } from '@/utils/api';
 import { Send, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export function VisibilityToggle({ tournamentId, initialIsPublic }: { tournamentId: string, initialIsPublic: boolean }) {
+export function VisibilityToggle({ tournamentId, guildId, initialIsPublic }: { tournamentId: string, guildId: string, initialIsPublic: boolean }) {
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -13,17 +13,22 @@ export function VisibilityToggle({ tournamentId, initialIsPublic }: { tournament
   const handleToggle = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from("tournaments")
-        .update({ is_public: !isPublic })
-        .eq("id", tournamentId);
+      const res = await botApiFetch(`/api/tournaments/${tournamentId}/visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_public: !isPublic, guildId }),
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
+      }
+
       setIsPublic(!isPublic);
       router.refresh();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Erreur lors de la modification de la visibilité.");
+      alert("Erreur lors de la modification de la visibilité : " + (e.message || e));
     } finally {
       setIsLoading(false);
     }
@@ -47,4 +52,5 @@ export function VisibilityToggle({ tournamentId, initialIsPublic }: { tournament
         <Send className={`w-4 h-4 ${isPublic ? 'text-emerald-400' : ''}`} />
       </button>
     </div>
-  );}
+  );
+}

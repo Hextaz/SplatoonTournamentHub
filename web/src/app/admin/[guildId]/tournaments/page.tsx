@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSession } from "next-auth/react";
+import { botApiFetch } from '@/utils/api';
 
 const formSchema = z.object({
   name: z.string().min(3, "Le nom doit contenir au moins 3 caractères"),
@@ -32,13 +33,11 @@ export default function TournamentsPage({
 }) {
   const router = useRouter();
   const { guildId } = use(params);
-  
+
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
-  
-  const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || "http://localhost:8080";
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -64,7 +63,7 @@ export default function TournamentsPage({
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le tournoi "${name}" ? Cette action est irréversible.`)) return;
     try {
       setLoading(true);
-      
+
       const response = await fetch(`/api/tournaments/${id}?guildId=${guildId}`, {
         method: "DELETE",
       });
@@ -91,62 +90,35 @@ export default function TournamentsPage({
     setCreating(true);
 
     try {
-      // Pour s'assurer que le créateur ait les droits de modification sur le tournoi en base de données, 
-      // on récupère son identifiant Discord et on l'inclut directement dans ses admin_ids à la création.
-      const currentDiscordId = (session?.user as any)?.id;
-
-      // 1. Récupérer les paramètres par défaut du serveur
-      const { data: serverSettings } = await supabase
-        .from("server_settings")
-        .select("*")
-        .eq("guild_id", guildId)
-        .single();
-
-      // 2. Créer le tournoi avec ou sans paramètres par défaut, en forçant le rôle admin !
-      const { data: created, error } = await supabase
-        .from("tournaments")
-        .insert({
+      const res = await botApiFetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           guild_id: guildId,
           name: data.name,
-          description: data.description,
-          status: "REGISTRATION",
+          description: data.description || null,
           start_at: new Date(data.start_at).toISOString(),
           checkin_start_at: new Date(data.checkin_start_at).toISOString(),
           checkin_end_at: new Date(data.checkin_end_at).toISOString(),
-          discord_registration_channel_id: serverSettings?.registration_channel_id || null,
-          discord_announcement_channel_id: serverSettings?.announcement_channel_id || null,
-          discord_checkin_channel_id: serverSettings?.checkin_channel_id || null,
-          discord_captain_role_id: serverSettings?.captain_role_id || null,
-          discord_to_role_id: serverSettings?.to_role_id || null,
-          admin_ids: currentDiscordId ? [currentDiscordId] : []
-        })
-        .select()
-        .single();
+        }),
+      });
 
-      if (error) throw error;
-
-      try {
-        await fetch(`/api/bot/tournaments/archive-and-init`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            guildId,
-            newTournamentId: created.id
-          })
-        });
-      } catch (botErr) {
-        console.warn("Express Bot unavailable, roles/channels not initialized on Discord side.");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
       }
+
+      const created = await res.json();
 
       setShowCreateModal(false);
       reset();
       fetchTournaments();
-      
+
       router.push(`/admin/${guildId}/tournaments/${created.id}`);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la création du tournoi.");
+      alert("Erreur lors de la création du tournoi : " + (err.message || err));
     } finally {
       setCreating(false);
     }
@@ -159,13 +131,13 @@ export default function TournamentsPage({
           <h1 className="text-3xl font-bold text-white mb-2">🏆 Gestion des Tournois</h1>
           <p className="text-slate-400">Gérez le tournoi en cours et lancez de nouvelles éditions.</p>
         </div>
-        <button 
+        <button
           onClick={() => !hasActiveTournament && setShowCreateModal(true)}
           disabled={hasActiveTournament}
           title={hasActiveTournament ? "Un tournoi est déjà actif" : ""}
           className={`px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors ${
-            hasActiveTournament 
-              ? "bg-slate-700/50 text-slate-500 cursor-not-allowed" 
+            hasActiveTournament
+              ? "bg-slate-700/50 text-slate-500 cursor-not-allowed"
               : "bg-blue-600 hover:bg-blue-500 text-white"
           }`}
         >
@@ -203,7 +175,7 @@ export default function TournamentsPage({
                     </span>
                     <h2 className="text-2xl font-bold text-white leading-tight">{tournament.name}</h2>
                   </div>
-                  <button 
+                  <button
                     onClick={() => handleDelete(tournament.id, tournament.name)}
                     title="Supprimer"
                     className="p-2 ml-4 bg-slate-700/50 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors shrink-0"
@@ -220,7 +192,7 @@ export default function TournamentsPage({
                 </div>
               </div>
               <div className="p-4 bg-slate-900/50">
-                <button 
+                <button
                   onClick={() => router.push(`/admin/${guildId}/tournaments/${tournament.id}`)}
                   className="w-full bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
                 >
@@ -237,7 +209,7 @@ export default function TournamentsPage({
           <p className="text-slate-500 max-w-md mx-auto mb-6">
             Votre serveur est en sommeil. Créez un nouveau tournoi pour démarrer les inscriptions et le setup des salons Discord.
           </p>
-          <button 
+          <button
             onClick={() => setShowCreateModal(true)}
             className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto transition-colors"
           >
@@ -254,12 +226,12 @@ export default function TournamentsPage({
               <h2 className="text-xl font-bold text-white">Nouvelle Édition</h2>
               <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
-            
+
             <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Nom du Tournoi <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   {...register("name")}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500"
                   placeholder="Ex: Splatoon Cup Series #4"
@@ -269,7 +241,7 @@ export default function TournamentsPage({
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Description (Optionnelle)</label>
-                <textarea 
+                <textarea
                   {...register("description")}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500 h-24 resize-none"
                   placeholder="Règles ou sous-titre de l'évènement..."
@@ -278,8 +250,8 @@ export default function TournamentsPage({
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Début du Check-in <span className="text-red-500">*</span></label>
-                <input 
-                  type="datetime-local" 
+                <input
+                  type="datetime-local"
                   {...register("checkin_start_at")}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500"
                 />
@@ -288,8 +260,8 @@ export default function TournamentsPage({
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Fin du Check-in <span className="text-red-500">*</span></label>
-                <input 
-                  type="datetime-local" 
+                <input
+                  type="datetime-local"
                   {...register("checkin_end_at")}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500"
                 />
@@ -298,8 +270,8 @@ export default function TournamentsPage({
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Début du Tournoi <span className="text-red-500">*</span></label>
-                <input 
-                  type="datetime-local" 
+                <input
+                  type="datetime-local"
                   {...register("start_at")}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500"
                 />
@@ -312,14 +284,14 @@ export default function TournamentsPage({
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl font-medium transition-colors"
                 >
                   Annuler
                 </button>
-                <button 
+                <button
                   type="submit"
                   disabled={creating}
                   className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:text-white/50 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-blue-900/20"

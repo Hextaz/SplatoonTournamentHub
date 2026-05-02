@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
+import { botApiFetch } from '@/utils/api';
 import { supabase } from "@/lib/supabase";
 import { Save, Loader2, RefreshCw } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -32,12 +33,11 @@ export default function SettingsPage({
 
   useEffect(() => {
     async function loadData() {
-      // Si NextAuth est en train de charger, on attend
       if (status === "loading") return;
 
       setLoading(true);
       try {
-        // Fetch Supabase settings
+        // Fetch Supabase settings (read-only, RLS public SELECT)
         const { data: dbSettings, error: dbError } = await supabase
           .from("server_settings")
           .select("*")
@@ -54,8 +54,7 @@ export default function SettingsPage({
           });
         }
 
-        // Now going through our internal Next.js proxy to use BOT_API_SECRET
-        // Fetch Discord Roles via Express Bot API (Proxied)
+        // Fetch Discord Roles via Bot API proxy
         try {
           const rolesRes = await fetch(`/api/bot/discord/roles?guildId=${guildId}`);
           if (rolesRes.ok) {
@@ -66,7 +65,7 @@ export default function SettingsPage({
           setApiError("Impossible de joindre le Bot pour les rôles/salons. Vous devez renseigner les IDs manuellement.");
         }
 
-        // Fetch Discord Channels via Express Bot API (Proxied)
+        // Fetch Discord Channels via Bot API proxy
         try {
           const channelsRes = await fetch(`/api/bot/discord/channels?guildId=${guildId}`);
           if (channelsRes.ok) {
@@ -89,21 +88,24 @@ export default function SettingsPage({
     setMessage({ type: "", text: "" });
 
     try {
-      const payload = {
-        guild_id: guildId,
-        captain_role_id: settings.captain_role_id,
-        to_role_id: settings.to_role_id,
-        checkin_channel_id: settings.checkin_channel_id,
-        announcement_channel_id: settings.announcement_channel_id,
-        registration_channel_id: settings.registration_channel_id,
-        updated_at: new Date().toISOString(),
-      };
+      const res = await botApiFetch('/api/server-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guild_id: guildId,
+          captain_role_id: settings.captain_role_id,
+          to_role_id: settings.to_role_id,
+          checkin_channel_id: settings.checkin_channel_id,
+          announcement_channel_id: settings.announcement_channel_id,
+          registration_channel_id: settings.registration_channel_id,
+        }),
+      });
 
-      const { error } = await supabase
-        .from("server_settings")
-        .upsert(payload, { onConflict: "guild_id" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
+      }
 
-      if (error) throw error;
       setMessage({ type: "success", text: "Paramètres sauvegardés avec succès !" });
     } catch (err: any) {
       console.error(err);
@@ -131,7 +133,7 @@ export default function SettingsPage({
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">⚙️ Paramètres du Serveur</h1>
         <p className="text-slate-400">Configurez les rôles clés et les salons de votre serveur Discord.</p>
-        
+
         {apiError && (
           <div className="mt-4 bg-yellow-900/30 border border-yellow-700/50 p-4 rounded-xl text-yellow-400 text-sm flex items-center">
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -144,7 +146,7 @@ export default function SettingsPage({
         {/* RÔLES */}
         <div className="space-y-6">
           <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2">Rôles</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-400">Rôle Capitaine</label>
@@ -161,12 +163,12 @@ export default function SettingsPage({
                   ))}
                 </select>
               ) : (
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="captain_role_id"
                   value={settings.captain_role_id}
                   onChange={handleChange}
-                  placeholder="ID du Rôle" 
+                  placeholder="ID du Rôle"
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
@@ -187,12 +189,12 @@ export default function SettingsPage({
                   ))}
                 </select>
               ) : (
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="to_role_id"
                   value={settings.to_role_id}
                   onChange={handleChange}
-                  placeholder="ID du Rôle" 
+                  placeholder="ID du Rôle"
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
@@ -203,7 +205,7 @@ export default function SettingsPage({
         {/* SALONS */}
         <div className="space-y-6 pt-4">
           <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2">Salons</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-400">Salon de Check-in</label>
@@ -220,12 +222,12 @@ export default function SettingsPage({
                   ))}
                 </select>
               ) : (
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="checkin_channel_id"
                   value={settings.checkin_channel_id}
                   onChange={handleChange}
-                  placeholder="ID du Salon" 
+                  placeholder="ID du Salon"
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
@@ -246,12 +248,12 @@ export default function SettingsPage({
                   ))}
                 </select>
               ) : (
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="announcement_channel_id"
                   value={settings.announcement_channel_id}
                   onChange={handleChange}
-                  placeholder="ID du Salon" 
+                  placeholder="ID du Salon"
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
@@ -272,12 +274,12 @@ export default function SettingsPage({
                   ))}
                 </select>
               ) : (
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="registration_channel_id"
                   value={settings.registration_channel_id}
                   onChange={handleChange}
-                  placeholder="ID du Salon" 
+                  placeholder="ID du Salon"
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
@@ -295,8 +297,8 @@ export default function SettingsPage({
         )}
 
         <div className="pt-6 flex justify-end">
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={saving}
             className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
           >

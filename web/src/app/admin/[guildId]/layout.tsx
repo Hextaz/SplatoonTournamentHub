@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { ServerSidebarWrapper } from "@/components/ServerSidebarWrapper";
 import {
@@ -37,7 +37,7 @@ export default async function AdminLayout({
 
     if (discordId && botApiSecret) {
       // On récupère d'abord le role TO du serveur
-      const { data: serverSettings } = await supabaseAdmin
+      const { data: serverSettings } = await supabase
         .from("server_settings")
         .select("to_role_id")
         .eq("guild_id", guildId)
@@ -53,17 +53,6 @@ export default async function AdminLayout({
         const permData = await permRes.json();
         if (permData.hasPermission) {
           isAdmin = true;
-          
-          // CRITIQUE : Puisque la RLS côté base de données est basée sur la colonne "admin_ids", 
-          // Injectons ("Sync") l'ID de cet Organisateur directement dans tous les tournois du serveur
-          // Ce qui lui donnera un accès total à Supabase.from('tournaments').update(...) côté client !
-          const { error: rpcError } = await supabaseAdmin.rpc('add_admin_to_all_tournaments', {
-            target_guild_id: guildId,
-            new_admin_id: discordId
-          });
-          if (rpcError) {
-            console.error("Failed to sync admin IDs for RLS:", rpcError);
-          }
         }
       }
     }

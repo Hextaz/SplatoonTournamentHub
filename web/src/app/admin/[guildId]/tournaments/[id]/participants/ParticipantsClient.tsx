@@ -1,28 +1,27 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getBotApiUrl } from '@/utils/api';
+import { getBotApiUrl, botApiFetch } from '@/utils/api';
 
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { CheckCircle2, XCircle, UserPlus, Trash2, Search, Pencil, MoreVertical } from "lucide-react";
+import { CheckCircle2, XCircle, UserPlus, Trash2, Search, Pencil } from "lucide-react";
 
 export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { tournamentId: string; guildId: string; initialTeams: any[] }) {
   const router = useRouter();
   const [teams, setTeams] = useState(initialTeams);
   const [isAdding, setIsAdding] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
-  
+
   // Custom Combobox State
   const [members, setMembers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
-  
+
   // Add State Variables
   const [editingTeam, setEditingTeam] = useState<any>(null);
   const [editTeamName, setEditTeamName] = useState("");
-  
+
   const defaultMembers = [
     { ingame_name: "", friend_code: "", is_captain: true },
     { ingame_name: "", friend_code: "", is_captain: false },
@@ -32,7 +31,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     { ingame_name: "", friend_code: "", is_captain: false },
   ];
   const [teamMembers, setTeamMembers] = useState(defaultMembers);
-  
+
   const [teamToDelete, setTeamToDelete] = useState<any>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -73,40 +72,42 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     if (!newTeamName.trim() || !selectedMember) return;
 
     try {
-      const { data, error } = await supabase.from('teams').insert({
-        tournament_id: tournamentId,
-        name: newTeamName,
-        captain_discord_id: selectedMember.id,
-        is_checked_in: true // Manual teams are checked in by default
-      }).select().single();
-
-      if (error) throw error;
-      
       const validMembers = teamMembers.filter(m => m.ingame_name.trim() || m.friend_code.trim() || m.is_captain);
-      const membersToInsert = validMembers.map(m => ({
-        team_id: data.id,
+      const membersPayload = validMembers.map(m => ({
         user_id: m.is_captain ? selectedMember.id : null,
         ingame_name: m.ingame_name.trim(),
         friend_code: m.friend_code.trim(),
         is_captain: m.is_captain
       }));
-      
-      let updatedTeamMembers = [];
-      if (membersToInsert.length > 0) {
-        const { data: insertedMembers, error: membersError } = await supabase.from('team_members').insert(membersToInsert).select();
-        if (membersError) throw membersError;
-        updatedTeamMembers = insertedMembers;
+
+      const res = await botApiFetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournament_id: tournamentId,
+          guildId,
+          name: newTeamName,
+          captain_discord_id: selectedMember.id,
+          is_checked_in: true,
+          members: membersPayload,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
       }
-      
-      setTeams([...teams, { ...data, team_members: updatedTeamMembers }]);
+
+      const data = await res.json();
+      setTeams([...teams, data]);
       setNewTeamName("");
       setSearchTerm("");
       setSelectedMember(null);
       setIsAdding(false);
       router.refresh();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de l'ajout de l'équipe");
+      alert("Erreur lors de l'ajout de l'équipe : " + (err.message || err));
     }
   };
 
@@ -117,65 +118,45 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     if (!count || count <= 0) return;
 
     try {
-      const fakeTeams = Array.from({ length: count }).map(() => ({
-        tournament_id: tournamentId,
-        name: `Equipe Fictive ${Math.floor(Math.random() * 10000)}`,
-        captain_discord_id: `999999999${Math.floor(Math.random() * 10000)}`,
-        is_checked_in: true
-      }));
-
-      const { data, error } = await supabase.from('teams').insert(fakeTeams).select();
-      if (error) throw error;
-      
-      const allFakeMembers: any[] = [];
-      data.forEach(t => {
-        const memberCount = Math.floor(Math.random() * 3) + 4; // 4 to 6 members
-        for(let i = 0; i < memberCount; i++) {
-          const isCaptain = i === 0;
-          const fakeFC = `SW-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-          allFakeMembers.push({
-            team_id: t.id,
-            user_id: isCaptain ? t.captain_discord_id : null,
-            ingame_name: `Joueur ${Math.floor(Math.random() * 1000)}`,
-            friend_code: fakeFC,
-            is_captain: isCaptain
-          });
-        }
+      const res = await botApiFetch('/api/teams/generate-fake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tournament_id: tournamentId, guildId, count }),
       });
 
-      let insertedFakeMembers: any[] = [];
-      if (allFakeMembers.length > 0) {
-        const { data: mData, error: mError } = await supabase.from('team_members').insert(allFakeMembers).select();
-        if (mError) {
-          console.error("Erreur gèn membres fictifs:", mError);
-        } else {
-          insertedFakeMembers = mData || [];
-        }
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
       }
-      
-      const newTeams = data.map(d => ({ 
-        ...d, 
-        team_members: insertedFakeMembers.filter(m => m.team_id === d.id) 
-      }));
+
+      const newTeams = await res.json();
       setTeams(prev => [...prev, ...newTeams]);
       router.refresh();
       alert(`${count} équipes ajoutées avec succès !`);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la génération d'équipes fictives");
+      alert("Erreur lors de la génération d'équipes fictives : " + (err.message || err));
     }
   };
 
   const handleForceCheckIn = async (teamId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase.from('teams').update({ is_checked_in: !currentStatus }).eq('id', teamId);
-      if (error) throw error;
-      
+      const res = await botApiFetch(`/api/teams/${teamId}/checkin`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_checked_in: !currentStatus, guildId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
+      }
+
       setTeams(teams.map(t => t.id === teamId ? { ...t, is_checked_in: !currentStatus } : t));
       router.refresh();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la mise à jour");
+      alert("Erreur lors de la mise à jour : " + (err.message || err));
     }
   };
 
@@ -184,56 +165,61 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     if (!editTeamName.trim() || !selectedMember) return;
 
     try {
-      const { data, error } = await supabase.from('teams').update({
-        name: editTeamName,
-        captain_discord_id: selectedMember.id,
-      }).eq('id', editingTeam.id).select().single();
-
-      if (error) throw error;
-      
-      const { error: deleteError } = await supabase.from('team_members').delete().eq('team_id', editingTeam.id);
-      if (deleteError) throw deleteError;
-
       const validMembers = teamMembers.filter(m => m.ingame_name.trim() || m.friend_code.trim() || m.is_captain);
-      const membersToInsert = validMembers.map(m => ({
-        team_id: editingTeam.id,
+      const membersPayload = validMembers.map(m => ({
         user_id: m.is_captain ? selectedMember.id : null,
         ingame_name: m.ingame_name.trim(),
         friend_code: m.friend_code.trim(),
         is_captain: m.is_captain
       }));
 
-      let updatedTeamMembers = [];
-      if (membersToInsert.length > 0) {
-        const { data: insertedMembers, error: membersError } = await supabase.from('team_members').insert(membersToInsert).select();
-        if (membersError) throw membersError;
-        updatedTeamMembers = insertedMembers;
+      const res = await botApiFetch(`/api/teams/${editingTeam.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editTeamName,
+          captain_discord_id: selectedMember.id,
+          guildId,
+          members: membersPayload,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
       }
-      
-      setTeams(teams.map(t => t.id === editingTeam.id ? { ...t, name: editTeamName, captain_discord_id: selectedMember.id, team_members: updatedTeamMembers } : t));
+
+      const data = await res.json();
+      setTeams(teams.map(t => t.id === editingTeam.id ? { ...t, name: editTeamName, captain_discord_id: selectedMember.id, team_members: data.team_members || [] } : t));
       setEditingTeam(null);
       setEditTeamName("");
       setSelectedMember(null);
       setSearchTerm("");
       router.refresh();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la modification de l'équipe");
+      alert("Erreur lors de la modification de l'équipe : " + (err.message || err));
     }
   };
 
   const handleDeleteTeam = async () => {
     if (!teamToDelete) return;
     try {
-      const { error } = await supabase.from('teams').delete().eq('id', teamToDelete.id);
-      if (error) throw error;
-      
+      const res = await botApiFetch(`/api/teams/${teamToDelete.id}?guildId=${guildId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
+      }
+
       setTeams(teams.filter(t => t.id !== teamToDelete.id));
       setTeamToDelete(null);
       router.refresh();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la suppression de l'équipe");
+      alert("Erreur lors de la suppression de l'équipe : " + (err.message || err));
     }
   };
 
@@ -246,10 +232,10 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     setSearchTerm(member.displayName);
     setIsDropdownOpen(false);
 
-    const existingMembers = [...(team.team_members || [])].sort((a: any, b: any) => 
+    const existingMembers = [...(team.team_members || [])].sort((a: any, b: any) =>
       (a.is_captain === b.is_captain) ? 0 : a.is_captain ? -1 : 1
     );
-    
+
     const editMembers = JSON.parse(JSON.stringify(defaultMembers)).map((def: any, idx: number) => {
       if (existingMembers[idx]) {
         return {
@@ -276,8 +262,8 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
             setMembers(data);
             const found = data.find(m => m.id === team.captain_discord_id);
             if(found) {
-                setSelectedMember(found);
-                setSearchTerm(found.displayName);
+              setSelectedMember(found);
+              setSearchTerm(found.displayName);
             }
           }
         })
@@ -285,8 +271,8 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     }
   };
 
-  const filteredMembers = members.filter(m => 
-    m.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredMembers = members.filter(m =>
+    m.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.username?.toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 50); // limit preview amount
 
@@ -300,15 +286,15 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
           </span>
         </h2>
         <div className="flex gap-2">
-          <button 
+          <button
             onClick={openAddModal}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-blue-500/20"
           >
             <UserPlus className="w-4 h-4" />
             Ajouter manuellement
           </button>
-            
-          <button 
+
+          <button
             onClick={handleGenerateFakeTeams}
             className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-yellow-500/20"
           >
@@ -323,29 +309,29 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
             <div className="bg-slate-900 border-b border-slate-700 p-4">
               <h3 className="text-xl font-bold text-white">Ajouter une équipe</h3>
             </div>
-            
+
             <form onSubmit={handleAddTeam} className="p-6 space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-400">Nom de l'équipe</label>
-                  <input 
-                    type="text" 
-                    placeholder="Nom de l'équipe..." 
+                  <input
+                    type="text"
+                    placeholder="Nom de l'équipe..."
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
                     value={newTeamName}
                     onChange={(e) => setNewTeamName(e.target.value)}
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-400">Capitaine Discord</label>
                   <div className="relative" ref={dropdownRef}>
                     <div className="relative">
                       <Search className="w-5 h-5 absolute left-3 top-3.5 text-slate-400" />
-                      <input 
-                        type="text" 
-                        placeholder="Rechercher capitaine Discord..." 
+                      <input
+                        type="text"
+                        placeholder="Rechercher capitaine Discord..."
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:border-blue-500"
                         value={selectedMember ? selectedMember.displayName : searchTerm}
                         onChange={(e) => {
@@ -357,7 +343,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                         required={!selectedMember}
                       />
                     </div>
-                    
+
                     {isDropdownOpen && !selectedMember && (
                       <div className="absolute top-14 left-0 w-full bg-slate-800 border border-slate-700 rounded-lg mt-1 max-h-60 overflow-y-auto z-50 shadow-xl overscroll-auto custom-scrollbar">
                         {members.length === 0 ? (
@@ -366,8 +352,8 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                           <div className="p-3 text-sm text-slate-400 text-center">Aucun membre trouvé</div>
                         ) : (
                           filteredMembers.map(member => (
-                            <div 
-                              key={member.id} 
+                            <div
+                              key={member.id}
                               className="px-4 py-3 hover:bg-slate-700 cursor-pointer flex flex-col transition-colors border-b border-slate-700/50 last:border-0"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -391,7 +377,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                   {teamMembers.map((member, idx) => (
                     <div key={idx} className="flex flex-col sm:flex-row gap-3">
                       <div className="flex-1">
-                        <input 
+                        <input
                           type="text"
                           placeholder={`Pseudo In-game (Joueur ${idx + 1}${idx === 0 ? " - Cap" : idx >= 4 ? " - Optionnel" : ""})`}
                           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
@@ -405,7 +391,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                         />
                       </div>
                       <div className="flex-1">
-                        <input 
+                        <input
                           type="text"
                           placeholder={`Code Ami (ex: SW-...)${idx >= 4 ? " - Optionnel" : ""}`}
                           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
@@ -424,16 +410,16 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
               </div>
 
               <div className="flex gap-3 justify-end pt-4 border-t border-slate-700">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsAdding(false)}
                   className="px-5 py-2.5 rounded-lg font-bold text-slate-300 hover:bg-slate-700 transition-colors"
                 >
                   Annuler
                 </button>
-                <button 
-                  type="submit" 
-                  disabled={!selectedMember || !newTeamName} 
+                <button
+                  type="submit"
+                  disabled={!selectedMember || !newTeamName}
                   className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Valider
@@ -469,10 +455,10 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                 <tr key={team.id} className="hover:bg-slate-700/30 transition-colors group">
                   <td className="px-6 py-4 font-bold text-white flex flex-col gap-1">
                     <div className="flex items-center gap-3">
-                       <div className="w-8 h-8 rounded-lg bg-slate-700 border border-slate-600 flex items-center justify-center text-xs text-slate-400">
-                         {team.name.substring(0, 2).toUpperCase()}
-                       </div>
-                       {team.name}
+                      <div className="w-8 h-8 rounded-lg bg-slate-700 border border-slate-600 flex items-center justify-center text-xs text-slate-400">
+                        {team.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      {team.name}
                     </div>
                     <span className="text-xs text-slate-500 font-normal ml-11">Capt ID: {team.captain_discord_id}</span>
                   </td>
@@ -502,35 +488,35 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                     <div className="flex items-center justify-end gap-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                       <button 
-                         onClick={() => handleForceCheckIn(team.id, team.is_checked_in)}
-                         className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
-                           team.is_checked_in 
-                             ? "bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20" 
-                             : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20"
-                         }`}
-                       >
-                         {team.is_checked_in ? "Annuler le check-in" : "👉 Forcer le check-in"}
-                       </button>
-                       <div className="flex bg-slate-700/50 rounded-lg overflow-hidden border border-slate-600">
-                         <button 
-                           onClick={() => openEditModal(team)}
-                           className="p-2 hover:bg-blue-500/20 text-slate-300 hover:text-blue-400 transition-colors"
-                           title="Éditer l'équipe"
-                         >
-                           <Pencil className="w-4 h-4" />
-                         </button>
-                         <div className="w-px bg-slate-600"></div>
-                         <button 
-                           onClick={() => setTeamToDelete(team)}
-                           className="p-2 hover:bg-red-500/20 text-slate-300 hover:text-red-400 transition-colors"
-                           title="Supprimer l'équipe"
-                         >
-                           <Trash2 className="w-4 h-4" />
-                         </button>
-                       </div>
-                     </div>
+                    <div className="flex items-center justify-end gap-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleForceCheckIn(team.id, team.is_checked_in)}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
+                          team.is_checked_in
+                            ? "bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20"
+                            : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                        }`}
+                      >
+                        {team.is_checked_in ? "Annuler le check-in" : "👉 Forcer le check-in"}
+                      </button>
+                      <div className="flex bg-slate-700/50 rounded-lg overflow-hidden border border-slate-600">
+                        <button
+                          onClick={() => openEditModal(team)}
+                          className="p-2 hover:bg-blue-500/20 text-slate-300 hover:text-blue-400 transition-colors"
+                          title="Éditer l'équipe"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <div className="w-px bg-slate-600"></div>
+                        <button
+                          onClick={() => setTeamToDelete(team)}
+                          className="p-2 hover:bg-red-500/20 text-slate-300 hover:text-red-400 transition-colors"
+                          title="Supprimer l'équipe"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -544,28 +530,28 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
             <div className="bg-slate-900 border-b border-slate-700 p-4">
               <h3 className="text-xl font-bold text-white">Éditer l'équipe</h3>
             </div>
-            
+
             <form onSubmit={handleEditTeam} className="p-6 space-y-6">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-400">Nom de l'équipe</label>
-                <input 
-                  type="text" 
-                  placeholder="Nom de l'équipe..." 
+                <input
+                  type="text"
+                  placeholder="Nom de l'équipe..."
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
                   value={editTeamName}
                   onChange={(e) => setEditTeamName(e.target.value)}
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-400">Capitaine Discord</label>
                 <div className="relative" ref={dropdownRef}>
                   <div className="relative">
                     <Search className="w-5 h-5 absolute left-3 top-3.5 text-slate-400" />
-                    <input 
-                      type="text" 
-                      placeholder="Rechercher capitane Discord..." 
+                    <input
+                      type="text"
+                      placeholder="Rechercher capitane Discord..."
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:border-blue-500"
                       value={selectedMember ? selectedMember.displayName : searchTerm}
                       onChange={(e) => {
@@ -577,7 +563,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                       required={!selectedMember}
                     />
                   </div>
-                  
+
                   {isDropdownOpen && !selectedMember && (
                     <div className="absolute top-14 left-0 w-full bg-slate-800 border border-slate-700 rounded-lg mt-1 max-h-60 overflow-y-auto z-50 shadow-xl overscroll-auto custom-scrollbar">
                       {members.length === 0 ? (
@@ -586,8 +572,8 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                         <div className="p-3 text-sm text-slate-400 text-center">Aucun membre trouvé</div>
                       ) : (
                         filteredMembers.map(member => (
-                          <div 
-                            key={member.id} 
+                          <div
+                            key={member.id}
                             className="px-4 py-3 hover:bg-slate-700 cursor-pointer flex flex-col transition-colors border-b border-slate-700/50 last:border-0"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -611,7 +597,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                 {teamMembers.map((member, idx) => (
                   <div key={idx} className="flex flex-col sm:flex-row gap-3">
                     <div className="flex-1">
-                      <input 
+                      <input
                         type="text"
                         placeholder={`Pseudo In-game (Joueur ${idx + 1}${idx === 0 ? " - Cap" : idx >= 4 ? " - Optionnel" : ""})`}
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
@@ -625,7 +611,7 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                       />
                     </div>
                     <div className="flex-1">
-                      <input 
+                      <input
                         type="text"
                         placeholder={`Code Ami (ex: SW-...)${idx >= 4 ? " - Optionnel" : ""}`}
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
@@ -643,8 +629,8 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
               </div>
 
               <div className="flex gap-3 justify-end pt-4 border-t border-slate-700">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
                     setEditingTeam(null);
                     setSelectedMember(null);
@@ -654,9 +640,9 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                 >
                   Annuler
                 </button>
-                <button 
-                  type="submit" 
-                  disabled={!selectedMember || !editTeamName} 
+                <button
+                  type="submit"
+                  disabled={!selectedMember || !editTeamName}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Enregistrer
@@ -681,15 +667,15 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
                 <span className="text-red-400 block mt-2 text-xs uppercase tracking-wider font-bold">Cette action est irréversible.</span>
               </p>
             </div>
-            
+
             <div className="flex gap-2 p-4 bg-slate-900/50">
-              <button 
+              <button
                 onClick={() => setTeamToDelete(null)}
                 className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-300 hover:bg-slate-700 transition-colors"
               >
                 Annuler
               </button>
-              <button 
+              <button
                 onClick={handleDeleteTeam}
                 className="flex-1 px-4 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center justify-center gap-2"
               >

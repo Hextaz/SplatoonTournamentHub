@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { botApiFetch } from "@/utils/api";
 import Link from "next/link";
 import { CheckCircle2, ChevronLeft } from "lucide-react";
 
@@ -82,18 +82,22 @@ export function PhaseConfigClient({
   const onSubmit = async (shouldRedirect: boolean) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('phases')
-        .update({
+      const res = await botApiFetch(`/api/phases/${phase.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: formData.name,
           phase_order: formData.phase_order,
           bracket_size: isGroups ? undefined : formData.bracket_size,
           max_groups: isGroups ? formData.max_groups : undefined,
           settings: formData.settings
-        })
-        .eq('id', phase.id);
+        }),
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
+      }
       router.refresh();
       if (shouldRedirect) {
         router.push(`/admin/${guildId}/tournaments/${tournamentId}/structure`);

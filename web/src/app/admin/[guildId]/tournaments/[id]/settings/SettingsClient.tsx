@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { useSession } from "next-auth/react";
 import { botApiFetch, getBotApiUrl } from '@/utils/api';
 
-import { supabase } from "@/lib/supabase";
 import dayjs from "dayjs";
 import { Save, CalendarDays, RefreshCw, MessageSquare, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -23,16 +22,13 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
 
   useEffect(() => {
     const fetchDiscordData = async () => {
-      // Don't try fetching if we're still checking auth status and we don't have a token.
       if (status === 'loading') return;
-      
+
       if (!guildId) {
         setIsLoadingDiscord(false);
         return;
       }
       try {
-        // Calling our proxy Next.js API routes that use BOT_API_SECRET instead of the user's JWT token
-        // This solves the JWT "Invalid or expired token" errors when talking directly to the bot.
         const [channelsRes, rolesRes] = await Promise.all([
           fetch(`/api/bot/discord/channels?guildId=${guildId}`),
           fetch(`/api/bot/discord/roles?guildId=${guildId}`)
@@ -83,30 +79,34 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
     setIsSaving(true);
     setMessage(null);
 
-    const payload = {
-      start_at: data.start_at ? new Date(data.start_at).toISOString() : null,
-      checkin_start_at: data.checkin_start_at ? new Date(data.checkin_start_at).toISOString() : null,
-      checkin_end_at: data.checkin_end_at ? new Date(data.checkin_end_at).toISOString() : null,
-      discord_registration_channel_id: data.discord_registration_channel_id || null,
-      discord_announcement_channel_id: data.discord_announcement_channel_id || null,
-      discord_checkin_channel_id: data.discord_checkin_channel_id || null,
-      discord_captain_role_id: data.discord_captain_role_id || null,
-      discord_to_role_id: data.discord_to_role_id || null,
-      updated_at: new Date().toISOString()
-    };
+    try {
+      const res = await botApiFetch(`/api/tournaments/${tournament.id}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guildId,
+          start_at: data.start_at ? new Date(data.start_at).toISOString() : null,
+          checkin_start_at: data.checkin_start_at ? new Date(data.checkin_start_at).toISOString() : null,
+          checkin_end_at: data.checkin_end_at ? new Date(data.checkin_end_at).toISOString() : null,
+          discord_registration_channel_id: data.discord_registration_channel_id || null,
+          discord_announcement_channel_id: data.discord_announcement_channel_id || null,
+          discord_checkin_channel_id: data.discord_checkin_channel_id || null,
+          discord_captain_role_id: data.discord_captain_role_id || null,
+          discord_to_role_id: data.discord_to_role_id || null,
+        }),
+      });
 
-    const { error } = await supabase
-      .from('tournaments')
-      .update(payload)
-      .eq('id', tournament.id);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur inconnue');
+      }
 
-    setIsSaving(false);
-
-    if (error) {
-      setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde : ' + error.message });
-    } else {
       setMessage({ type: 'success', text: 'Paramètres sauvegardés avec succès !' });
       router.refresh();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde : ' + err.message });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -140,27 +140,27 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3 md:col-span-2">
             <label className="block text-sm font-semibold text-slate-300">Date de début du tournoi</label>
-            <input 
-              type="datetime-local" 
-              {...register("start_at")} 
+            <input
+              type="datetime-local"
+              {...register("start_at")}
               className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
             />
           </div>
 
           <div className="space-y-3">
             <label className="block text-sm font-semibold text-slate-300">Début des check-ins</label>
-            <input 
-              type="datetime-local" 
-              {...register("checkin_start_at")} 
+            <input
+              type="datetime-local"
+              {...register("checkin_start_at")}
               className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
             />
           </div>
 
           <div className="space-y-3">
             <label className="block text-sm font-semibold text-slate-300">Fin des check-ins</label>
-            <input 
-              type="datetime-local" 
-              {...register("checkin_end_at")} 
+            <input
+              type="datetime-local"
+              {...register("checkin_end_at")}
               className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
             />
           </div>
@@ -253,8 +253,8 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
         )}
 
         <div className="pt-6 mt-6 border-t border-slate-700/80 flex justify-end">
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isSaving}
             className="flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20"
           >

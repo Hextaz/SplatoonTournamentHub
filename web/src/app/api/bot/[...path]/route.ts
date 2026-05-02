@@ -9,9 +9,6 @@ async function handleProxy(request: Request, { params }: { params: Promise<{ pat
   }
 
   const resolvedParams = await params;
-  // If the client fetched /api/bot/phases, path is ['phases'].
-  // If the client fetched /api/bot/api/phases, path is ['api', 'phases'].
-  // We want to ensure we don't duplicate '/api/'.
   let pathStr = resolvedParams.path.join("/");
   if (pathStr.startsWith("api/")) {
     pathStr = pathStr.replace("api/", "");
@@ -31,6 +28,35 @@ async function handleProxy(request: Request, { params }: { params: Promise<{ pat
   try {
     const headers = new Headers(request.headers);
     headers.set("Authorization", `Bearer ${botApiSecret}`);
+
+    // Transmit the Discord user identity for requireGuildAdmin middleware.
+    // This is needed because BOT_API_SECRET doesn't carry user identity.
+    const discordId = (session.user as any)?.id || "";
+    if (discordId) {
+      headers.set("X-Discord-User-Id", discordId);
+    }
+
+    // Extract guildId from query params or request body and forward it.
+    // The requireGuildAdmin middleware reads this header as fallback.
+    const guildIdFromQuery = url.searchParams.get("guildId");
+    if (guildIdFromQuery) {
+      headers.set("X-Guild-Id", guildIdFromQuery);
+    } else if (["POST", "PUT", "PATCH"].includes(request.method)) {
+      // Try to extract guildId from JSON body for forwarding
+      try {
+        const clonedReq = request.clone();
+        const textBody = await clonedReq.text();
+        if (textBody) {
+          const bodyObj = JSON.parse(textBody);
+          if (bodyObj.guildId) {
+            headers.set("X-Guild-Id", bodyObj.guildId);
+          }
+        }
+      } catch {
+        // Body not JSON or no guildId — that's OK, downstream may reject
+      }
+    }
+
     // Prevent forwarding hostile headers that could break proxying
     headers.delete("host");
     headers.delete("connection");
@@ -52,12 +78,12 @@ async function handleProxy(request: Request, { params }: { params: Promise<{ pat
 
     const contentType = res.headers.get("content-type");
     let json;
-    
+
     if (contentType?.includes("application/json")) {
       json = await res.json();
     } else {
       const text = await res.text();
-      json = { _rawText: text }; // fallback
+      json = { _rawText: text };
     }
 
     return new NextResponse(JSON.stringify(json), {
