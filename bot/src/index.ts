@@ -16,7 +16,7 @@ import { SchedulerService } from "./services/SchedulerService";
 import { ScoreService } from "./services/ScoreService";
 import { ArchiveService } from "./services/ArchiveService";
 import { RegistrationService } from "./services/RegistrationService";
-import { PresenceRolesService } from "./services/PresenceRolesService";
+import { WebhookRolesService } from "./services/WebhookRolesService";
 import { phaseRouter } from "./routes/PhaseRouter";
 import { matchRouter } from "./routes/MatchRouter";
 import { tournamentRouter } from "./routes/TournamentRouter";
@@ -68,42 +68,22 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", botConnected: !!client.user });
 });
 
-// Health check for PresenceRolesService (no auth required)
-app.get("/health/presence-roles", async (_req, res) => {
+// Webhook endpoint for Supabase Database Webhooks (no auth required - secured by Supabase signature)
+app.post("/api/webhook/team-update", async (req, res) => {
   try {
-    // Create a temporary instance to check health
-    const tempService = new PresenceRolesService(client);
-    const health = await tempService.healthCheck();
+    const webhookService = new WebhookRolesService(client);
+    const result = await webhookService.handleTeamUpdate(req.body);
 
-    res.status(200).json({
-      status: health ? "ok" : "error",
-      service: "PresenceRolesService",
-      initialized: health
-    });
-  } catch (error) {
-    logger.error("Error checking PresenceRolesService health:", error);
-    res.status(500).json({
-      status: "error",
-      service: "PresenceRolesService",
-      initialized: false,
-      error: "Failed to check service health"
-    });
-  }
-});
-
-// Diagnostic endpoint for PresenceRolesService (no auth required)
-app.get("/health/presence-roles/diagnose", async (_req, res) => {
-  try {
-    // Create a temporary instance to run diagnostics
-    const tempService = new PresenceRolesService(client);
-    const diagnostics = await tempService.diagnoseConnection();
-
-    res.status(200).json(diagnostics);
+    if (result.success) {
+      res.status(200).json({ received: true });
+    } else {
+      res.status(500).json({ received: false, error: result.error });
+    }
   } catch (error: any) {
-    logger.error("Error running PresenceRolesService diagnostics:", error);
+    logger.error("Error handling team update webhook:", error);
     res.status(500).json({
-      success: false,
-      error: error?.message || "Failed to run diagnostics"
+      received: false,
+      error: error?.message || "Failed to handle webhook"
     });
   }
 });
@@ -541,26 +521,12 @@ const bootstrap = async () => {
     // Start Tournament Scheduler
     await SchedulerService.init(client);
 
-    // Initialize Real-time Presence Roles
-    const presenceRolesService = new PresenceRolesService(client);
-    presenceRolesService.init();
-
-    // Verify PresenceRolesService health after initialization
-    setTimeout(async () => {
-      const health = await presenceRolesService.healthCheck();
-      if (health) {
-        logger.info("[Bot] PresenceRolesService health check passed");
-      } else {
-        logger.error("[Bot] PresenceRolesService health check failed - service may not be working correctly");
-        // Run diagnostics to help identify the issue
-        try {
-          const diagnostics = await presenceRolesService.diagnoseConnection();
-          logger.error("[Bot] PresenceRolesService diagnostics:", JSON.stringify(diagnostics, null, 2));
-        } catch (diagError) {
-          logger.error("[Bot] Failed to run PresenceRolesService diagnostics:", diagError);
-        }
-      }
-    }, 10000); // Check after 10 seconds to allow connection to establish
+    // Initialize Webhook Roles Service
+    // This service handles team updates via Supabase Database Webhooks
+    // No initialization needed - it just handles incoming webhook requests
+    logger.info("[Bot] Using WebhookRolesService (webhook-based)");
+    logger.info("[Bot] Webhook endpoint: /api/webhook/team-update");
+    logger.info("[Bot] Make sure to configure Supabase Database Webhooks to send events to this endpoint");
 
     // Handle Discord interactions
     client.on("interactionCreate", async (interaction) => {

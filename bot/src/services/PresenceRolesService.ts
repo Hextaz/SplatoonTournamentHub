@@ -75,14 +75,21 @@ export class PresenceRolesService {
   private setupRealtimeChannel() {
     logger.info("[PresenceRoles] Setting up realtime channel...");
 
+    // Essayer avec une configuration plus simple et robuste
     this.channel = supabase
-      .channel('public:teams_presence', {
+      .channel('teams-changes', {
         config: {
-          broadcast: { self: true }
+          broadcast: { self: true },
+          presence: { key: 'presence-roles-service' }
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async (payload) => {
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'teams'
+      }, async (payload) => {
         try {
+          logger.info(`[PresenceRoles] Received postgres_changes event: ${payload.eventType}`);
           await this.handleTeamChange(payload);
         } catch (error) {
           logger.error("Error handling team presence change:", error);
@@ -92,7 +99,11 @@ export class PresenceRolesService {
         logger.info(`[PresenceRoles] Realtime channel status: ${status}`);
 
         if (err) {
-          logger.error(`[PresenceRoles] Realtime channel error:`, err);
+          logger.error(`[PresenceRoles] Realtime channel error:`, {
+            message: (err as any).message,
+            code: (err as any).code,
+            details: (err as any).details
+          });
         }
 
         if (status === 'SUBSCRIBED') {
@@ -106,6 +117,7 @@ export class PresenceRolesService {
           this.handleReconnect();
         } else if (status === 'TIMED_OUT') {
           logger.error(`[PresenceRoles] Channel timed out, attempting to reconnect...`);
+          logger.error(`[PresenceRoles] This usually means: 1) Realtime not enabled in Supabase, 2) Table not enabled for Realtime, 3) Network/firewall issue`);
           this.handleReconnect();
         } else if (status === 'JOINING') {
           logger.info(`[PresenceRoles] Channel joining...`);
