@@ -68,6 +68,29 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", botConnected: !!client.user });
 });
 
+// Health check for PresenceRolesService (no auth required)
+app.get("/health/presence-roles", async (_req, res) => {
+  try {
+    // Create a temporary instance to check health
+    const tempService = new PresenceRolesService(client);
+    const health = await tempService.healthCheck();
+
+    res.status(200).json({
+      status: health ? "ok" : "error",
+      service: "PresenceRolesService",
+      initialized: health
+    });
+  } catch (error) {
+    logger.error("Error checking PresenceRolesService health:", error);
+    res.status(500).json({
+      status: "error",
+      service: "PresenceRolesService",
+      initialized: false,
+      error: "Failed to check service health"
+    });
+  }
+});
+
 // Endpoint: Fetch Roles for the connected Discord Guild
 app.get("/api/discord/roles", async (req, res) => {
   const guildId = (req.query.guildId || req.body?.guildId) as string;
@@ -504,6 +527,16 @@ const bootstrap = async () => {
     // Initialize Real-time Presence Roles
     const presenceRolesService = new PresenceRolesService(client);
     presenceRolesService.init();
+
+    // Verify PresenceRolesService health after initialization
+    setTimeout(async () => {
+      const health = await presenceRolesService.healthCheck();
+      if (health) {
+        logger.info("[Bot] PresenceRolesService health check passed");
+      } else {
+        logger.error("[Bot] PresenceRolesService health check failed - service may not be working correctly");
+      }
+    }, 5000); // Check after 5 seconds to allow connection to establish
 
     // Handle Discord interactions
     client.on("interactionCreate", async (interaction) => {
