@@ -90,7 +90,8 @@ export function PhaseConfigClient({
           phase_order: formData.phase_order,
           bracket_size: isGroups ? undefined : formData.bracket_size,
           max_groups: isGroups ? formData.max_groups : undefined,
-          settings: formData.settings
+          settings: formData.settings,
+          guildId: guildId,
         }),
       });
 
