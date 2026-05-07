@@ -59,7 +59,8 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     const finalData = {
       team1_score: mTeam1Score,
       team2_score: mTeam2Score,
-      status: isFf ? "FF" : "COMPLETED"
+      status: isFf ? "FF" : "COMPLETED",
+      guildId: guildId
     };
 
     try {
