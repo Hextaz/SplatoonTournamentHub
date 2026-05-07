@@ -91,6 +91,23 @@ app.get("/health/presence-roles", async (_req, res) => {
   }
 });
 
+// Diagnostic endpoint for PresenceRolesService (no auth required)
+app.get("/health/presence-roles/diagnose", async (_req, res) => {
+  try {
+    // Create a temporary instance to run diagnostics
+    const tempService = new PresenceRolesService(client);
+    const diagnostics = await tempService.diagnoseConnection();
+
+    res.status(200).json(diagnostics);
+  } catch (error: any) {
+    logger.error("Error running PresenceRolesService diagnostics:", error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || "Failed to run diagnostics"
+    });
+  }
+});
+
 // Endpoint: Fetch Roles for the connected Discord Guild
 app.get("/api/discord/roles", async (req, res) => {
   const guildId = (req.query.guildId || req.body?.guildId) as string;
@@ -535,8 +552,15 @@ const bootstrap = async () => {
         logger.info("[Bot] PresenceRolesService health check passed");
       } else {
         logger.error("[Bot] PresenceRolesService health check failed - service may not be working correctly");
+        // Run diagnostics to help identify the issue
+        try {
+          const diagnostics = await presenceRolesService.diagnoseConnection();
+          logger.error("[Bot] PresenceRolesService diagnostics:", JSON.stringify(diagnostics, null, 2));
+        } catch (diagError) {
+          logger.error("[Bot] Failed to run PresenceRolesService diagnostics:", diagError);
+        }
       }
-    }, 5000); // Check after 5 seconds to allow connection to establish
+    }, 10000); // Check after 10 seconds to allow connection to establish
 
     // Handle Discord interactions
     client.on("interactionCreate", async (interaction) => {

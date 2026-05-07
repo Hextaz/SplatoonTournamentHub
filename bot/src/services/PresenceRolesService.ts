@@ -76,7 +76,11 @@ export class PresenceRolesService {
     logger.info("[PresenceRoles] Setting up realtime channel...");
 
     this.channel = supabase
-      .channel('public:teams_presence')
+      .channel('public:teams_presence', {
+        config: {
+          broadcast: { self: true }
+        }
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async (payload) => {
         try {
           await this.handleTeamChange(payload);
@@ -84,14 +88,27 @@ export class PresenceRolesService {
           logger.error("Error handling team presence change:", error);
         }
       })
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         logger.info(`[PresenceRoles] Realtime channel status: ${status}`);
+
+        if (err) {
+          logger.error(`[PresenceRoles] Realtime channel error:`, err);
+        }
+
         if (status === 'SUBSCRIBED') {
           logger.info("[PresenceRoles] Successfully subscribed to teams table changes");
           this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          logger.warn(`[PresenceRoles] Channel closed or error (${status}), attempting to reconnect...`);
+        } else if (status === 'CLOSED') {
+          logger.warn(`[PresenceRoles] Channel closed, attempting to reconnect...`);
           this.handleReconnect();
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error(`[PresenceRoles] Channel error, attempting to reconnect...`);
+          this.handleReconnect();
+        } else if (status === 'TIMED_OUT') {
+          logger.error(`[PresenceRoles] Channel timed out, attempting to reconnect...`);
+          this.handleReconnect();
+        } else if (status === 'JOINING') {
+          logger.info(`[PresenceRoles] Channel joining...`);
         }
       });
   }
@@ -99,6 +116,7 @@ export class PresenceRolesService {
   private handleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       logger.error(`[PresenceRoles] Max reconnection attempts (${this.maxReconnectAttempts}) reached, giving up`);
+      logger.error(`[PresenceRoles] Please check: 1) Supabase URL and Service Role Key are correct, 2) Realtime is enabled in Supabase, 3) Network connectivity`);
       return;
     }
 
@@ -109,8 +127,10 @@ export class PresenceRolesService {
 
     setTimeout(() => {
       try {
+        logger.info(`[PresenceRoles] Attempting to reconnect...`);
         if (this.channel) {
           supabase.removeChannel(this.channel);
+          logger.info(`[PresenceRoles] Old channel removed`);
         }
         this.setupRealtimeChannel();
       } catch (error) {
@@ -137,11 +157,50 @@ export class PresenceRolesService {
       logger.info(`[PresenceRoles] Health check - Channel state: ${state}`);
 
       // Check if the channel is in a subscribed state
-      return state === 'SUBSCRIBED';
+      const isHealthy = state === 'SUBSCRIBED';
+
+      if (!isHealthy) {
+        logger.warn(`[PresenceRoles] Health check failed - Channel not subscribed (state: ${state})`);
+        logger.warn(`[PresenceRoles] Possible causes: 1) Supabase Realtime not enabled, 2) Network issues, 3) Invalid Supabase credentials`);
+      }
+
+      return isHealthy;
     } catch (error) {
       logger.error("[PresenceRoles] Health check error:", error);
       return false;
     }
+  }
+
+  public async diagnoseConnection(): Promise<{ success: boolean; details: any }> {
+    const details: any = {
+      initialized: this.initialized,
+      channelExists: !!this.channel,
+      channelState: this.channel ? String(this.channel.state) : 'N/A',
+      reconnectAttempts: this.reconnectAttempts,
+      supabaseUrl: process.env.SUPABASE_URL ? 'configured' : 'missing',
+      supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'configured' : 'missing'
+    };
+
+    try {
+      // Test basic Supabase connection
+      const { error } = await supabase.from('teams').select('count').limit(1);
+      details.supabaseConnection = error ? 'failed' : 'success';
+      details.supabaseError = error?.message;
+
+      if (error) {
+        logger.error(`[PresenceRoles] Supabase connection test failed:`, error);
+      } else {
+        logger.info(`[PresenceRoles] Supabase connection test successful`);
+      }
+
+      details.success = !error && this.channel && String(this.channel.state) === 'SUBSCRIBED';
+    } catch (error: any) {
+      details.error = error?.message || 'Unknown error';
+      details.success = false;
+      logger.error(`[PresenceRoles] Diagnostics error:`, error);
+    }
+
+    return details;
   }
 
   public destroy() {
