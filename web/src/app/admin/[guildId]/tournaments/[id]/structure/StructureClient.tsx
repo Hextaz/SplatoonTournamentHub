@@ -33,6 +33,7 @@ export function StructureClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tournament_id: tournamentId,
+          guildId: guildId,
           name: format === "SINGLE_ELIM" ? "Playoffs" : "Groupes",
           format: format,
           phase_order: order,

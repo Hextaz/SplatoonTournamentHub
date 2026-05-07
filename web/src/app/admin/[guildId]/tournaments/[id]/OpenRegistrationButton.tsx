@@ -5,7 +5,7 @@ import { getBotApiUrl } from '@/utils/api';
 
 import { RefreshCw, Send } from "lucide-react";
 
-export function OpenRegistrationButton({ tournamentId, isRegistrationOpen, isPublic, hasStartedOrCheckin }: { tournamentId: string, isRegistrationOpen: boolean, isPublic: boolean, hasStartedOrCheckin: boolean }) {
+export function OpenRegistrationButton({ tournamentId, guildId, isRegistrationOpen, isPublic, hasStartedOrCheckin }: { tournamentId: string; guildId: string; isRegistrationOpen: boolean; isPublic: boolean; hasStartedOrCheckin: boolean }) {
   const [isGeneratingEmbed, setIsGeneratingEmbed] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
@@ -18,7 +18,7 @@ export function OpenRegistrationButton({ tournamentId, isRegistrationOpen, isPub
       const res = await fetch(`${getBotApiUrl()}/api/tournaments/${tournamentId}/registrations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "open" })
+        body: JSON.stringify({ action: "open", guildId: guildId })
       });
       if (res.ok) {
         setMessage({ type: 'success', text: "Embed d'inscription envoyé sur Discord !" });

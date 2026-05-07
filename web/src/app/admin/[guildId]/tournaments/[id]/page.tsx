@@ -78,9 +78,10 @@ export default async function TournamentDashboard({ params }: { params: Promise<
                 ? "Le tournoi est actuellement visible par tous les joueurs via l'URL publique." 
                 : "Le tournoi est privé et masqué au grand public. Préparez-le avant de le publier."}
             </p>
-            <OpenRegistrationButton 
-              tournamentId={tournamentId} 
-              isRegistrationOpen={!!tournament.is_registration_open} 
+            <OpenRegistrationButton
+              tournamentId={tournamentId}
+              guildId={guildId}
+              isRegistrationOpen={!!tournament.is_registration_open}
               isPublic={!!tournament.is_public}
               hasStartedOrCheckin={hasStartedOrCheckin}
             />

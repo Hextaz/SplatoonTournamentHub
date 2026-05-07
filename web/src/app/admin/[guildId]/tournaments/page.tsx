@@ -94,7 +94,7 @@ export default function TournamentsPage({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          guild_id: guildId,
+          guildId: guildId,
           name: data.name,
           description: data.description || null,
           start_at: new Date(data.start_at).toISOString(),
