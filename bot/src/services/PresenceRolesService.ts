@@ -133,9 +133,10 @@ export class PresenceRolesService {
       }
 
       // Check if channel is still subscribed
-      const state = this.channel.state;
+      const state = String(this.channel.state);
       logger.info(`[PresenceRoles] Health check - Channel state: ${state}`);
 
+      // Check if the channel is in a subscribed state
       return state === 'SUBSCRIBED';
     } catch (error) {
       logger.error("[PresenceRoles] Health check error:", error);
