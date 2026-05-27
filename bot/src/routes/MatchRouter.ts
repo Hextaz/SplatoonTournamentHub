@@ -57,7 +57,7 @@ matchRouter.put("/:id/force-score", async (req, res) => {
       loserId = updatedMatch.team1_id;
     }
 
-    await ScoreService.progressTeams(updatedMatch, channel, winnerId, loserId);
+    await ScoreService.progressTeams(updatedMatch, channel, winnerId, loserId, discordClient);
 
     res.status(200).json({ message: "Score forced and bracket updated", match: updatedMatch });
   } catch (error: any) {

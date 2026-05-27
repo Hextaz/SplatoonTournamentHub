@@ -438,6 +438,71 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     );
   };
 
+  // --- SWISS RENDER ---
+  const renderSwiss = () => {
+    // Matches grouped by round
+    const rounds = initialMatches.reduce((acc: any, m: any) => {
+      acc[m.round_number] = acc[m.round_number] || [];
+      acc[m.round_number].push(m);
+      return acc;
+    }, {});
+
+    return (
+      <div className="p-6 md:p-8 flex flex-col gap-8 overflow-y-auto">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">{phase.name} - Rondes Suisses</h2>
+          <p className="text-sm text-slate-500">Classement et matchs de la phase de rondes suisses.</p>
+        </div>
+
+        {/* Standings */}
+        <div className="mb-8">
+          <LeaderboardTable teams={phaseTeams} matches={initialMatches} settings={phase?.settings} />
+        </div>
+
+        {/* Rounds matches */}
+        <div className="flex flex-col gap-6">
+           {Object.keys(rounds).sort((a,b) => Number(a)-Number(b)).map(roundNum => (
+             <div key={roundNum} className="flex flex-col gap-3">
+               <h4 className="text-xl font-bold text-slate-400">Ronde {roundNum}</h4>
+               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                 {rounds[roundNum].map((match: any) => {
+                    const isCompleted = match.status === "COMPLETED" || match.status === "FF" || match.status === "BYE";
+                    const isPending = !match.team1_id && !match.team2_id;
+                    const isBye = match.status === "BYE";
+                    
+                    return (
+                      <div 
+                        key={match.id}
+                        onClick={() => !isPending && !isBye && openMatchEdit(match)}
+                        className={`bg-[#151722] rounded border ${isPending ? 'border-slate-700/50 opacity-50 cursor-not-allowed' : (isBye ? 'border-slate-700/30 cursor-default opacity-85' : 'border-slate-800/50 cursor-pointer hover:border-blue-400')} shadow-sm flex flex-col overflow-hidden transition-colors`}
+                      >
+                         <div className="flex items-center justify-between p-3 border-b border-slate-700/50">
+                            <span className={`text-sm font-semibold truncate ${match.team1_score > match.team2_score || isBye ? 'text-white' : 'text-slate-500'}`}>
+                              {match.team1?.name || 'TBD'}
+                            </span>
+                            {isCompleted && <span className="text-sm font-bold ml-2">{match.team1_score}</span>}
+                         </div>
+                         <div className="flex items-center justify-between p-3">
+                            <span className={`text-sm font-semibold truncate ${match.team2_score > match.team1_score ? 'text-white' : 'text-slate-500'}`}>
+                              {isBye ? (
+                                <span className="text-slate-400 font-bold italic">BYE (Exempt)</span>
+                              ) : (
+                                match.team2?.name || 'TBD'
+                              )}
+                            </span>
+                            {isCompleted && !isBye && <span className="text-sm font-bold ml-2">{match.team2_score}</span>}
+                         </div>
+                      </div>
+                    )
+                 })}
+               </div>
+             </div>
+           ))}
+        </div>
+      </div>
+    );
+  };
+
 
   return (
     <div className="relative flex-1 flex flex-col bg-slate-950">
@@ -456,7 +521,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
 
       {/* Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
-         {isGroups ? renderGroups() : renderBracket()}
+         {phase.format === "SWISS" ? renderSwiss() : (isGroups ? renderGroups() : renderBracket())}
       </div>
 
       {/* MATCH EDIT MODAL */}

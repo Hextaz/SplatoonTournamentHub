@@ -35,7 +35,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
 
   // Group phase logic
   const groupsInPhase = useMemo(() => {
-    if (isBracket) return [];
+    if (isBracket || activePhase?.format === "SWISS") return [];
     
     const explicitGroupIds = new Set(phaseMatches.map(m => m.group_id).filter(Boolean));
     if (explicitGroupIds.size > 0) {
@@ -48,10 +48,10 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
 
   // Set default group when phase changes
   useMemo(() => {
-    if (!isBracket && groupsInPhase.length > 0 && (!activeGroupId || !groupsInPhase.includes(activeGroupId))) {
+    if (!isBracket && activePhase?.format !== "SWISS" && groupsInPhase.length > 0 && (!activeGroupId || !groupsInPhase.includes(activeGroupId))) {
       setActiveGroupId(groupsInPhase[0]);
     }
-  }, [isBracket, groupsInPhase, activeGroupId]);
+  }, [isBracket, activePhase, groupsInPhase, activeGroupId]);
 
   const activeGroupMatches = useMemo(() => {
     if (phaseMatches.some(m => m.group_id)) {
@@ -287,7 +287,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
     // Collect `phase_teams` and pass them to LeaderboardTable
     const currentGroupPhaseTeams = phaseTeams?.filter((pt) => 
       pt.phase_id === activePhaseId && 
-      (activeGroupId ? pt.group_id === activeGroupId : true)
+      (activePhase?.format === "SWISS" ? true : (activeGroupId ? pt.group_id === activeGroupId : true))
     ) || [];
 
     // Matches grouped by round

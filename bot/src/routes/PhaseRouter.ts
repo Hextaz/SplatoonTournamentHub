@@ -88,6 +88,9 @@ phaseRouter.put("/:id/seeding", async (req, res) => {
 
     if (phaseData.format === "ROUND_ROBIN") {
       await RoundRobinGeneratorService.generateGroups(phaseId, phaseData.max_groups || 1);
+    } else if (phaseData.format === "SWISS") {
+      const { SwissGeneratorService } = require("../services/SwissGeneratorService");
+      await SwissGeneratorService.generateFirstRound(phaseId);
     } else {
       await BracketGeneratorService.generateBracket(phaseId, phaseData.bracket_size || 8);
     }

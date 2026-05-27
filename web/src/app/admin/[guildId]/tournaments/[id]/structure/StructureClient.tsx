@@ -25,7 +25,7 @@ export function StructureClient({
     else setDropdownOpen(id);
   };
 
-  const createPhase = async (format: "SINGLE_ELIM" | "ROUND_ROBIN" | "DOUBLE_ELIM") => {
+  const createPhase = async (format: "SINGLE_ELIM" | "ROUND_ROBIN" | "DOUBLE_ELIM" | "SWISS") => {
     try {
       const order = initialPhases.length + 1;
       const res = await fetch(`${getBotApiUrl()}/api/phases`, {
@@ -34,13 +34,13 @@ export function StructureClient({
         body: JSON.stringify({
           tournament_id: tournamentId,
           guildId: guildId,
-          name: format === "ROUND_ROBIN" ? "Groupes" : (format === "DOUBLE_ELIM" ? "Playoffs (Double)" : "Playoffs"),
+          name: format === "ROUND_ROBIN" ? "Groupes" : (format === "DOUBLE_ELIM" ? "Playoffs (Double)" : (format === "SWISS" ? "Rondes Suisses" : "Playoffs")),
           format: format,
           phase_order: order,
-          bracket_size: format === "ROUND_ROBIN" ? undefined : 8,
+          bracket_size: (format === "ROUND_ROBIN" || format === "SWISS") ? undefined : 8,
           settings: format === "ROUND_ROBIN"
             ? { points_win: 3, points_draw: 1, points_loss: 0, points_forfeit: 0 }
-            : (format === "DOUBLE_ELIM" ? { bracket_reset: true } : { third_place_match: false }),
+            : (format === "DOUBLE_ELIM" ? { bracket_reset: true } : (format === "SWISS" ? { swiss_rounds_count: 3 } : { third_place_match: false })),
         }),
       });
 
@@ -193,6 +193,16 @@ export function StructureClient({
               >
                 <CopyX className="w-4 h-4 text-violet-400" />
                 Double Élimination
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  createPhase("SWISS");
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-amber-500/30 hover:text-white"
+              >
+                <Network className="w-4 h-4 text-amber-400" />
+                Ronde Suisse
               </button>
             </div>
           </div>

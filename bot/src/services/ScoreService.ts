@@ -222,12 +222,154 @@ export class ScoreService {
 
       // Auto-routing in bracket
       if (interaction.channel && 'send' in interaction.channel) {
-        await this.progressTeams(match, interaction.channel as TextChannel, winnerId, loserId);
+        await this.progressTeams(match, interaction.channel as TextChannel, winnerId, loserId, interaction.client);
       }
     }
   }
 
-  public static async progressTeams(match: any, channel: TextChannel | undefined, winnerId: string | null, loserId: string | null) {
+  public static async progressTeams(match: any, channel: TextChannel | undefined, winnerId: string | null, loserId: string | null, discordClient?: any) {
+    // 0. Handle Swiss format auto-progression
+    if (match.phase_id) {
+      const { data: phase } = await supabase
+        .from("phases")
+        .select("*")
+        .eq("id", match.phase_id)
+        .single();
+
+      if (phase && phase.format === "SWISS") {
+        // Recalculate Swiss standings to make sure they are up-to-date
+        await LeaderboardService.calculateSwissStandings(match.phase_id).catch(console.error);
+
+        // Check if all matches in the current round are completed (COMPLETED or BYE)
+        const { data: roundMatches } = await supabase
+          .from("matches")
+          .select("status")
+          .eq("phase_id", match.phase_id)
+          .eq("round_number", match.round_number);
+
+        if (roundMatches) {
+          const isRoundFinished = roundMatches.every(m => m.status === "COMPLETED" || m.status === "BYE");
+          if (isRoundFinished) {
+            const maxRounds = phase.settings?.swiss_rounds_count || 3;
+            const currentRound = match.round_number;
+            const client = discordClient || channel?.client;
+            
+            // Try to find the guild and phase channel to announce things
+            let targetChannel: TextChannel | undefined = channel;
+            if (!targetChannel && phase.discord_channel_id && client) {
+              try {
+                const fetched = await client.channels.fetch(phase.discord_channel_id);
+                if (fetched && fetched.isTextBased()) {
+                  targetChannel = fetched as TextChannel;
+                }
+              } catch (err) {
+                console.error(`[ScoreService] Failed to fetch Swiss phase channel:`, err);
+              }
+            }
+
+            if (currentRound < maxRounds) {
+              // Generate next round
+              const nextRound = currentRound + 1;
+              const { SwissGeneratorService } = require("./SwissGeneratorService");
+              await SwissGeneratorService.generateNextRound(match.phase_id, nextRound);
+
+              // Sync phase channel permissions
+              const { LifecycleService } = require("./LifecycleService");
+              if (client && phase.tournament_id) {
+                const { data: tournament } = await supabase.from("tournaments").select("guild_id").eq("id", phase.tournament_id).single();
+                if (tournament?.guild_id) {
+                  await LifecycleService.syncPhaseChannels(match.phase_id, tournament.guild_id, client).catch(console.error);
+                }
+              }
+
+              // Post round announcement and captain pings in the Swiss channel
+              if (targetChannel) {
+                const { data: nextMatches } = await supabase
+                  .from("matches")
+                  .select(`
+                    id, match_number, status, team1_id, team2_id,
+                    teamA:teams!matches_team1_id_fkey(name, captain_discord_id),
+                    teamB:teams!matches_team2_id_fkey(name, captain_discord_id)
+                  `)
+                  .eq("phase_id", match.phase_id)
+                  .eq("round_number", nextRound);
+
+                if (nextMatches && nextMatches.length > 0) {
+                  const embed = new EmbedBuilder()
+                    .setTitle(`🇨🇭 Ronde ${nextRound} générée !`)
+                    .setDescription(`Le Round ${currentRound} est terminé. Voici les nouveaux affrontements pour le Round ${nextRound} :`)
+                    .setColor(0x0099FF);
+
+                  const pings: string[] = [];
+                  const matchesList: string[] = [];
+
+                  nextMatches.forEach(m => {
+                    const tA: any = Array.isArray(m.teamA) ? m.teamA[0] : m.teamA;
+                    const tB: any = Array.isArray(m.teamB) ? m.teamB[0] : m.teamB;
+
+                    if (m.status === "BYE") {
+                      const taName = tA?.name || "Inconnu";
+                      matchesList.push(`🔹 **Match #${m.match_number}** : **${taName}** est **BYE** (Victoire automatique 1 - 0)`);
+                      if (tA?.captain_discord_id) {
+                        pings.push(`<@${tA.captain_discord_id}>`);
+                      }
+                    } else {
+                      const taName = tA?.name || "Inconnu";
+                      const tbName = tB?.name || "Inconnu";
+                      matchesList.push(`⚔️ **Match #${m.match_number}** : **${taName}** vs **${tbName}**`);
+                      if (tA?.captain_discord_id) pings.push(`<@${tA.captain_discord_id}>`);
+                      if (tB?.captain_discord_id) pings.push(`<@${tB.captain_discord_id}>`);
+                    }
+                  });
+
+                  embed.addFields({ name: "Matchs de la Ronde", value: matchesList.join("\n") });
+
+                  await targetChannel.send({
+                    content: `🔔 Attention aux capitaines : ${pings.join(" ")}, vos nouveaux matchs de la Ronde ${nextRound} sont prêts !`,
+                    embeds: [embed]
+                  });
+                }
+              }
+            } else {
+              // All rounds finished! Let's end the Swiss phase.
+              if (targetChannel) {
+                const { data: standings } = await supabase
+                  .from("phase_teams")
+                  .select(`
+                    points, wins, draws, played,
+                    team:teams(name)
+                  `)
+                  .eq("phase_id", match.phase_id)
+                  .order("points", { ascending: false })
+                  .order("wins", { ascending: false });
+
+                if (standings && standings.length > 0) {
+                  const embed = new EmbedBuilder()
+                    .setTitle(`🏁 Rondes Suisses Terminées !`)
+                    .setDescription(`La phase **${phase.name}** s'est achevée après ${maxRounds} rondes. Voici le classement final :`)
+                    .setColor(0xFFD700);
+
+                  const standingsText = standings.map((s, idx) => {
+                    const t: any = Array.isArray(s.team) ? s.team[0] : s.team;
+                    const tName = t?.name || "Inconnu";
+                    return `${idx + 1}. **${tName}** - ${s.points} pts (${s.wins} V, ${s.played} Joués)`;
+                  }).join("\n");
+
+                  embed.addFields({ name: "Classement Final", value: standingsText });
+
+                  await targetChannel.send({
+                    content: `🎉 **Félicitations à tous les participants !** La phase de Rondes Suisses est officiellement terminée.`,
+                    embeds: [embed]
+                  });
+                }
+              }
+            }
+          }
+        }
+        return; // Done with Swiss, do not execute normal bracket routing
+      }
+    }
+
     if (!winnerId || !loserId) {
       if (channel) {
         const { data: settings } = await supabase.from("server_settings").select("to_role_id").eq("guild_id", channel.guildId).single();

@@ -192,7 +192,7 @@ export class LifecycleService {
 
       if (ptErr) throw ptErr;
 
-      const isBracket = phase.format === 'SINGLE_ELIM' || phase.format === 'DOUBLE_ELIM';
+      const isSingleChannelPhase = phase.format === 'SINGLE_ELIM' || phase.format === 'DOUBLE_ELIM' || phase.format === 'SWISS';
 
       const getBasePerms = (): OverwriteData[] => {
         const perms: OverwriteData[] = [
@@ -210,7 +210,7 @@ export class LifecycleService {
         return perms;
       };
 
-      if (isBracket) {
+      if (isSingleChannelPhase) {
         let channelId = phase.discord_channel_id;
         const perms = getBasePerms();
         for (const pt of (ptData || [])) {
@@ -224,15 +224,19 @@ export class LifecycleService {
         }
 
         if (!channelId) {
+          const prefix = phase.format === 'SWISS' ? 'swiss' : 'bracket';
           const phaseChannel = await guild.channels.create({
-            name: `bracket-${phase.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+            name: `${prefix}-${phase.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
             type: ChannelType.GuildText,
             parent: tournament.discord_category_id,
             permissionOverwrites: perms,
           });
           channelId = phaseChannel.id;
           await supabase.from('phases').update({ discord_channel_id: channelId }).eq('id', phaseId);
-          await phaseChannel.send(`🏁 Bienvenue dans le bracket **${phase.name}** ! Cet espace est réservé aux capitaines de cette phase.`);
+          const welcomeMsg = phase.format === 'SWISS'
+            ? `🇨🇭 Bienvenue dans l'espace de Rondes Suisses **${phase.name}** ! Coordonnez vos matchs ici.`
+            : `🏁 Bienvenue dans le bracket **${phase.name}** ! Cet espace est réservé aux capitaines de cette phase.`;
+          await phaseChannel.send(welcomeMsg);
         } else {
           const phaseChannel = guild.channels.cache.get(channelId);
           if (phaseChannel && phaseChannel.isTextBased() && 'permissionOverwrites' in phaseChannel) {

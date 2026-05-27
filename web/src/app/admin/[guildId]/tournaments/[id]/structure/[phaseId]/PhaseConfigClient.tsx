@@ -27,7 +27,9 @@ export function PhaseConfigClient({
     ? { points_win: 3, points_draw: 1, points_loss: 0, points_forfeit: 0 }
     : (phase.format === "DOUBLE_ELIM" 
         ? { bracket_reset: true } 
-        : { third_place_match: false });
+        : (phase.format === "SWISS"
+            ? { swiss_rounds_count: 3 }
+            : { third_place_match: false }));
     
   const parsedSettings = phase.settings || {};
   const initialSettings = { ...defaultSettings, ...parsedSettings };
@@ -90,7 +92,7 @@ export function PhaseConfigClient({
         body: JSON.stringify({
           name: formData.name,
           phase_order: formData.phase_order,
-          bracket_size: isGroups ? undefined : formData.bracket_size,
+          bracket_size: (isGroups || phase.format === "SWISS") ? undefined : formData.bracket_size,
           max_groups: isGroups ? formData.max_groups : undefined,
           settings: formData.settings,
           guildId: guildId,
@@ -171,6 +173,18 @@ export function PhaseConfigClient({
                 />
                 <p className="text-xs text-slate-500 mt-1.5">Bloqué. Basé sur les participants actifs.</p>
               </div>
+            ) : phase.format === "SWISS" ? (
+              <div>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Taille <span className="text-slate-500 font-normal">({totalTeams} max)</span></label>
+                <input 
+                  type="number"
+                  value={totalTeams}
+                  readOnly
+                  disabled
+                  className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-slate-500 bg-slate-900/50 cursor-not-allowed font-medium"
+                />
+                <p className="text-xs text-slate-500 mt-1.5">Géré dynamiquement à partir de la liste des participants.</p>
+              </div>
             ) : (
               <div>
                 <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Taille <span className="text-slate-500 font-normal">(32 max)</span></label>
@@ -233,6 +247,19 @@ export function PhaseConfigClient({
                     Non
                   </label>
                 </div>
+              </div>
+            ) : phase.format === "SWISS" ? (
+              <div>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Nombre de tours (Rondes Suisses)</label>
+                <input 
+                  type="number"
+                  name="settings.swiss_rounds_count"
+                  value={formData.settings.swiss_rounds_count ?? 3}
+                  onChange={handleChange}
+                  min={1}
+                  max={12}
+                  className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-white bg-slate-950 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
+                />
               </div>
             ) : (
               <div>
