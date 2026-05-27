@@ -40,7 +40,7 @@ export function StructureClient({
           bracket_size: format === "ROUND_ROBIN" ? undefined : 8,
           settings: format === "ROUND_ROBIN"
             ? { points_win: 3, points_draw: 1, points_loss: 0, points_forfeit: 0 }
-            : { third_place_match: false },
+            : (format === "DOUBLE_ELIM" ? { bracket_reset: true } : { third_place_match: false }),
         }),
       });
 

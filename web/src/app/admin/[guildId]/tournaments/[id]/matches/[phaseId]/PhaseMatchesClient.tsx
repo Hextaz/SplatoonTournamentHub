@@ -341,15 +341,13 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     };
 
     if (phase.format === "DOUBLE_ELIM") {
-      const wbRoundNumbers = roundNumbers.filter(r => r < 10);
+      const wbRoundNumbers = roundNumbers.filter(r => r < 10 || r >= 21);
       const lbRoundNumbers = roundNumbers.filter(r => r >= 11 && r < 21);
-      const gfRoundNumbers = roundNumbers.filter(r => r >= 21);
 
       return (
         <div className="bg-slate-950 flex flex-col gap-2 py-6 overflow-y-auto max-h-[calc(100vh-140px)]">
           {renderRoundRow(wbRoundNumbers, "Winner Bracket (Tableau Principal)")}
           {renderRoundRow(lbRoundNumbers, "Loser Bracket (Tableau de Repêchage)")}
-          {renderRoundRow(gfRoundNumbers, "Grande Finale")}
         </div>
       );
     }

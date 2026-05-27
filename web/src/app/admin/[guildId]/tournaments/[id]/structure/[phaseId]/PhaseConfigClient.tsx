@@ -25,7 +25,9 @@ export function PhaseConfigClient({
   const isGroups = phase.format === "ROUND_ROBIN";
   const defaultSettings: any = isGroups 
     ? { points_win: 3, points_draw: 1, points_loss: 0, points_forfeit: 0 }
-    : { third_place_match: false };
+    : (phase.format === "DOUBLE_ELIM" 
+        ? { bracket_reset: true } 
+        : { third_place_match: false });
     
   const parsedSettings = phase.settings || {};
   const initialSettings = { ...defaultSettings, ...parsedSettings };
@@ -205,6 +207,32 @@ export function PhaseConfigClient({
                   onChange={handleChange}
                   className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-white bg-slate-950 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
                 />
+              </div>
+            ) : phase.format === "DOUBLE_ELIM" ? (
+              <div>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Bracket Reset ? <span className="text-slate-500 font-normal">(Match additionnel si le gagnant du Winner Bracket perd en Grande Finale)</span></label>
+                <div className="flex items-center gap-6 mt-3">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-300 font-medium hover:text-white transition-colors">
+                    <input 
+                      type="radio" 
+                      name="settings.bracket_reset" 
+                      checked={formData.settings.bracket_reset === true}
+                      onChange={() => handleRadioChange('bracket_reset', true)}
+                      className="accent-indigo-600 w-4 h-4 cursor-pointer"
+                    />
+                    Oui
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-300 font-medium hover:text-white transition-colors">
+                    <input 
+                      type="radio" 
+                      name="settings.bracket_reset" 
+                      checked={formData.settings.bracket_reset === false}
+                      onChange={() => handleRadioChange('bracket_reset', false)}
+                      className="accent-indigo-600 w-4 h-4 cursor-pointer"
+                    />
+                    Non
+                  </label>
+                </div>
               </div>
             ) : (
               <div>

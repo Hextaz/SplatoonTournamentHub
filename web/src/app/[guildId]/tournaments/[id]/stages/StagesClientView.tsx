@@ -187,15 +187,13 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
     };
 
     if (activePhase?.format === "DOUBLE_ELIM") {
-      const wbRoundNumbers = roundNumbers.filter(r => r < 10);
+      const wbRoundNumbers = roundNumbers.filter(r => r < 10 || r >= 21);
       const lbRoundNumbers = roundNumbers.filter(r => r >= 11 && r < 21);
-      const gfRoundNumbers = roundNumbers.filter(r => r >= 21);
 
       return (
         <div className="flex flex-col gap-2">
           {renderRoundRow(wbRoundNumbers, "Winner Bracket (Tableau Principal)")}
           {renderRoundRow(lbRoundNumbers, "Loser Bracket (Tableau de Repêchage)")}
-          {renderRoundRow(gfRoundNumbers, "Grande Finale")}
         </div>
       );
     }
