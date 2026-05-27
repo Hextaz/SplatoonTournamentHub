@@ -79,6 +79,127 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
       );
     }
 
+    const getRoundName = (r: number) => {
+      if (activePhase?.format === "DOUBLE_ELIM") {
+        if (r < 10) return `Winner Bracket - Round ${r}`;
+        if (r >= 11 && r < 21) return `Loser Bracket - Round ${r - 10}`;
+        if (r === 21) return `Grande Finale`;
+        return `Grande Finale - Reset`;
+      }
+      return `Round ${r}`;
+    };
+
+    const renderRoundRow = (roundsList: number[], bracketTitle: string) => {
+      if (roundsList.length === 0) return null;
+      
+      return (
+        <div className="space-y-4 mb-10">
+          <div className="border-b border-slate-800/80 pb-2 mb-4">
+            <h3 className="text-sm font-bold text-slate-300 tracking-wide uppercase flex items-center gap-2">
+              <span className="w-2 h-4 bg-blue-500 rounded-sm inline-block"></span>
+              {bracketTitle}
+            </h3>
+          </div>
+          
+          <div className="overflow-x-auto pb-6 pt-2 custom-scrollbar">
+            <div className="flex items-stretch gap-10 min-w-max px-4">
+              {roundsList.map((r, rIndex) => {
+                const rMatches = rounds[r].sort((a: any, b: any) => a.match_number - b.match_number);
+                
+                return (
+                  <div key={r} className="flex flex-col min-w-[240px] relative justify-around pt-12" style={{ minHeight: `${Math.max((rounds[roundsList[0]]?.length || 1) * 110, 160)}px` }}>
+                    <div className="absolute top-0 left-0 right-0 text-slate-400 text-xs font-bold text-center uppercase tracking-wider bg-slate-900/60 border border-slate-800/60 py-1.5 rounded-md">
+                      {getRoundName(r)}
+                    </div>
+                    
+                    {Array.from({ length: Math.ceil(rMatches.length / 2) }).map((_, pairIndex) => {
+                      const match1 = rMatches[pairIndex * 2];
+                      const match2 = rMatches[pairIndex * 2 + 1];
+
+                      return (
+                        <div key={pairIndex} className="relative flex flex-col justify-around flex-1" style={{ margin: match2 ? '0' : '0 0' }}>
+                          
+                          {match1 && (
+                            <div className="relative z-10 bg-[#151722] border border-slate-800/80 hover:border-slate-600/80 rounded-md overflow-hidden flex flex-col shadow-sm transition-colors text-sm font-mono cursor-pointer mb-2 mt-2" style={{ height: '76px' }}>
+                              <div className={`flex justify-between items-center p-2 border-b border-slate-800/50 ${(match1.status === "COMPLETED" || match1.status === "FF") && match1.team1_score > match1.team2_score ? 'bg-slate-800/30' : ''}`}>
+                                <span className={`truncate mr-2 ${(match1.status === "COMPLETED" || match1.status === "FF") && match1.team1_score > match1.team2_score ? 'text-slate-200 font-bold' : match1.team1?.name ? 'text-slate-400' : 'text-slate-600 italic'}`}>
+                                  {match1.team1?.name || "TBD"}
+                                </span>
+                                <span className={`font-bold ${(match1.status === "COMPLETED" || match1.status === "FF") && match1.team1_score > match1.team2_score ? 'text-green-400' : (match1.status === "COMPLETED" || match1.status === "FF") ? 'text-slate-500' : 'text-slate-600'}`}>
+                                  {(match1.status === "COMPLETED" || match1.status === "FF") ? (match1.team1_score || 0) : "-"}
+                                </span>
+                              </div>
+                              <div className={`flex justify-between items-center p-2 ${(match1.status === "COMPLETED" || match1.status === "FF") && match1.team2_score > match1.team1_score ? 'bg-slate-800/30' : ''}`}>
+                                <span className={`truncate mr-2 ${(match1.status === "COMPLETED" || match1.status === "FF") && match1.team2_score > match1.team1_score ? 'text-slate-200 font-bold' : match1.team2?.name ? 'text-slate-400' : 'text-slate-600 italic'}`}>
+                                  {match1.team2?.name || "TBD"}
+                                </span>
+                                <span className={`font-bold ${(match1.status === "COMPLETED" || match1.status === "FF") && match1.team2_score > match1.team1_score ? 'text-green-400' : (match1.status === "COMPLETED" || match1.status === "FF") ? 'text-slate-500' : 'text-slate-600'}`}>
+                                  {(match1.status === "COMPLETED" || match1.status === "FF") ? (match1.team2_score || 0) : "-"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {match2 && (
+                            <div className="relative z-10 bg-[#151722] border border-slate-800/80 hover:border-slate-600/80 rounded-md overflow-hidden flex flex-col shadow-sm transition-colors text-sm font-mono cursor-pointer mb-2 mt-2" style={{ height: '76px' }}>
+                              <div className={`flex justify-between items-center p-2 border-b border-slate-800/50 ${(match2.status === "COMPLETED" || match2.status === "FF") && match2.team1_score > match2.team2_score ? 'bg-slate-800/30' : ''}`}>
+                                <span className={`truncate mr-2 ${(match2.status === "COMPLETED" || match2.status === "FF") && match2.team1_score > match2.team2_score ? 'text-slate-200 font-bold' : match2.team1?.name ? 'text-slate-400' : 'text-slate-600 italic'}`}>
+                                  {match2.team1?.name || "TBD"}
+                                </span>
+                                <span className={`font-bold ${(match2.status === "COMPLETED" || match2.status === "FF") && match2.team1_score > match2.team2_score ? 'text-green-400' : (match2.status === "COMPLETED" || match2.status === "FF") ? 'text-slate-500' : 'text-slate-600'}`}>
+                                  {(match2.status === "COMPLETED" || match2.status === "FF") ? (match2.team1_score || 0) : "-"}
+                                </span>
+                              </div>
+                              <div className={`flex justify-between items-center p-2 ${(match2.status === "COMPLETED" || match2.status === "FF") && match2.team2_score > match2.team1_score ? 'bg-slate-800/30' : ''}`}>
+                                <span className={`truncate mr-2 ${(match2.status === "COMPLETED" || match2.status === "FF") && match2.team2_score > match2.team1_score ? 'text-slate-200 font-bold' : match2.team2?.name ? 'text-slate-400' : 'text-slate-600 italic'}`}>
+                                  {match2.team2?.name || "TBD"}
+                                </span>
+                                <span className={`font-bold ${(match2.status === "COMPLETED" || match2.status === "FF") && match2.team2_score > match2.team1_score ? 'text-green-400' : (match2.status === "COMPLETED" || match2.status === "FF") ? 'text-slate-500' : 'text-slate-600'}`}>
+                                  {(match2.status === "COMPLETED" || match2.status === "FF") ? (match2.team2_score || 0) : "-"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Flexbox Tree Connectors */}
+                          {rIndex < roundsList.length - 1 && match2 && (
+                            <div className="absolute top-[46px] bottom-[46px] -right-5 w-5 border-r-2 border-y-2 border-slate-700/60 rounded-r-md z-0 pointer-events-none"></div>
+                          )}
+
+                          {rIndex < roundsList.length - 1 && match1 && !match2 && (
+                            <div className="absolute top-[46px] -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                          )}
+
+                          {rIndex < roundsList.length - 1 && match2 && (
+                            <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                          )}
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    if (activePhase?.format === "DOUBLE_ELIM") {
+      const wbRoundNumbers = roundNumbers.filter(r => r < 10);
+      const lbRoundNumbers = roundNumbers.filter(r => r >= 11 && r < 21);
+      const gfRoundNumbers = roundNumbers.filter(r => r >= 21);
+
+      return (
+        <div className="flex flex-col gap-2">
+          {renderRoundRow(wbRoundNumbers, "Winner Bracket (Tableau Principal)")}
+          {renderRoundRow(lbRoundNumbers, "Loser Bracket (Tableau de Repêchage)")}
+          {renderRoundRow(gfRoundNumbers, "Grande Finale")}
+        </div>
+      );
+    }
+
     return (
       <div className="overflow-x-auto pb-8 pt-4 custom-scrollbar">
         <div className="flex items-stretch gap-10 min-w-max px-4">
