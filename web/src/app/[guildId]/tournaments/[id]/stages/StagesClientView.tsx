@@ -117,7 +117,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
                       const match2 = rMatches[pairIndex * 2 + 1];
 
                       return (
-                        <div key={pairIndex} className="relative flex flex-col justify-around flex-1" style={{ margin: match2 ? '0' : '0 0' }}>
+                        <div key={pairIndex} className={`relative flex flex-col h-[180px] ${match2 ? 'justify-between py-2' : 'justify-center'}`}>
                           
                           {match1 && (
                             <div className="relative z-10 bg-[#151722] border border-slate-800/80 hover:border-slate-600/80 rounded-md overflow-hidden flex flex-col shadow-sm transition-colors text-sm font-mono cursor-pointer mb-2 mt-2" style={{ height: '76px' }}>
@@ -167,11 +167,11 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
                           )}
 
                           {rIndex < roundsList.length - 1 && match1 && !match2 && (
-                            <div className="absolute top-[46px] -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                            <div className="absolute top-1/2 -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none -translate-y-1/2"></div>
                           )}
 
                           {rIndex < roundsList.length - 1 && match2 && (
-                            <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                            <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none -translate-y-1/2"></div>
                           )}
 
                         </div>
@@ -215,7 +215,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
                   const match2 = rMatches[pairIndex * 2 + 1];
 
                   return (
-                    <div key={pairIndex} className="relative flex flex-col justify-around flex-1" style={{ margin: match2 ? '0' : '0 0' }}>
+                    <div key={pairIndex} className={`relative flex flex-col h-[180px] ${match2 ? 'justify-between py-2' : 'justify-center'}`}>
                       
                       {match1 && (
                         <div className="relative z-10 bg-[#151722] border border-slate-800/80 hover:border-slate-600/80 rounded-md overflow-hidden flex flex-col shadow-sm transition-colors text-sm font-mono cursor-pointer mb-2 mt-2" style={{ height: '76px' }}>
@@ -265,11 +265,11 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
                       )}
 
                       {rIndex < roundNumbers.length - 1 && match1 && !match2 && (
-                        <div className="absolute top-[46px] -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                        <div className="absolute top-1/2 -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none -translate-y-1/2"></div>
                       )}
 
                       {rIndex < roundNumbers.length - 1 && match2 && (
-                        <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                        <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none -translate-y-1/2"></div>
                       )}
 
                     </div>

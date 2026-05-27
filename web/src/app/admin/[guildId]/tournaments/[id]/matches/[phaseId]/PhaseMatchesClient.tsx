@@ -312,7 +312,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                       };
 
                       return (
-                        <div key={pairIndex} className="relative flex flex-col justify-around flex-1" style={{ margin: match2 ? '0' : '0 0' }}>
+                        <div key={pairIndex} className={`relative flex flex-col h-[190px] ${match2 ? 'justify-between py-2' : 'justify-center'}`}>
                           {renderMatchBox(match1, 0)}
                           {renderMatchBox(match2, 1)}
 
@@ -322,11 +322,11 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                           )}
 
                           {rIndex < roundsList.length - 1 && match1 && !match2 && (
-                            <div className="absolute top-[48px] -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                            <div className="absolute top-1/2 -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none -translate-y-1/2"></div>
                           )}
 
                           {rIndex < roundsList.length - 1 && match2 && (
-                            <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                            <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none -translate-y-1/2"></div>
                           )}
                         </div>
                       );
@@ -411,7 +411,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                   };
 
                   return (
-                    <div key={pairIndex} className="relative flex flex-col justify-around flex-1" style={{ margin: match2 ? '0' : '0 0' }}>
+                    <div key={pairIndex} className={`relative flex flex-col h-[190px] ${match2 ? 'justify-between py-2' : 'justify-center'}`}>
                       {renderMatchBox(match1, 0)}
                       {renderMatchBox(match2, 1)}
 
@@ -421,11 +421,11 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                       )}
 
                       {rIndex < roundNumbers.length - 1 && match1 && !match2 && (
-                        <div className="absolute top-[48px] -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                        <div className="absolute top-1/2 -right-10 w-10 border-t-2 border-slate-700/60 z-0 pointer-events-none -translate-y-1/2"></div>
                       )}
 
                       {rIndex < roundNumbers.length - 1 && match2 && (
-                        <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none"></div>
+                        <div className="absolute top-1/2 -right-10 w-5 border-t-2 border-slate-700/60 z-0 pointer-events-none -translate-y-1/2"></div>
                       )}
                     </div>
                   );
