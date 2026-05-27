@@ -12,6 +12,9 @@ import {
   Maximize2,
   Users,
   Loader2,
+  Wand2,
+  Save,
+  RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -117,7 +120,7 @@ export function PlacementPhaseClient({
       (t) => !seeds.some((s) => s?.id === t.id),
     );
     if (unplacedTeams.length === 0) {
-      alert("Plus aucune �quipe disponible � placer.");
+      alert("Plus aucune équipe disponible à placer.");
       return;
     }
     const newSeeds = [...seeds];
@@ -132,6 +135,11 @@ export function PlacementPhaseClient({
     const newSeeds = [...seeds];
     newSeeds[index] = null;
     setSeeds(newSeeds);
+  };
+  const handleResetSeeding = () => {
+    if (confirm("Voulez-vous vraiment réinitialiser tout le placement ?")) {
+      setSeeds(new Array(totalSlots).fill(null));
+    }
   };
 
   const handleConfirmSelection = () => {
@@ -475,19 +483,31 @@ export function PlacementPhaseClient({
           <div className="p-4 border-t border-slate-800 bg-slate-900/80 shrink-0 backdrop-blur flex flex-col gap-2">
             <button
               onClick={handleAutoFill}
-              className="w-full h-10 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg font-bold shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full h-10 bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-white rounded-lg font-bold shadow-lg shadow-yellow-500/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              ?? Remplissage Automatique
+              <Wand2 className="w-4 h-4" />
+              Remplissage Automatique
+            </button>
+            <button
+              onClick={handleResetSeeding}
+              disabled={seeds.every((s) => s === null)}
+              className="w-full h-10 bg-slate-800/80 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 rounded-lg font-semibold border border-slate-700 hover:border-rose-900/50 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:hover:bg-slate-800/80 disabled:hover:text-slate-400 disabled:hover:border-slate-700"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Réinitialiser le seeding
             </button>
             <button
               onClick={handleSaveSeeding}
               disabled={isSaving}
-              className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/15 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSaving ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                "? Enregistrer le seeding"
+                <>
+                  <Save className="w-5 h-5" />
+                  Enregistrer le seeding
+                </>
               )}
             </button>
           </div>
@@ -500,7 +520,7 @@ export function PlacementPhaseClient({
               <Maximize2 className="w-5 h-5 text-slate-400" />
               Aperçu{" "}
               <span className="opacity-50 font-normal">
-                ({isGroups ? "Groupes" : "�limination directe"})
+                ({isGroups ? "Groupes" : "Élimination directe"})
               </span>
             </h2>
           </div>
@@ -510,16 +530,15 @@ export function PlacementPhaseClient({
             {isGroups ? renderRightGroups() : renderRightBracket()}
           </div>
         </div>
-      </div>
-
-      {/* SELECTION MODAL */}
+       {/* SELECTION MODAL */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-slate-900 rounded-xl shadow-2xl shadow-indigo-500/10 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="border-b border-slate-200 px-6 py-5 bg-white shrink-0">
-              <h2 className="text-xl font-bold text-slate-800">
-                S�lectionnez un participant pour le seed {targetSlot}
+            <div className="border-b border-slate-800 px-6 py-5 bg-slate-900 shrink-0">
+              <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-400" />
+                Sélectionnez un participant pour le seed {targetSlot}
               </h2>
             </div>
 
@@ -527,17 +546,17 @@ export function PlacementPhaseClient({
             <div className="px-6 pt-5 pb-2 shrink-0 flex gap-4 items-center">
               <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-slate-400" />
+                  <Search className="h-4 w-4 text-slate-500" />
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-900 transition-colors"
-                  placeholder="Search"
+                  className="block w-full pl-10 pr-3 py-2 border border-slate-800 rounded-lg leading-5 bg-slate-950 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-slate-200 transition-colors"
+                  placeholder="Rechercher un participant..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <div className="text-sm font-medium border border-slate-300 bg-slate-50 px-4 py-2 rounded-md text-slate-600 flex items-center gap-2">
+              <div className="text-sm font-semibold border border-slate-800 bg-slate-950 px-4 py-2 rounded-lg text-slate-400 flex items-center gap-2 shrink-0">
                 Participants sortants
               </div>
             </div>
@@ -549,11 +568,11 @@ export function PlacementPhaseClient({
                   id="dispo"
                   checked
                   readOnly
-                  className="w-4 h-4 rounded text-blue-600 accent-blue-600"
+                  className="w-4 h-4 rounded text-indigo-600 accent-indigo-600 bg-slate-950 border-slate-800"
                 />
                 <label
                   htmlFor="dispo"
-                  className="text-sm font-semibold text-slate-700"
+                  className="text-sm font-semibold text-slate-300"
                 >
                   Disponible ({unassignedTeams.length})
                 </label>
@@ -561,42 +580,42 @@ export function PlacementPhaseClient({
             </div>
 
             {/* Modal List */}
-            <div className="flex-1 overflow-y-auto bg-slate-50 border-t border-b border-slate-200 custom-scrollbar">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-white sticky top-0 z-10 shadow-sm">
+            <div className="flex-1 overflow-y-auto bg-slate-950 border-t border-b border-slate-800 custom-scrollbar">
+              <table className="min-w-full divide-y divide-slate-800">
+                <thead className="bg-slate-900 sticky top-0 z-10 shadow-sm border-b border-slate-850">
                   <tr>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-semibold text-blue-500 uppercase tracking-wider w-12"
+                      className="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider w-12"
                     ></th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-semibold text-blue-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider"
                     >
                       Nom
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-right text-xs font-semibold text-blue-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-right text-xs font-bold text-slate-400 uppercase tracking-wider"
                     >
-                      Date de cr�ation
+                      Date de création
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-center text-xs font-semibold text-blue-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider"
                     >
                       Seed
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-slate-100">
+                <tbody className="bg-slate-950 divide-y divide-slate-800/40">
                   {filteredTeams.length === 0 ? (
                     <tr>
                       <td
                         colSpan={4}
                         className="px-6 py-8 text-center text-slate-500"
                       >
-                        Aucun participant trouv�.
+                        Aucun participant trouvé.
                       </td>
                     </tr>
                   ) : (
@@ -604,26 +623,26 @@ export function PlacementPhaseClient({
                       <tr
                         key={team.id}
                         onClick={() => setSelectedTeamId(team.id)}
-                        className={`cursor-pointer transition-colors ${selectedTeamId === team.id ? "bg-blue-50 border-l-4 border-l-blue-500" : "hover:bg-slate-50 border-l-4 border-l-transparent"}`}
+                        className={`cursor-pointer transition-colors ${selectedTeamId === team.id ? "bg-indigo-500/10 border-l-4 border-l-indigo-500" : "hover:bg-slate-900/40 border-l-4 border-l-transparent"}`}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <input
                             type="radio"
                             checked={selectedTeamId === team.id}
                             onChange={() => setSelectedTeamId(team.id)}
-                            className="w-4 h-4 text-blue-600 accent-blue-600 focus:ring-blue-500 cursor-pointer"
+                            className="w-4 h-4 text-indigo-600 accent-indigo-600 focus:ring-indigo-500 cursor-pointer"
                           />
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-white">
                           {team.name}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 text-right">
                           {new Date(team.created_at).toLocaleString("fr-FR", {
                             dateStyle: "short",
                             timeStyle: "medium",
                           })}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 text-center font-mono">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center font-mono">
                           -
                         </td>
                       </tr>
@@ -634,17 +653,17 @@ export function PlacementPhaseClient({
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-slate-100 flex items-center justify-between shrink-0 border-t border-slate-200">
+            <div className="px-6 py-4 bg-slate-900 flex items-center justify-between shrink-0 border-t border-slate-800">
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-6 py-2.5 bg-slate-500 hover:bg-slate-600 text-white rounded font-bold shadow-sm transition-colors flex items-center gap-2"
+                className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-bold shadow-md transition-colors flex items-center gap-2 border border-slate-700"
               >
                 Annuler
               </button>
               <button
                 onClick={handleConfirmSelection}
                 disabled={!selectedTeamId}
-                className="px-8 py-2.5 bg-green-500 hover:bg-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-green-300 disabled:cursor-not-allowed text-white rounded font-bold shadow-sm transition-all"
+                className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg font-bold shadow-lg transition-all"
               >
                 Valider
               </button>
@@ -652,6 +671,7 @@ export function PlacementPhaseClient({
           </div>
         </div>
       )}
+      </div>
     </>
   );
 }

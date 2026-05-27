@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -113,14 +113,14 @@ export function PhaseConfigClient({
     }
   };
 
-  const activeTabClasses = "text-blue-500 border-b-2 border-blue-500 font-bold px-4 py-3 outline-none";
-  const inactiveTabClasses = "text-slate-400 hover:text-slate-300 font-medium px-4 py-3 transition-colors outline-none";
+  const activeTabClasses = "text-indigo-400 border-b-2 border-indigo-500 font-bold px-6 py-4 outline-none transition-all";
+  const inactiveTabClasses = "text-slate-400 hover:text-slate-200 font-medium px-6 py-4 transition-colors outline-none hover:bg-slate-800/20";
 
   return (
-    <div className="bg-white rounded border border-slate-200 shadow-sm max-w-4xl mx-auto overflow-hidden">
+    <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-xl max-w-4xl mx-auto overflow-hidden">
       
       {/* Tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-slate-800 bg-slate-900/50">
         <button 
           onClick={() => setActiveTab('general')}
           className={activeTab === 'general' ? activeTabClasses : inactiveTabClasses}
@@ -135,98 +135,98 @@ export function PhaseConfigClient({
             Avancé
           </button>
         )}
-        <button className={inactiveTabClasses + " cursor-not-allowed opacity-50"}>Placement</button>
-        <button className={inactiveTabClasses + " cursor-not-allowed opacity-50"}>Paramètres de match</button>
+        <button className={inactiveTabClasses + " cursor-not-allowed opacity-40"}>Placement</button>
+        <button className={inactiveTabClasses + " cursor-not-allowed opacity-40"}>Paramètres de match</button>
       </div>
 
-      <div className="p-6 md:p-8 space-y-8 bg-white min-h-[400px]">
+      <div className="p-6 md:p-8 space-y-8 bg-slate-900/40 min-h-[400px] text-slate-200">
         {/* TAB: GENERAL */}
         {activeTab === 'general' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             
             {/* Phase Order */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Numéro <span className="text-slate-400 font-normal">?</span></label>
+              <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Numéro <span className="text-slate-500 font-normal">?</span></label>
               <input 
                 type="number"
                 name="phase_order"
                 value={formData.phase_order}
                 onChange={handleChange}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 bg-slate-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-medium"
+                className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-white bg-slate-950 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
               />
             </div>
 
             {/* Sizes */}
             {isGroups ? (
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Taille <span className="text-slate-400 font-normal">({totalTeams} max)</span></label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Taille <span className="text-slate-500 font-normal">({totalTeams} max)</span></label>
                 <input 
                   type="number"
                   value={totalTeams}
                   readOnly
                   disabled
-                  className="w-full border border-slate-200 rounded px-3 py-2 text-slate-500 bg-slate-100 cursor-not-allowed font-medium"
+                  className="w-full border border-slate-855 rounded-lg px-3 py-2.5 text-slate-500 bg-slate-900/50 cursor-not-allowed font-medium"
                 />
-                <p className="text-xs text-slate-400 mt-1">Bloqué. Basé sur les participants actifs.</p>
+                <p className="text-xs text-slate-500 mt-1.5">Bloqué. Basé sur les participants actifs.</p>
               </div>
             ) : (
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Taille <span className="text-slate-400 font-normal">(32 max)</span></label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Taille <span className="text-slate-500 font-normal">(32 max)</span></label>
                 <input 
                   type="number"
                   name="bracket_size"
                   value={formData.bracket_size}
                   onChange={handleChange}
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 bg-slate-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-medium"
+                  className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-white bg-slate-950 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
                 />
               </div>
             )}
 
             {/* Name */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Nom <span className="text-slate-400 font-normal">(30 caractères maximum)</span></label>
+              <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Nom <span className="text-slate-500 font-normal">(30 caractères maximum)</span></label>
               <input 
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 bg-slate-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-medium"
+                className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-white bg-slate-950 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
               />
             </div>
 
             {/* Number of Groups or 3rd place */}
             {isGroups ? (
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre de groupes</label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Nombre de groupes</label>
                 <input 
                   type="number"
                   name="max_groups"
                   value={formData.max_groups}
                   onChange={handleChange}
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 bg-slate-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-medium"
+                  className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-white bg-slate-950 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
                 />
               </div>
             ) : (
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Match pour la 3e place ? <span className="text-slate-400 font-normal">?</span></label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Match pour la 3e place ? <span className="text-slate-500 font-normal">?</span></label>
                 <div className="flex items-center gap-6 mt-3">
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-medium">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-300 font-medium hover:text-white transition-colors">
                     <input 
                       type="radio" 
                       name="settings.third_place_match" 
                       checked={formData.settings.third_place_match === true}
                       onChange={() => handleRadioChange('third_place_match', true)}
-                      className="accent-slate-800 w-4 h-4 cursor-pointer"
+                      className="accent-indigo-600 w-4 h-4 cursor-pointer"
                     />
                     Oui
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-medium">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-300 font-medium hover:text-white transition-colors">
                     <input 
                       type="radio" 
                       name="settings.third_place_match" 
                       checked={formData.settings.third_place_match === false}
                       onChange={() => handleRadioChange('third_place_match', false)}
-                      className="accent-slate-800 w-4 h-4 cursor-pointer"
+                      className="accent-indigo-600 w-4 h-4 cursor-pointer"
                     />
                     Non
                   </label>
@@ -241,81 +241,81 @@ export function PhaseConfigClient({
           <div className="space-y-8 animate-in fade-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Composition de groupe</label>
-                <select disabled className="w-full border border-slate-200 rounded px-3 py-2 text-slate-500 bg-slate-100 cursor-not-allowed font-medium">
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Composition de groupe</label>
+                <select disabled className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-slate-500 bg-slate-900/50 cursor-not-allowed font-medium">
                   <option>Effort équilibré</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Méthode d'appariement</label>
-                <select disabled className="w-full border border-slate-200 rounded px-3 py-2 text-slate-500 bg-slate-100 cursor-not-allowed font-medium">
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Méthode d'appariement</label>
+                <select disabled className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-slate-500 bg-slate-900/50 cursor-not-allowed font-medium">
                   <option>Round-robin</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1">Attribution de points <span className="text-slate-400 font-normal">?</span></h4>
+              <h4 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-1">Attribution de points <span className="text-slate-500 font-normal">?</span></h4>
               
               {/* Point Card */}
-              <div className="border border-slate-300 rounded-md p-4 mb-4 bg-white">
+              <div className="border border-slate-800 rounded-lg p-5 mb-4 bg-slate-900">
                  <div className="flex items-start gap-3 mb-4">
-                   <input type="checkbox" checked readOnly className="mt-1 accent-slate-800 w-4 h-4 rounded" />
+                   <input type="checkbox" checked readOnly className="mt-1 accent-indigo-600 w-4 h-4 rounded bg-slate-950 border-slate-800" />
                    <div>
-                     <span className="font-bold text-slate-800 text-sm block">Résultat de match</span>
-                     <p className="text-sm text-slate-600 mt-1 leading-relaxed">Attribue des points en fonction du résultat du match (victoire, match nul ou défaite).</p>
+                     <span className="font-extrabold text-white text-sm block">Résultat de match</span>
+                     <p className="text-sm text-slate-400 mt-1 leading-relaxed">Attribue des points en fonction du résultat du match (victoire, match nul ou défaite).</p>
                    </div>
                  </div>
                  <div className="pl-7 grid grid-cols-3 gap-4 max-w-md">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Victoire</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Victoire</label>
                       <input 
                         type="number" 
                         name="settings.points_win" 
                         value={formData.settings.points_win ?? 3} 
                         onChange={handleChange}
-                        className="w-full border border-slate-300 rounded px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-medium" 
+                        className="w-full border border-slate-800 rounded-lg px-3 py-2 text-white bg-slate-950 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-medium" 
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Match nul</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Match nul</label>
                       <input 
                         type="number" 
                         name="settings.points_draw" 
                         value={formData.settings.points_draw ?? 1} 
                         onChange={handleChange}
-                        className="w-full border border-slate-300 rounded px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-medium" 
+                        className="w-full border border-slate-800 rounded-lg px-3 py-2 text-white bg-slate-950 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-medium" 
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Défaite</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Défaite</label>
                       <input 
                         type="number" 
                         name="settings.points_loss" 
                         value={formData.settings.points_loss ?? 0} 
                         onChange={handleChange}
-                        className="w-full border border-slate-300 rounded px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-medium" 
+                        className="w-full border border-slate-800 rounded-lg px-3 py-2 text-white bg-slate-950 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-medium" 
                       />
                     </div>
                  </div>
               </div>
 
               {/* Match Score Card Disabled visually */}
-              <div className="border border-slate-200 bg-slate-50 rounded-md p-4 mb-4 opacity-60">
+              <div className="border border-slate-800 bg-slate-955 rounded-lg p-4 mb-4 opacity-40">
                  <div className="flex items-center gap-3">
-                   <input type="checkbox" disabled className="accent-slate-400 cursor-not-allowed w-4 h-4" />
-                   <span className="font-semibold text-slate-700 text-sm">Score de match</span>
+                   <input type="checkbox" disabled className="accent-slate-500 cursor-not-allowed w-4 h-4" />
+                   <span className="font-semibold text-slate-400 text-sm">Score de match</span>
                  </div>
                  <p className="text-sm text-slate-500 pl-7 mt-1">Attribue des points égaux au score du match.</p>
               </div>
 
               {/* Forfeit Card */}
-              <div className="border border-slate-300 rounded-md p-4 bg-white">
+              <div className="border border-slate-800 rounded-lg p-5 bg-slate-900">
                  <div className="flex items-start gap-3 mb-4">
-                   <input type="checkbox" checked readOnly className="mt-1 accent-slate-800 w-4 h-4" />
+                   <input type="checkbox" checked readOnly className="mt-1 accent-indigo-600 w-4 h-4 rounded bg-slate-950 border-slate-800" />
                    <div>
-                     <span className="font-bold text-slate-800 text-sm block">Forfait</span>
-                     <p className="text-sm text-slate-600 mt-1 leading-relaxed">Attribue des points lorsqu'un participant est forfait dans un match (peut être négatif pour une pénalité).</p>
+                     <span className="font-extrabold text-white text-sm block">Forfait</span>
+                     <p className="text-sm text-slate-400 mt-1 leading-relaxed">Attribue des points lorsqu'un participant est forfait dans un match (peut être négatif pour une pénalité).</p>
                    </div>
                  </div>
                  <div className="pl-7 max-w-[120px]">
@@ -324,7 +324,7 @@ export function PhaseConfigClient({
                       name="settings.points_forfeit" 
                       value={formData.settings.points_forfeit ?? 0} 
                       onChange={handleChange}
-                      className="w-full border border-slate-300 rounded px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-medium" 
+                      className="w-full border border-slate-800 rounded-lg px-3 py-2 text-white bg-slate-950 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-medium" 
                     />
                  </div>
               </div>
@@ -334,24 +334,24 @@ export function PhaseConfigClient({
       </div>
 
       {/* Footer Actions */}
-      <div className="bg-slate-100 border-t border-slate-200 p-4 flex flex-col sm:flex-row justify-center md:justify-end gap-3">
+      <div className="bg-slate-950/80 border-t border-slate-800 p-4 flex flex-col sm:flex-row justify-center md:justify-end gap-3">
         <Link 
           href={`/admin/${guildId}/tournaments/${tournamentId}/structure`}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded font-bold text-slate-600 bg-slate-400/20 hover:bg-slate-300/50 transition-colors mr-auto w-full sm:w-auto"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors mr-auto w-full sm:w-auto border border-slate-700"
         >
           <ChevronLeft className="w-4 h-4" /> Retour
         </Link>
         <button 
           onClick={() => onSubmit(true)}
           disabled={isSubmitting}
-          className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-5 py-2.5 rounded font-bold text-white bg-blue-500 hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-50"
+          className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all shadow-md disabled:opacity-50"
         >
           Mettre à jour + Retour
         </button>
         <button 
           onClick={() => onSubmit(false)}
           disabled={isSubmitting}
-          className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-5 py-2.5 rounded font-bold text-white bg-blue-500 hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-50"
+          className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all shadow-md disabled:opacity-50"
         >
           <CheckCircle2 className="w-4 h-4" /> Mettre à jour
         </button>

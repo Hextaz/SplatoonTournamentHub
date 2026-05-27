@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { CopyX, GitMerge, LayoutGrid, Network, LayoutList } from "lucide-react";
 import Link from "next/link";
@@ -36,21 +36,21 @@ export function PlacementOverviewClient({
             const { icon: PhaseIcon, label: formatLabel } = getFormatDetails(phase.format);
             
             return (
-              <div key={phase.id} className="bg-white rounded-lg border border-slate-200 flex flex-col justify-between shadow-sm relative min-h-[260px] group transition-shadow hover:shadow-md">
+              <div key={phase.id} className="bg-slate-900 rounded-xl border border-slate-800 flex flex-col justify-between shadow-lg relative min-h-[260px] group transition-all duration-300 hover:border-slate-700 hover:shadow-indigo-500/5 hover:shadow-2xl">
                 {/* Card Body */}
                 <div className="p-8 flex flex-col items-center justify-center flex-1 text-center h-full">
-                  <div className="mb-6 flex items-center justify-center text-slate-300 group-hover:text-blue-400 transition-colors">
-                     <PhaseIcon className="w-16 h-16" strokeWidth={1.5} />
+                  <div className="mb-6 flex items-center justify-center text-slate-500 group-hover:text-indigo-400 transition-colors">
+                     <PhaseIcon className="w-16 h-16" strokeWidth={1.2} />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-1">{phase.phase_order}. {phase.name}</h3>
-                  <p className="text-sm font-medium text-slate-500">{formatLabel}</p>
+                  <h3 className="text-xl font-bold text-white mb-1">{phase.phase_order}. {phase.name}</h3>
+                  <p className="text-sm font-medium text-slate-400">{formatLabel}</p>
                 </div>
 
                 {/* Card Footer */}
-                <div className="border-t border-slate-100 p-1 flex justify-center items-center bg-slate-50 rounded-b-lg">
+                <div className="border-t border-slate-800 p-1.5 flex justify-center items-center bg-slate-950/80 rounded-b-xl">
                   <Link 
                     href={`/admin/${guildId}/tournaments/${tournamentId}/placement/${phase.id}`}
-                    className="text-blue-500 hover:text-blue-600 text-sm font-bold px-4 py-3 transition-colors w-full text-center"
+                    className="text-indigo-400 hover:text-indigo-300 text-sm font-bold px-4 py-2.5 transition-colors w-full text-center"
                   >
                     Gérer les placements
                   </Link>
