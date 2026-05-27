@@ -25,7 +25,7 @@ export function StructureClient({
     else setDropdownOpen(id);
   };
 
-  const createPhase = async (format: "SINGLE_ELIM" | "ROUND_ROBIN") => {
+  const createPhase = async (format: "SINGLE_ELIM" | "ROUND_ROBIN" | "DOUBLE_ELIM") => {
     try {
       const order = initialPhases.length + 1;
       const res = await fetch(`${getBotApiUrl()}/api/phases`, {
@@ -34,10 +34,10 @@ export function StructureClient({
         body: JSON.stringify({
           tournament_id: tournamentId,
           guildId: guildId,
-          name: format === "SINGLE_ELIM" ? "Playoffs" : "Groupes",
+          name: format === "ROUND_ROBIN" ? "Groupes" : (format === "DOUBLE_ELIM" ? "Playoffs (Double)" : "Playoffs"),
           format: format,
           phase_order: order,
-          bracket_size: format === "SINGLE_ELIM" ? 8 : undefined,
+          bracket_size: format === "ROUND_ROBIN" ? undefined : 8,
           settings: format === "ROUND_ROBIN"
             ? { points_win: 3, points_draw: 1, points_loss: 0, points_forfeit: 0 }
             : { third_place_match: false },
@@ -183,6 +183,16 @@ export function StructureClient({
               >
                 <GitMerge className="w-4 h-4 text-indigo-400" />
                 Phase Finale (Arbre)
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  createPhase("DOUBLE_ELIM");
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-violet-500/30 hover:text-white"
+              >
+                <CopyX className="w-4 h-4 text-violet-400" />
+                Double Élimination
               </button>
             </div>
           </div>

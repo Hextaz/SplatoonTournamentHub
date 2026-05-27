@@ -520,7 +520,7 @@ export function PlacementPhaseClient({
               <Maximize2 className="w-5 h-5 text-slate-400" />
               Aperçu{" "}
               <span className="opacity-50 font-normal">
-                ({isGroups ? "Groupes" : "Élimination directe"})
+                ({isGroups ? "Groupes" : (phase.format === "DOUBLE_ELIM" ? "Double élimination" : "Élimination directe")})
               </span>
             </h2>
           </div>

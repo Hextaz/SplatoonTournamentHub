@@ -9,6 +9,7 @@ interface MatchData {
   team1_id: string | null;
   team2_id: string | null;
   next_match_winner_id: string | null;
+  next_match_loser_id?: string | null;
   status: string;
   team1_score?: number;
   team2_score?: number;
@@ -29,6 +30,14 @@ export class BracketGeneratorService {
   }
 
   static async generateBracket(phaseId: string, bracketSize: number) {
+    const { data: phase } = await supabase
+      .from("phases")
+      .select("format")
+      .eq("id", phaseId)
+      .single();
+    
+    const isDoubleElim = phase?.format === "DOUBLE_ELIM";
+
     const { data: seededRows, error: seedError } = await supabase
       .from("phase_teams")
       .select("team_id, seed")
@@ -46,6 +55,206 @@ export class BracketGeneratorService {
         }
         seedSet.add(row.seed);
       }
+    }
+
+    if (isDoubleElim) {
+      const wbRounds: MatchData[][] = [];
+      const totalWbRounds = Math.log2(bracketSize);
+
+      if (!Number.isInteger(totalWbRounds)) {
+        throw new Error("La taille de l'arbre doit être une puissance de 2 (4, 8, 16, 32...).");
+      }
+
+      let matchGlobalCount = 1;
+
+      // 1. Generate Winners Bracket
+      for (let r = 1; r <= totalWbRounds; r++) {
+        const numMatchesInRound = bracketSize / Math.pow(2, r);
+        const roundMatches: MatchData[] = [];
+
+        for (let m = 1; m <= numMatchesInRound; m++) {
+          roundMatches.push({
+            id: crypto.randomUUID(),
+            phase_id: phaseId,
+            round_number: r,
+            match_number: matchGlobalCount++,
+            team1_id: null,
+            team2_id: null,
+            next_match_winner_id: null,
+            next_match_loser_id: null,
+            status: "PENDING"
+          });
+        }
+        wbRounds.push(roundMatches);
+      }
+
+      // Link WB matches to next WB matches
+      for (let r = 0; r < wbRounds.length - 1; r++) {
+        const currentRound = wbRounds[r]!;
+        const nextRound = wbRounds[r + 1]!;
+        for (let i = 0; i < currentRound.length; i++) {
+          const parentMatchIndex = Math.floor(i / 2);
+          currentRound[i]!.next_match_winner_id = nextRound[parentMatchIndex]!.id;
+        }
+      }
+
+      // 2. Generate Losers Bracket
+      const lbRounds: Record<number, MatchData[]> = {};
+
+      // LB Round 11 (WB R1 losers)
+      const numMatchesInR11 = bracketSize / 4;
+      const r11Matches: MatchData[] = [];
+      for (let m = 1; m <= numMatchesInR11; m++) {
+        r11Matches.push({
+          id: crypto.randomUUID(),
+          phase_id: phaseId,
+          round_number: 11,
+          match_number: matchGlobalCount++,
+          team1_id: null,
+          team2_id: null,
+          next_match_winner_id: null,
+          status: "PENDING"
+        });
+      }
+      lbRounds[11] = r11Matches;
+
+      // Link WB R1 losers to LB R11
+      const wbR1 = wbRounds[0]!;
+      for (let i = 0; i < wbR1.length; i++) {
+        const targetLbMatchIndex = Math.floor(i / 2);
+        wbR1[i]!.next_match_loser_id = r11Matches[targetLbMatchIndex]!.id;
+      }
+
+      // For rounds r = 2 to totalWbRounds:
+      for (let r = 2; r <= totalWbRounds; r++) {
+        const numMatchesInRound = bracketSize / Math.pow(2, r);
+
+        // Major round: round_number = 10 + 2r - 2
+        const majorRoundNum = 10 + 2 * r - 2;
+        const majorMatches: MatchData[] = [];
+        for (let m = 1; m <= numMatchesInRound; m++) {
+          majorMatches.push({
+            id: crypto.randomUUID(),
+            phase_id: phaseId,
+            round_number: majorRoundNum,
+            match_number: matchGlobalCount++,
+            team1_id: null,
+            team2_id: null,
+            next_match_winner_id: null,
+            status: "PENDING"
+          });
+        }
+        lbRounds[majorRoundNum] = majorMatches;
+
+        // Link WB R[r] losers to LB Major Round
+        const wbRound = wbRounds[r - 1]!;
+        for (let i = 0; i < wbRound.length; i++) {
+          wbRound[i]!.next_match_loser_id = majorMatches[i]!.id;
+        }
+
+        // Minor round: round_number = 10 + 2r - 3 (only for r > 2)
+        if (r > 2) {
+          const minorRoundNum = 10 + 2 * r - 3;
+          const minorMatches: MatchData[] = [];
+          for (let m = 1; m <= numMatchesInRound; m++) {
+            minorMatches.push({
+              id: crypto.randomUUID(),
+              phase_id: phaseId,
+              round_number: minorRoundNum,
+              match_number: matchGlobalCount++,
+              team1_id: null,
+              team2_id: null,
+              next_match_winner_id: null,
+              status: "PENDING"
+            });
+          }
+          lbRounds[minorRoundNum] = minorMatches;
+
+          // Link previous Major Round to this Minor Round
+          const prevMajorRoundNum = 10 + 2 * (r - 1) - 2;
+          const prevMajorMatches = lbRounds[prevMajorRoundNum]!;
+          for (let i = 0; i < prevMajorMatches.length; i++) {
+            const targetMinorIndex = Math.floor(i / 2);
+            prevMajorMatches[i]!.next_match_winner_id = minorMatches[targetMinorIndex]!.id;
+          }
+
+          // Link this Minor Round to current Major Round
+          for (let i = 0; i < minorMatches.length; i++) {
+            minorMatches[i]!.next_match_winner_id = majorMatches[i]!.id;
+          }
+        } else {
+          // For r = 2: link LB R11 to LB R12
+          const r11 = lbRounds[11]!;
+          for (let i = 0; i < r11.length; i++) {
+            r11[i]!.next_match_winner_id = majorMatches[i]!.id;
+          }
+        }
+      }
+
+      // 3. Generate Grand Final (Round 21)
+      const gfRoundNum = 21;
+      const gfMatch: MatchData = {
+        id: crypto.randomUUID(),
+        phase_id: phaseId,
+        round_number: gfRoundNum,
+        match_number: matchGlobalCount++,
+        team1_id: null,
+        team2_id: null,
+        next_match_winner_id: null,
+        status: "PENDING"
+      };
+
+      // Link Winners Final to Grand Final
+      const wbFinal = wbRounds[totalWbRounds - 1]![0]!;
+      wbFinal.next_match_winner_id = gfMatch.id;
+
+      // Link Losers Final to Grand Final
+      const lbFinalRoundNum = 10 + 2 * totalWbRounds - 2;
+      const lbFinal = lbRounds[lbFinalRoundNum]![0]!;
+      lbFinal.next_match_winner_id = gfMatch.id;
+
+      // 4. Inject seeds into Winners Round 1
+      const foldedSeeds = this.getStandardSeeds(bracketSize);
+      const round1Matches = wbRounds[0]!;
+
+      for (let i = 0; i < round1Matches.length; i++) {
+        const seed1 = foldedSeeds[i * 2];
+        const seed2 = foldedSeeds[i * 2 + 1];
+
+        const team1 = seededTeams.find(t => t.seed === seed1)?.team_id || null;
+        const team2 = seededTeams.find(t => t.seed === seed2)?.team_id || null;
+
+        round1Matches[i]!.team1_id = team1;
+        round1Matches[i]!.team2_id = team2;
+      }
+
+      // 5. Gather all matches
+      const allMatches: MatchData[] = [];
+      wbRounds.forEach(round => allMatches.push(...round));
+      Object.keys(lbRounds).forEach(roundNum => {
+        allMatches.push(...lbRounds[Number(roundNum)]!);
+      });
+      allMatches.push(gfMatch);
+
+      // Check for existing matches to prevent duplicates
+      const { data: existingMatches } = await supabase
+        .from("matches")
+        .select("id")
+        .eq("phase_id", phaseId)
+        .limit(1);
+
+      if (existingMatches && existingMatches.length > 0) {
+        throw new Error(`Matches already exist for phase ${phaseId}. Delete them before regenerating.`);
+      }
+
+      // Insert all matches
+      const { error: insertError } = await supabase.from("matches").insert(allMatches);
+      if (insertError) {
+        console.error("Erreur Bulk Insert Matches: ", insertError);
+        throw new Error("L'insertion de l'arbre a échoué.");
+      }
+
+      return allMatches;
     }
 
     const rounds: MatchData[][] = [];
