@@ -1,4 +1,4 @@
-﻿-- 1. Enum Types
+-- 1. Enum Types
 CREATE TYPE tournament_status AS ENUM ('DRAFT', 'REGISTRATION', 'ACTIVE', 'COMPLETED', 'ARCHIVED');
 CREATE TYPE phase_type AS ENUM ('ROUND_ROBIN', 'SINGLE_ELIM', 'SWISS', 'DOUBLE_ELIM');
 
@@ -183,57 +183,13 @@ CREATE POLICY "Public can view matches"
 CREATE POLICY "Owner can modify matches"
   ON matches FOR ALL
   USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM phases WHERE phases.id = matches.phase_id LIMIT 1)))
-  WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM phases WHERE phases.id = matches.phase_id LIMIT 1)));
-
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE phase_teams ENABLE ROW LEVEL SECURITY;
--- Crï¿½ation d'une fonction pour dï¿½finir le crï¿½ateur en tant qu'administrateur
-CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
-RETURNS TRIGGER AS C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sql
-BEGIN
-  IF NEW.admin_ids IS NULL OR array_length(NEW.admin_ids, 1) IS NULL THEN
-    IF auth.jwt() ->> 'discord_id' IS NOT NULL THEN
-      NEW.admin_ids := ARRAY[(auth.jwt() ->> 'discord_id')::varchar];
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sqlC:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sqlC:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubix_trigger.js LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trg_set_tournament_admin ON tournaments;
-
-CREATE TRIGGER trg_set_tournament_admin
-BEFORE INSERT ON tournaments
-FOR EACH ROW
-EXECUTE FUNCTION set_tournament_creator_as_admin();
-
-
--- Crï¿½ation d'une fonction pour dï¿½finir le crï¿½ateur en tant qu'administrateur
-CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
-RETURNS TRIGGER AS C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sql
-BEGIN
-  IF NEW.admin_ids IS NULL OR array_length(NEW.admin_ids, 1) IS NULL THEN
-    IF auth.jwt() ->> 'discord_id' IS NOT NULL THEN
-      NEW.admin_ids := ARRAY[(auth.jwt() ->> 'discord_id')::varchar];
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-C:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sqlC:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubsupabasemigrations_auto_assign_tournament_admin.sqlC:UsersHextazDocumentsGitHub	ournament-botSplatoonTournamentHubix_trigger.js LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trg_set_tournament_admin ON tournaments;
-
-CREATE TRIGGER trg_set_tournament_admin
-BEFORE INSERT ON tournaments
-FOR EACH ROW
-EXECUTE FUNCTION set_tournament_creator_as_admin();
-
-
-
--- Crï¿½ation d'une fonction pour dï¿½finir le crï¿½ateur en tant qu'administrateur
+-- Création d'une fonction pour définir le créateur en tant qu'administrateur
 CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -252,8 +208,6 @@ CREATE TRIGGER trg_set_tournament_admin
 BEFORE INSERT ON tournaments
 FOR EACH ROW
 EXECUTE FUNCTION set_tournament_creator_as_admin();
-
-
 
 -- Migration 24 : Simplification et sécurisation de la vérification Admin
 CREATE OR REPLACE FUNCTION is_admin_of_tournament(tid UUID) RETURNS BOOLEAN AS $$
@@ -310,31 +264,6 @@ CREATE POLICY "Owner can modify matches" ON matches
   USING (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)))
   WITH CHECK (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)));
 
-
--- Migration 25 : Application de 'is_admin_of_tournament' à toutes les sous-structures restantes (phases, matches)
--- Mettre à jour 'phases'
-DROP POLICY IF EXISTS "Owner can modify phases" ON phases;
-CREATE POLICY "Owner can modify phases" ON phases
-  FOR ALL
-  USING (is_admin_of_tournament(tournament_id))
-  WITH CHECK (is_admin_of_tournament(tournament_id));
-
--- Mettre à jour 'matches'
-DROP POLICY IF EXISTS "Owner can modify matches" ON matches;
-CREATE POLICY "Owner can modify matches" ON matches
-  FOR ALL
-  USING (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)))
-  WITH CHECK (is_admin_of_tournament((SELECT tournament_id FROM phases WHERE id = phase_id LIMIT 1)));
-
-
-
--- Migration 26 : Nettoyage des permissions obsolètes des capitaines (inscriptions gérées via Discord)
-DROP POLICY IF EXISTS "Captains can create teams" ON teams;
-DROP POLICY IF EXISTS "Captains can modify their team" ON teams;
-DROP POLICY IF EXISTS "Captains can delete their team" ON teams;
-DROP POLICY IF EXISTS "Captains can insert team members" ON team_members;
-DROP POLICY IF EXISTS "Captains can modify team members" ON team_members;
-DROP POLICY IF EXISTS "Captains can delete team members" ON team_members;
 
 
 -- Migration 26 : Nettoyage des permissions obsolètes des capitaines (inscriptions gérées via Discord)

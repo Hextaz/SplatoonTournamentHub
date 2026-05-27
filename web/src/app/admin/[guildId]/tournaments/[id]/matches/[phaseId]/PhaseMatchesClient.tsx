@@ -1,12 +1,12 @@
-﻿"use client";
+"use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getBotApiUrl } from '@/utils/api';
 
 import { useRouter } from "next/navigation";
 import { Search, Trophy, Check, X, CalendarDays, Loader2, ArrowLeft, Users, AlertCircle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
+import { useSupabaseSubscription } from "@/hooks/useSupabaseSubscription";
 
 export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatches, phaseTeams, dbGroups }: any) {
   const router = useRouter();
@@ -14,20 +14,15 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
-  useEffect(() => {
-    const channel = supabase.channel('admin_phase_matches')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
-        router.refresh();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'phase_teams' }, () => {
-        router.refresh();
-      })
-      .subscribe();
+  useSupabaseSubscription({
+    table: "matches",
+    onChange: () => router.refresh()
+  });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [router]);
+  useSupabaseSubscription({
+    table: "phase_teams",
+    onChange: () => router.refresh()
+  });
 
   const isGroups = phase.format === "ROUND_ROBIN";
   

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { GitCommit } from "lucide-react";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { useSupabaseSubscription } from "@/hooks/useSupabaseSubscription";
 
 type Phase = any;
 type Match = any;
@@ -17,21 +17,15 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [groupTab, setGroupTab] = useState<"ranking" | "rounds">("ranking");
 
-  useEffect(() => {
-    // Écoute des mises à jour des scores et du classement
-    const channel = supabase.channel('public_stages_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
-        router.refresh();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'phase_teams' }, () => {
-        router.refresh();
-      })
-      .subscribe();
+  useSupabaseSubscription({
+    table: "matches",
+    onChange: () => router.refresh()
+  });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [router]);
+  useSupabaseSubscription({
+    table: "phase_teams",
+    onChange: () => router.refresh()
+  });
 
   const activePhase = phases.find(p => p.id === activePhaseId);
 

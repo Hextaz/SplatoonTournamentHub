@@ -236,6 +236,14 @@ export class LifecycleService {
         } else {
           const phaseChannel = guild.channels.cache.get(channelId);
           if (phaseChannel && phaseChannel.isTextBased() && 'permissionOverwrites' in phaseChannel) {
+            // Delete stale member overwrites
+            const activeMemberIds = new Set(perms.map(p => p.id));
+            for (const [overwriteId, overwrite] of phaseChannel.permissionOverwrites.cache.entries()) {
+              if (overwrite.type === 1 && !activeMemberIds.has(overwriteId)) {
+                await phaseChannel.permissionOverwrites.delete(overwriteId, "Stale Captain Removal").catch(() => {});
+              }
+            }
+
             for (const perm of perms) {
               await phaseChannel.permissionOverwrites.edit(perm.id, permsToEditData(perm) as any).catch(() => {});
             }
@@ -275,6 +283,14 @@ export class LifecycleService {
           } else {
             const groupChannel = guild.channels.cache.get(channelId);
             if (groupChannel && groupChannel.isTextBased() && 'permissionOverwrites' in groupChannel) {
+              // Delete stale member overwrites
+              const activeMemberIds = new Set(perms.map(p => p.id));
+              for (const [overwriteId, overwrite] of groupChannel.permissionOverwrites.cache.entries()) {
+                if (overwrite.type === 1 && !activeMemberIds.has(overwriteId)) {
+                  await groupChannel.permissionOverwrites.delete(overwriteId, "Stale Captain Removal").catch(() => {});
+                }
+              }
+
               for (const perm of perms) {
                 await groupChannel.permissionOverwrites.edit(perm.id, permsToEditData(perm) as any).catch(() => {});
               }

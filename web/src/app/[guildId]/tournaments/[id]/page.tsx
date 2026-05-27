@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { supabase } from "@/lib/supabase";
 import { Calendar, Monitor, Users, ExternalLink } from "lucide-react";
 import Link from "next/link";

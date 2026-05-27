@@ -63,14 +63,24 @@ app.use("/api", authMiddleware);
 // Inject client globally
 app.locals.discordClient = client;
 
+const guildAdminGuard = requireGuildAdmin(client);
+
 // Health check (no auth required — skipped in middleware)
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", botConnected: !!client.user });
 });
 
-// Webhook endpoint for Supabase Database Webhooks (no auth required - secured by Supabase signature)
+// Webhook endpoint for Supabase Database Webhooks (no auth required - secured by signature/secret)
 app.post("/api/webhook/team-update", async (req, res) => {
   try {
+    const webhookSecret = process.env.WEBHOOK_SECRET || process.env.BOT_API_SECRET;
+    if (webhookSecret) {
+      const receivedSecret = req.headers["x-webhook-secret"] || req.query.secret;
+      if (receivedSecret !== webhookSecret) {
+        return res.status(401).json({ error: "Unauthorized: Invalid webhook secret" });
+      }
+    }
+
     const webhookService = new WebhookRolesService(client);
     const result = await webhookService.handleTeamUpdate(req.body);
 
@@ -89,7 +99,7 @@ app.post("/api/webhook/team-update", async (req, res) => {
 });
 
 // Endpoint: Fetch Roles for the connected Discord Guild
-app.get("/api/discord/roles", async (req, res) => {
+app.get("/api/discord/roles", guildAdminGuard, async (req, res) => {
   const guildId = (req.query.guildId || req.body?.guildId) as string;
   if (!guildId) {
     return res.status(400).json({ error: "Missing guildId parameter." });
@@ -120,7 +130,7 @@ app.get("/api/discord/roles", async (req, res) => {
 });
 
 // Endpoint: Ordonne au client Discord de créer/supprimer des salons/rôles!
-app.post("/api/discord/publish-phase", async (_req, res) => {
+app.post("/api/discord/publish-phase", guildAdminGuard, async (_req, res) => {
   try {
     res.status(202).json({ message: "Phase publish triggered." });
   } catch (error) {
@@ -181,7 +191,7 @@ app.get("/api/discord/permissions", async (req, res) => {
 });
 
 // Endpoint: Fetch Channels for Check-in configurations
-app.get("/api/discord/channels", async (req, res) => {
+app.get("/api/discord/channels", guildAdminGuard, async (req, res) => {
   try {
     const guildId = (req.query.guildId || req.body?.guildId) as string;
     const guild = await getGuild(res, guildId);
@@ -203,7 +213,7 @@ app.get("/api/discord/channels", async (req, res) => {
 });
 
 // Endpoint: Fetch Guild Members for Manual Input Combobox
-app.get("/api/discord/members", async (req, res) => {
+app.get("/api/discord/members", guildAdminGuard, async (req, res) => {
   try {
     const guildId = (req.query.guildId || req.body?.guildId) as string;
     const guild = await getGuild(res, guildId);
@@ -228,7 +238,7 @@ app.get("/api/discord/members", async (req, res) => {
 });
 
 // Endpoint: Auto-setup for Checkin requirements
-app.post("/api/discord/auto-setup", async (req, res) => {
+app.post("/api/discord/auto-setup", guildAdminGuard, async (req, res) => {
   try {
     const guildId = (req.query.guildId || req.body?.guildId) as string;
     const guild = await getGuild(res, guildId);
@@ -273,7 +283,7 @@ app.post("/api/discord/auto-setup", async (req, res) => {
 });
 
 // Endpoint: Mettre à jour le planning du bot après création d'un tournoi
-app.post("/api/discord/sync-schedule", async (req, res) => {
+app.post("/api/discord/sync-schedule", guildAdminGuard, async (req, res) => {
   try {
     const { tournament_id } = req.body;
     if (!tournament_id) {
@@ -302,7 +312,7 @@ app.post("/api/discord/sync-schedule", async (req, res) => {
 });
 
 // Endpoint: Archivage et Nettoyage Discord
-app.post('/api/tournaments/archive-and-init', async (req, res) => {
+app.post('/api/tournaments/archive-and-init', guildAdminGuard, async (req, res) => {
   const { guildId, newTournamentId } = req.body;
 
   if (!guildId) return res.status(400).json({ error: 'Missing guildId parameter' });
@@ -341,7 +351,6 @@ app.post('/api/tournaments/archive-and-init', async (req, res) => {
 });
 
 // Mutation routes: protected by authMiddleware + requireGuildAdmin (live Discord perm check)
-const guildAdminGuard = requireGuildAdmin(client);
 app.use('/api/phases', guildAdminGuard, phaseRouter);
 app.use('/api/matches', guildAdminGuard, matchRouter);
 app.use('/api/tournaments', guildAdminGuard, tournamentRouter);
