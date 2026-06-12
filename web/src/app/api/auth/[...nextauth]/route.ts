@@ -1,0 +1,63 @@
+import NextAuth from "next-auth/next";
+import { NextAuthOptions } from "next-auth";
+import DiscordProvider from "next-auth/providers/discord";
+import jwt from "jsonwebtoken";
+
+export const authOptions: NextAuthOptions = {
+  providers: [
+    DiscordProvider({
+      clientId: process.env.DISCORD_CLIENT_ID || "",
+      clientSecret: process.env.DISCORD_CLIENT_SECRET || "",
+      authorization: { params: { scope: "identify guilds" } },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, account, profile }) {
+      if (account) {
+        token.accessToken = account.access_token;
+        if (profile && 'id' in profile) {
+          token.id = (profile as any).id;
+        }
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session) {
+        (session as any).accessToken = token.accessToken;
+        if (session.user) {
+          const discordId = token.id || token.sub;
+          (session.user as any).id = discordId;
+
+          // Sign the custom Supabase JWT
+          const supabaseSecret = process.env.SUPABASE_JWT_SECRET || "";
+          if (supabaseSecret) {
+            const supabaseToken = jwt.sign(
+              {
+                discord_id: discordId,
+                role: "authenticated",
+              },
+              supabaseSecret,
+              { expiresIn: "30d" }
+            );
+            (session as any).supabaseAccessToken = supabaseToken;
+          }
+        }
+      }
+      return session;
+    },
+  },
+  pages: {
+    signIn: '/',
+  },
+  secret: (() => {
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret && process.env.NODE_ENV === "production") {
+      throw new Error("NEXTAUTH_SECRET must be set in production");
+    }
+    return secret || "super-secret-default-key-for-dev";
+  })(),
+};
+
+const handler = NextAuth(authOptions);
+
+export { handler as GET, handler as POST };

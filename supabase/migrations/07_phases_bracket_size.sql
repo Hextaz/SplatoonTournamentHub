@@ -1,0 +1,1 @@
+ALTER TABLE phases ADD COLUMN bracket_size INTEGER DEFAULT 8;
