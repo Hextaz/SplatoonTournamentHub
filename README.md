@@ -1,25 +1,116 @@
 # Splatoon Tournament Hub
+
 Discord Bot + Web App for managing Splatoon Tournaments.
 
-## Project Structure
-- **/bot**: Node.js & Express + Discord.js hybrid backend targeted for Fly.io. Contains the bot runner and API endpoints interacting with Discord.
-- **/web**: Next.js App Router for frontend UI and admin dashboard (TO Back-office) targeted for Vercel. 
-- **/supabase**: Contains the PostgreSQL `schema.sql` database schema for initial setup.
+---
 
-## Setup Instructions
+## 🚀 Project Structure
 
-### Database Setup
-1. Setup a Supabase project locally or remotely.
-2. Run the `supabase/schema.sql` script to create the DB architecture.
+- **`/bot`**: Node.js & Express + Discord.js hybrid backend targeted for Fly.io. Contains the bot runner and API endpoints interacting with Discord.
+- **`/web`**: Next.js App Router for frontend UI and admin dashboard (TO Back-office) targeted for Vercel. 
+- **`/supabase`**: Contains the PostgreSQL configuration, migrations, and schema for local and remote deployment.
 
-### Discord Bot
-1. Navigate to `/bot` (`cd bot`)
-2. Make sure you match the `.env` variables (`DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `PORT`).
-3. Run `npm install`
-4. Run `npm run build` & `npm start` (or `npm run dev` to develop locally)
+---
 
-### Next.js Client
-1. Navigate to `/web` (`cd web`)
-2. Configure `.env.local` to point to Supabase and Discord OAuth.
-3. Run `npm install`
-4. Run `npm run dev`
+## 🛠️ Local Development Setup
+
+To test and develop features safely without affecting the production database or live Discord bot, run everything locally using **Docker** and a **Dev Bot** application.
+
+### 1. Prerequisites
+- **Docker** must be installed and running on your machine.
+- Node.js (v20 recommended).
+
+### 2. Fast Setup (via Makefile)
+We use a `Makefile` to simplify local development commands.
+
+1. **Initialize the entire project**:
+   ```bash
+   make init
+   ```
+   *This single command will install all npm dependencies, start your local Supabase stack in Docker, automatically configure your local `.env` and `.env.local` files with the local database keys, and apply the SQL database schema.*
+
+2. **Launch Dev Instances**:
+   Start both the Next.js frontend and the Discord Bot concurrently in the background:
+   ```bash
+   make dev
+   ```
+   *To follow the live logs of both containers, run:*
+   ```bash
+   make dev-logs
+   ```
+
+3. **Stop Dev Instances**:
+   To stop the running application and bot containers:
+   ```bash
+   make dev-stop
+   ```
+
+4. **Rebuild Dev Containers**:
+   If you install a new npm package, rebuild the dev containers with:
+   ```bash
+   make dev-build
+   ```
+
+---
+
+## 🔑 Environment Configuration
+
+Do **NOT** use the production Discord bot token locally. Create a separate Discord application (e.g., *Splatoon Hub Dev*) in the [Discord Developer Portal](https://discord.com/developers/applications) and invite it to a dedicated testing server.
+
+### A. Discord Bot Backend (`/bot/.env`)
+Create `/bot/.env` (from [bot/.env.example](file:///workspaces/SplatoonTournamentHub/bot/.env.example)):
+```env
+# Local Supabase credentials
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_KEY=your_local_anon_key # printed by 'supabase start'
+
+# Discord Dev Bot credentials
+DISCORD_TOKEN=your_dev_bot_token
+DISCORD_CLIENT_ID=your_dev_bot_client_id
+
+# Local server config
+PORT=8080
+BOT_API_SECRET=your_local_shared_secret
+```
+
+### B. Next.js Web App (`/web/.env.local`)
+Create `/web/.env.local` (from [web/.env.example](file:///workspaces/SplatoonTournamentHub/web/.env.example)):
+```env
+# Local Supabase credentials
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_local_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_local_service_role_key
+
+# Local bot API credentials
+NEXT_PUBLIC_BOT_API_URL=http://localhost:8080
+BOT_API_SECRET=your_local_shared_secret
+
+# NextAuth Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=any_random_string_for_testing
+DISCORD_CLIENT_ID=your_dev_bot_client_id
+DISCORD_CLIENT_SECRET=your_dev_bot_client_secret
+```
+*Note: Make sure to add `http://localhost:3000/api/auth/callback/discord` as a Redirect URI in your Discord Dev Application.*
+
+---
+
+## 🐙 Git Workflow & Quality Assurance
+
+### History Reset (Initial Squash)
+All legacy commits on `main` have been squashed into a single clean initialization commit tagged as `v0.1.0-pre-release`. 
+To push this new clean history to GitHub, execute:
+```bash
+git push origin main --force --tags
+```
+
+### Future Contributions Workflow
+1. Develop features on a dedicated branch: `git checkout -b feature/your-feature-name`.
+2. Push your branch and open a **Pull Request** on GitHub.
+3. Use **Squash and Merge** when merging PRs to `main` to maintain a clean history (1 commit per PR/feature).
+
+### 🤖 CI/CD Verification
+A GitHub Actions workflow is active in `.github/workflows/ci.yml`. It triggers on every push and Pull Request to `main`, validating:
+- TypeScript compilation on `/bot` (can be run locally via `make lint`)
+- Linting and production Next.js build on `/web` (can be run locally via `make build`)

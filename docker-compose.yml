@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  bot-dev:
+    container_name: splatoon_bot_dev
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    command: npm run dev
+    volumes:
+      - ./bot:/app
+      - /app/node_modules
+    network_mode: "host"
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
+
+  web-dev:
+    container_name: splatoon_web_dev
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    command: npm run dev
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    network_mode: "host"
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
