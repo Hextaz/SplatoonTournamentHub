@@ -3,18 +3,31 @@ const fs = require('fs');
 const path = require('path');
 
 function getSupabaseStatus() {
-  try {
-    const stdout = execSync('npx supabase status', { encoding: 'utf8' });
-    const jsonStart = stdout.indexOf('{');
-    if (jsonStart === -1) {
-      throw new Error("Could not find JSON in Supabase status output.");
-    }
-    const jsonStr = stdout.slice(jsonStart);
-    return JSON.parse(jsonStr);
-  } catch (error) {
-    console.error("❌ Failed to get Supabase status. Make sure Supabase is started (make supabase-start).", error.message);
-    process.exit(1);
+  const stdout = execSync('npx supabase status', { encoding: 'utf8' });
+  const jsonStart = stdout.indexOf('{');
+  if (jsonStart === -1) {
+    throw new Error("Could not find JSON in Supabase status output.");
   }
+  const jsonStr = stdout.slice(jsonStart);
+  return JSON.parse(jsonStr);
+}
+
+function getSupabaseStatusWithRetries(retries = 5, delay = 2000) {
+  let lastError;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return getSupabaseStatus();
+    } catch (error) {
+      lastError = error;
+      if (i < retries - 1) {
+        console.log(`⏳ Waiting for Supabase to be ready... (attempt ${i + 1}/${retries})`);
+        // Sleep using execSync (Unix)
+        execSync(`sleep ${Math.floor(delay / 1000)}`);
+      }
+    }
+  }
+  console.error("❌ Failed to get Supabase status after multiple attempts. Make sure Supabase is started (make supabase-start).", lastError.message);
+  process.exit(1);
 }
 
 function updateEnvFile(filePath, examplePath, updates) {
@@ -53,7 +66,7 @@ function updateEnvFile(filePath, examplePath, updates) {
 
 console.log("🔄 Starting local environment configuration...");
 
-const status = getSupabaseStatus();
+const status = getSupabaseStatusWithRetries();
 
 // Update Bot env
 const botEnvPath = path.join(__dirname, '../bot/.env');

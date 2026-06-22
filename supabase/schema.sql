@@ -273,3 +273,4 @@ DROP POLICY IF EXISTS "Captains can delete their team" ON teams;
 DROP POLICY IF EXISTS "Captains can insert team members" ON team_members;
 DROP POLICY IF EXISTS "Captains can modify team members" ON team_members;
 DROP POLICY IF EXISTS "Captains can delete team members" ON team_members;
+
