@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-service-role-key";
 
 // Attention: Ce client contourne TOUTES les règles RLS !
 // Il ne doit être utilisé QUE dans le backend (API Routes) après avoir vérifié les permissions manuellement.
