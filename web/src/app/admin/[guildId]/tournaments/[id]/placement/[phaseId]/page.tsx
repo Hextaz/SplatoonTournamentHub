@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic';
-﻿import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { notFound } from "next/navigation";
 import { PlacementPhaseClient } from "./PlacementPhaseClient";
 
@@ -11,7 +11,7 @@ export default async function PlacementPhasePage({
   const { guildId, id: tournamentId, phaseId } = await params;
 
   // 1. Fetch phase
-  const { data: phase, error: phaseError } = await supabase
+  const { data: phase, error: phaseError } = await supabaseAdmin
     .from("phases")
     .select("*")
     .eq("id", phaseId)
@@ -19,15 +19,23 @@ export default async function PlacementPhasePage({
 
   if (phaseError || !phase) notFound();
 
-  // 2. Fetch checked-in teams
-  const { data: teams, error: teamsError } = await supabase
+  // 2. Fetch checked-in teams (fallback to all teams if none checked-in)
+  let { data: teams } = await supabaseAdmin
     .from("teams")
     .select("*")
     .eq("tournament_id", tournamentId)
     .eq("is_checked_in", true);
 
+  if (!teams || teams.length === 0) {
+    const { data: allTeams } = await supabaseAdmin
+      .from("teams")
+      .select("*")
+      .eq("tournament_id", tournamentId);
+    teams = allTeams || [];
+  }
+
   // 3. Fetch existing assignments (seeds)
-  const { data: phaseTeams, error: ptError } = await supabase
+  const { data: phaseTeams } = await supabaseAdmin
     .from("phase_teams")
     .select("team_id, seed, teams(*)")
     .eq("phase_id", phaseId)

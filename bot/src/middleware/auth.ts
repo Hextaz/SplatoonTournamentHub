@@ -78,7 +78,9 @@ export function requireGuildAdmin(discordClient: any) {
     // Resolve guild ID
     const guildId =
       req.body?.guildId ||
+      req.body?.guild_id ||
       req.query?.guildId as string ||
+      req.query?.guild_id as string ||
       req.headers["x-guild-id"] as string;
 
     if (!discordId) {

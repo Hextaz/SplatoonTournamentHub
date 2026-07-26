@@ -88,10 +88,11 @@ export default function SettingsPage({
     setMessage({ type: "", text: "" });
 
     try {
-      const res = await botApiFetch('/api/server-settings', {
+      const res = await botApiFetch(`/api/server-settings?guildId=${guildId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          guildId: guildId,
           guild_id: guildId,
           captain_role_id: settings.captain_role_id,
           to_role_id: settings.to_role_id,

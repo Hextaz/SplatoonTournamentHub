@@ -38,7 +38,7 @@ async function handleProxy(request: Request, { params }: { params: Promise<{ pat
 
     // Extract guildId from query params or request body and forward it.
     // The requireGuildAdmin middleware reads this header as fallback.
-    const guildIdFromQuery = url.searchParams.get("guildId");
+    const guildIdFromQuery = url.searchParams.get("guildId") || url.searchParams.get("guild_id");
     if (guildIdFromQuery) {
       headers.set("X-Guild-Id", guildIdFromQuery);
     } else if (["POST", "PUT", "PATCH"].includes(request.method)) {
@@ -48,8 +48,9 @@ async function handleProxy(request: Request, { params }: { params: Promise<{ pat
         const textBody = await clonedReq.text();
         if (textBody) {
           const bodyObj = JSON.parse(textBody);
-          if (bodyObj.guildId) {
-            headers.set("X-Guild-Id", bodyObj.guildId);
+          const gId = bodyObj.guildId || bodyObj.guild_id;
+          if (gId) {
+            headers.set("X-Guild-Id", gId);
           }
         }
       } catch {

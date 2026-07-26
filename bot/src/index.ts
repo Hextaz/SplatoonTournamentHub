@@ -470,8 +470,12 @@ const bootstrap = async () => {
 
         if (missingGuilds.length > 0) {
           const inserts = missingGuilds.map((id) => ({ guild_id: id }));
-          await supabase.from("server_settings").insert(inserts);
-          logger.info(`[Sync] Inserted ${missingGuilds.length} missing guilds to DB.`);
+          const { error: insertErr } = await supabase.from("server_settings").insert(inserts);
+          if (insertErr) {
+            logger.error(`[Sync] Failed to insert missing guilds to DB:`, insertErr);
+          } else {
+            logger.info(`[Sync] Inserted ${missingGuilds.length} missing guilds to DB.`);
+          }
         }
       }
     } catch (err) {
