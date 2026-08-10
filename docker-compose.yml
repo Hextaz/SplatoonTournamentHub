@@ -4,12 +4,13 @@ services:
   bot-dev:
     container_name: splatoon_bot_dev
     build:
-      context: ./bot
+      context: ./apps/bot
       dockerfile: Dockerfile
       target: builder
     command: npm run dev
     volumes:
-      - ./bot:/app
+      - .:/app
+      - /app/node_modules
     network_mode: "host"
     environment:
       - NODE_ENV=development
@@ -18,12 +19,13 @@ services:
   web-dev:
     container_name: splatoon_web_dev
     build:
-      context: ./web
+      context: ./apps/web
       dockerfile: Dockerfile
       target: builder
     command: npm run dev
     volumes:
-      - ./web:/app
+      - .:/app
+      - /app/node_modules
     network_mode: "host"
     environment:
       - NODE_ENV=development

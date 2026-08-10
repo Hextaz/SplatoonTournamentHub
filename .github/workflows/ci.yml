@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  validate-bot:
-    name: Validate Bot (TS & Build)
+  validate-monorepo:
+    name: Validate Monorepo (Build & Test)
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout code
@@ -19,44 +19,21 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: bot/package-lock.json
 
       - name: 📦 Install dependencies
-        working-directory: ./bot
         run: npm ci
 
-      - name: 🧪 Run Unit Tests (Vitest)
-        working-directory: ./bot
+      - name: 🛠️ Build Shared Package
+        run: cd packages/shared && npm run build
+
+      - name: 🧪 Run Unit Tests
         env:
           SUPABASE_URL: http://127.0.0.1:54321
           SUPABASE_SERVICE_ROLE_KEY: dummy_key_for_ci
         run: npm run test
 
-      - name: 🛠️ Run TypeScript compilation (build)
-        working-directory: ./bot
+      - name: 🛠️ Build Apps (Bot & Web)
         env:
           SUPABASE_URL: http://127.0.0.1:54321
           SUPABASE_SERVICE_ROLE_KEY: dummy_key_for_ci
-        run: npm run build
-
-  validate-web:
-    name: Validate Web (Lint & Build)
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-
-      - name: 📦 Install dependencies
-        working-directory: ./web
-        run: npm ci
-
-      - name: 🛠️ Run Lint & Next.js Build
-        working-directory: ./web
         run: npm run build

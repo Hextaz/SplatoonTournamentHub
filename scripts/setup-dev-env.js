@@ -84,8 +84,8 @@ console.log("🔄 Starting local environment configuration...");
 const status = getSupabaseStatusWithRetries();
 
 // Update Bot env
-const botEnvPath = path.join(__dirname, '../bot/.env');
-const botExamplePath = path.join(__dirname, '../bot/.env.example');
+const botEnvPath = path.join(__dirname, '../apps/bot/.env');
+const botExamplePath = path.join(__dirname, '../apps/bot/.env.example');
 updateEnvFile(botEnvPath, botExamplePath, {
   SUPABASE_URL: status.API_URL,
   SUPABASE_KEY: status.ANON_KEY,
@@ -95,8 +95,8 @@ updateEnvFile(botEnvPath, botExamplePath, {
 });
 
 // Update Web env
-const webEnvPath = path.join(__dirname, '../web/.env.local');
-const webExamplePath = path.join(__dirname, '../web/.env.example');
+const webEnvPath = path.join(__dirname, '../apps/web/.env.local');
+const webExamplePath = path.join(__dirname, '../apps/web/.env.example');
 updateEnvFile(webEnvPath, webExamplePath, {
   NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,

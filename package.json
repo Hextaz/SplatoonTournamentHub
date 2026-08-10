@@ -1,0 +1,17 @@
+{
+  "name": "tournament-hub-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "docker compose up -d",
+    "dev:bot": "npm run dev --workspace=@hub/bot",
+    "dev:web": "npm run dev --workspace=@hub/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  }
+}
