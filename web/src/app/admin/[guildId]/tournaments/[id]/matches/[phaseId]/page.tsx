@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic';
-﻿import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { notFound } from "next/navigation";
 import { PhaseMatchesClient } from "./PhaseMatchesClient";
 
@@ -11,7 +11,7 @@ export default async function PhaseMatchesPage({
   const { guildId, id: tournamentId, phaseId } = await params;
 
   // 1. Fetch phase
-  const { data: phase, error: phaseError } = await supabase
+  const { data: phase, error: phaseError } = await supabaseAdmin
     .from("phases")
     .select("*")
     .eq("id", phaseId)
@@ -22,7 +22,7 @@ export default async function PhaseMatchesPage({
   }
 
   // 2. Fetch matches for that phase
-  const { data: matches, error: matchesError } = await supabase
+  const { data: matches, error: matchesError } = await supabaseAdmin
     .from("matches")
     .select("*, team1:teams!team1_id(name), team2:teams!team2_id(name)")
     .eq("phase_id", phase.id)
@@ -34,7 +34,7 @@ export default async function PhaseMatchesPage({
   }
 
   // 3. Fetch phase_teams
-  const { data: ptData, error: ptError } = await supabase
+  const { data: ptData, error: ptError } = await supabaseAdmin
     .from("phase_teams")
     .select("*, teams(id, name)")
     .eq("phase_id", phase.id);
@@ -44,7 +44,7 @@ export default async function PhaseMatchesPage({
   }
 
   // 4. Fetch groups
-  const { data: groupsData, error: groupsError } = await supabase
+  const { data: groupsData, error: groupsError } = await supabaseAdmin
     .from("groups")
     .select("*")
     .eq("phase_id", phase.id)

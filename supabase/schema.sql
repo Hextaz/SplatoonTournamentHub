@@ -162,6 +162,11 @@ CREATE POLICY "Owner can insert server settings"
   ON server_settings FOR INSERT
   WITH CHECK ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE tournaments.guild_id = server_settings.guild_id));
 
+CREATE POLICY "Service role can modify server settings"
+  ON server_settings FOR ALL
+  USING (current_setting('request.jwt.role', true) = 'service_role')
+  WITH CHECK (current_setting('request.jwt.role', true) = 'service_role');
+
 -- PHASES, TEAMS, MATCHES
 -- Mï¿½ï¿½mes rï¿½ï¿½gles : lecture pour tous, modif pour le owner du tournoi concernï¿½ï¿½
 CREATE POLICY "Public can view child items"
@@ -185,9 +190,15 @@ CREATE POLICY "Owner can modify matches"
   USING ((auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(admin_ids) FROM tournaments WHERE id = (SELECT tournament_id FROM phases WHERE phases.id = matches.phase_id LIMIT 1)));
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Public can view groups"
+  ON groups FOR SELECT USING (true);
+
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE phase_teams ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public can view phase_teams"
+  ON phase_teams FOR SELECT USING (true);
 
 -- Création d'une fonction pour définir le créateur en tant qu'administrateur
 CREATE OR REPLACE FUNCTION set_tournament_creator_as_admin()
@@ -273,3 +284,291 @@ DROP POLICY IF EXISTS "Captains can delete their team" ON teams;
 DROP POLICY IF EXISTS "Captains can insert team members" ON team_members;
 DROP POLICY IF EXISTS "Captains can modify team members" ON team_members;
 DROP POLICY IF EXISTS "Captains can delete team members" ON team_members;
+
+-- =============================================================================
+--  Permissions pour le rôle anonyme (utilisé par le frontend) et le service_role
+-- =============================================================================
+GRANT SELECT ON TABLE
+  server_settings,
+  tournaments,
+  phases,
+  teams,
+  matches,
+  groups,
+  team_members,
+  phase_teams
+TO anon;
+
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO service_role;
+
+-- =============================================================================
+--  Migrations 27-30 (Atomic operations, RPCs & guild_admins)
+-- =============================================================================
+
+-- Migration 27: Atomic match operations + data integrity improvements
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS version INT DEFAULT 0;
+
+CREATE OR REPLACE FUNCTION assign_team_to_match(
+  p_target_match_id UUID,
+  p_team_id UUID
+)
+RETURNS TABLE(assigned_slot TEXT, match_id UUID) AS $$
+DECLARE
+  v_team1 UUID;
+  v_team2 UUID;
+  v_version INT;
+BEGIN
+  SELECT team1_id, team2_id, version INTO v_team1, v_team2, v_version
+  FROM matches WHERE id = p_target_match_id FOR UPDATE;
+
+  IF v_team1 IS NULL THEN
+    UPDATE matches SET team1_id = p_team_id, version = version + 1
+    WHERE id = p_target_match_id AND version = v_version;
+    IF FOUND THEN
+      RETURN QUERY SELECT 'team1'::TEXT, p_target_match_id;
+      RETURN;
+    END IF;
+  ELSIF v_team2 IS NULL AND v_team1 != p_team_id THEN
+    UPDATE matches SET team2_id = p_team_id, version = version + 1
+    WHERE id = p_target_match_id AND version = v_version;
+    IF FOUND THEN
+      RETURN QUERY SELECT 'team2'::TEXT, p_target_match_id;
+      RETURN;
+    END IF;
+  END IF;
+
+  RETURN;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION regenerate_phase_seeding(
+  p_phase_id UUID,
+  p_participants JSONB
+)
+RETURNS VOID AS $$
+BEGIN
+  DELETE FROM matches WHERE phase_id = p_phase_id;
+  DELETE FROM phase_teams WHERE phase_id = p_phase_id;
+
+  INSERT INTO phase_teams (phase_id, team_id, seed)
+  SELECT p_phase_id, (elem->>'team_id')::UUID, (elem->>'seed')::INT
+  FROM jsonb_array_elements(p_participants) AS elem;
+END;
+$$ LANGUAGE plpgsql;
+
+ALTER TABLE phase_teams DROP CONSTRAINT IF EXISTS unique_seed_per_phase;
+ALTER TABLE phase_teams ADD CONSTRAINT unique_seed_per_phase UNIQUE(phase_id, seed);
+
+CREATE INDEX IF NOT EXISTS idx_matches_phase_status ON matches(phase_id, status);
+CREATE INDEX IF NOT EXISTS idx_matches_group_status ON matches(group_id, status);
+CREATE INDEX IF NOT EXISTS idx_phase_teams_phase_seed ON phase_teams(phase_id, seed);
+CREATE INDEX IF NOT EXISTS idx_phases_tournament_order ON phases(tournament_id, phase_order);
+
+ALTER TABLE matches DROP CONSTRAINT IF EXISTS chk_match_status_valid;
+ALTER TABLE matches ADD CONSTRAINT chk_match_status_valid
+  CHECK (status IN ('PENDING', 'IN_PROGRESS', 'WAITING_VALIDATION', 'COMPLETED', 'CONTESTED', 'DISPUTED', 'FF', 'DSQ', 'BYE'));
+
+ALTER TABLE matches DROP CONSTRAINT IF EXISTS chk_scores_nonnegative;
+ALTER TABLE matches ADD CONSTRAINT chk_scores_nonnegative
+  CHECK (team1_score >= 0 AND team2_score >= 0);
+
+-- Migration 28: Relax tournaments RLS
+DROP TRIGGER IF EXISTS trg_set_tournament_admin ON tournaments;
+DROP FUNCTION IF EXISTS set_tournament_creator_as_admin();
+
+-- Migration 29 & 30: Admin sync RPCs & guild_admins table
+CREATE OR REPLACE FUNCTION add_admin_to_all_tournaments(target_guild_id TEXT, new_admin_id TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF current_setting('request.jwt.role', true) != 'service_role' THEN
+    RAISE EXCEPTION 'Permission denied: only service_role can call this function';
+  END IF;
+
+  UPDATE tournaments
+  SET admin_ids = array_append(
+    array_remove(admin_ids, new_admin_id),
+    new_admin_id
+  )
+  WHERE guild_id = target_guild_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION remove_admin_from_all_tournaments(target_guild_id TEXT, removed_admin_id TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF current_setting('request.jwt.role', true) != 'service_role' THEN
+    RAISE EXCEPTION 'Permission denied: only service_role can call this function';
+  END IF;
+
+  UPDATE tournaments
+  SET admin_ids = array_remove(admin_ids, removed_admin_id)
+  WHERE guild_id = target_guild_id;
+END;
+$$;
+
+-- Migration 30: guild_admins table & is_admin_of_tournament update
+CREATE TABLE IF NOT EXISTS guild_admins (
+  guild_id TEXT NOT NULL,
+  discord_id TEXT NOT NULL,
+  reason TEXT NOT NULL CHECK (reason IN ('ADMINISTRATOR', 'MANAGE_GUILD', 'TO_ROLE', 'SERVER_OWNER')),
+  granted_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (guild_id, discord_id)
+);
+
+ALTER TABLE guild_admins ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view guild_admins" ON guild_admins;
+CREATE POLICY "Public can view guild_admins" ON guild_admins
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Service role can modify guild_admins" ON guild_admins;
+CREATE POLICY "Service role can modify guild_admins" ON guild_admins
+  FOR ALL
+  USING (current_setting('request.jwt.role', true) = 'service_role')
+  WITH CHECK (current_setting('request.jwt.role', true) = 'service_role');
+
+CREATE OR REPLACE FUNCTION is_admin_of_tournament(tid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM tournaments t
+    WHERE t.id = tid
+    AND (
+      EXISTS (
+        SELECT 1 FROM guild_admins ga
+        WHERE ga.guild_id = t.guild_id
+        AND ga.discord_id = (auth.jwt() ->> 'discord_id')::varchar
+      )
+      OR
+      (auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(t.admin_ids))
+    )
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT ALL ON TABLE guild_admins TO anon, service_role;
+
+
+
+
+-- Migration 31: Fix server_settings permissions, ensure guild_admins table and service_role GRANTs
+-- Fixes permission denied (42501) when service_role inserts into server_settings
+-- Ensures guild_admins table, RPCs, and RLS policies are up to date in production
+
+-- 1. Create guild_admins table if not exists
+CREATE TABLE IF NOT EXISTS guild_admins (
+  guild_id TEXT NOT NULL,
+  discord_id TEXT NOT NULL,
+  reason TEXT NOT NULL CHECK (reason IN ('ADMINISTRATOR', 'MANAGE_GUILD', 'TO_ROLE', 'SERVER_OWNER')),
+  granted_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (guild_id, discord_id)
+);
+
+-- 2. Enable RLS on guild_admins
+ALTER TABLE guild_admins ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view guild_admins" ON guild_admins;
+CREATE POLICY "Public can view guild_admins" ON guild_admins
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Service role can modify guild_admins" ON guild_admins;
+CREATE POLICY "Service role can modify guild_admins" ON guild_admins
+  FOR ALL
+  USING (current_setting('request.jwt.role', true) = 'service_role')
+  WITH CHECK (current_setting('request.jwt.role', true) = 'service_role');
+
+-- 3. Add service_role RLS policy on server_settings
+DROP POLICY IF EXISTS "Service role can modify server settings" ON server_settings;
+CREATE POLICY "Service role can modify server settings" ON server_settings
+  FOR ALL
+  USING (current_setting('request.jwt.role', true) = 'service_role')
+  WITH CHECK (current_setting('request.jwt.role', true) = 'service_role');
+
+-- 4. Ensure service_role has FULL privileges across all public tables, sequences, and routines
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO service_role;
+
+-- 5. Update is_admin_of_tournament helper function to rely on guild_admins
+CREATE OR REPLACE FUNCTION is_admin_of_tournament(tid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM tournaments t
+    WHERE t.id = tid
+    AND (
+      EXISTS (
+        SELECT 1 FROM guild_admins ga
+        WHERE ga.guild_id = t.guild_id
+        AND ga.discord_id = (auth.jwt() ->> 'discord_id')::varchar
+      )
+      OR
+      (auth.jwt() ->> 'discord_id')::varchar IN (SELECT unnest(t.admin_ids))
+    )
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6. RPCs to sync admins safely
+CREATE OR REPLACE FUNCTION add_admin_to_all_tournaments(target_guild_id TEXT, new_admin_id TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF current_setting('request.jwt.role', true) != 'service_role' THEN
+    RAISE EXCEPTION 'Permission denied: only service_role can call this function';
+  END IF;
+
+  UPDATE tournaments
+  SET admin_ids = array_append(
+    array_remove(admin_ids, new_admin_id),
+    new_admin_id
+  )
+  WHERE guild_id = target_guild_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION remove_admin_from_all_tournaments(target_guild_id TEXT, removed_admin_id TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF current_setting('request.jwt.role', true) != 'service_role' THEN
+    RAISE EXCEPTION 'Permission denied: only service_role can call this function';
+  END IF;
+
+  UPDATE tournaments
+  SET admin_ids = array_remove(admin_ids, removed_admin_id)
+  WHERE guild_id = target_guild_id;
+END;
+$$;
+
+
+-- Migration 32: Add SELECT policy for phase_teams table
+-- Fixes issue where phase_teams seeding assignments could not be read via anon client
+
+ALTER TABLE phase_teams ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view phase_teams" ON phase_teams;
+CREATE POLICY "Public can view phase_teams"
+  ON phase_teams FOR SELECT USING (true);
+
+
+-- Migration 33: Add SELECT policy for groups table
+-- Fixes issue where groups and group matches could not be read via anon client
+
+ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view groups" ON groups;
+CREATE POLICY "Public can view groups"
+  ON groups FOR SELECT USING (true);
