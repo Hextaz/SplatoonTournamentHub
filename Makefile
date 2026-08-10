@@ -22,10 +22,8 @@ init: install supabase-start env-init db-init
 	@echo "👉 Utilisez 'make dev' pour lancer l'application et le bot."
 
 install:
-	@echo "📦 Installation des dépendances dans /bot..."
-	cd bot && npm install
-	@echo "📦 Installation des dépendances dans /web..."
-	cd web && npm install
+	@echo "📦 Installation de l'ensemble des dépendances du monorepo..."
+	npm install
 
 supabase-start:
 	@echo "⚡ Démarrage de Supabase en local..."
@@ -40,8 +38,11 @@ env-init:
 	node scripts/setup-dev-env.js
 
 db-init:
-	@echo "🗄️ Application du schéma SQL local..."
-	docker exec -i supabase_db_SplatoonTournamentHub psql -U postgres -d postgres < supabase/schema.sql
+	@echo "🗄️ Application des migrations SQL locales..."
+	@for f in $$(ls supabase/migrations/*.sql | sort); do \
+		echo "-> Exécution de $$f..."; \
+		docker exec -i supabase_db_SplatoonTournamentHub psql -U postgres -d postgres < $$f; \
+	done
 
 dev:
 	@echo "🚀 Démarrage du Bot et de Next.js en arrière-plan..."
@@ -70,17 +71,19 @@ dev-build:
 	docker compose build
 
 lint:
-	@echo "🔍 Vérification du typage dans /bot..."
-	cd bot && npx tsc --noEmit
-	@echo "🔍 Linting dans /web..."
-	cd web && npm run lint
+	@echo "🔍 Vérification du typage dans apps/bot..."
+	cd apps/bot && npx tsc --noEmit
+	@echo "🔍 Linting dans apps/web..."
+	cd apps/web && npm run lint
 
 test:
-	@echo "🧪 Exécution des tests unitaires dans /bot..."
-	cd bot && npm run test
+	@echo "🧪 Exécution des tests unitaires..."
+	npm run test
 
 build:
-	@echo "🛠️ Compilation de /bot..."
-	cd bot && npm run build
-	@echo "🛠️ Compilation de /web..."
-	cd web && npm run build
+	@echo "🛠️ Compilation du package partagé @hub/shared..."
+	cd packages/shared && npm run build
+	@echo "🛠️ Compilation de apps/bot..."
+	cd apps/bot && npm run build
+	@echo "🛠️ Compilation de apps/web..."
+	cd apps/web && npm run build

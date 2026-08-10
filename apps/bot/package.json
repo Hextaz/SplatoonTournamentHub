@@ -1,5 +1,5 @@
 {
-  "name": "bot",
+  "name": "@hub/bot",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@hub/shared": "*",
     "@supabase/supabase-js": "^2.102.1",
     "cors": "^2.8.6",
     "discord.js": "^14.26.2",
