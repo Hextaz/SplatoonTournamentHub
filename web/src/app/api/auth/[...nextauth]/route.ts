@@ -49,7 +49,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/',
   },
-  secret: process.env.NEXTAUTH_SECRET || "super-secret-default-key-for-dev",
+  secret: process.env.NEXTAUTH_SECRET || "default-fallback-secret-key-for-nextauth-do-not-use-in-production",
 };
 
 const handler = NextAuth(authOptions);

@@ -9,10 +9,6 @@ export default function TournamentsHistoryPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
   const fetchHistory = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -25,6 +21,10 @@ export default function TournamentsHistoryPage() {
     setHistory(data || []);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchHistory();
+  }, [guildId]);
 
   const deleteTournament = async (id: string, name: string) => {
     if (confirm(`Attention : La suppression de "${name}" effacera définitivement ce tournoi et ses matchs associés de la base de données. Continuer ?`)) {

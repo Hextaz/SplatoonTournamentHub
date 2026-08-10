@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
+import { getAuthenticatedGuildId } from "../utils/tenant";
 
 export const serverSettingsRouter = Router();
 
@@ -7,6 +8,11 @@ export const serverSettingsRouter = Router();
 serverSettingsRouter.put("/", async (req, res) => {
   try {
     const { guild_id, captain_role_id, to_role_id, checkin_channel_id, announcement_channel_id, registration_channel_id } = req.body;
+    const authGuildId = getAuthenticatedGuildId(req);
+
+    if (!authGuildId || guild_id !== authGuildId) {
+      return res.status(403).json({ error: "Accès refusé : vous ne pouvez modifier que les paramètres de votre propre serveur." });
+    }
 
     if (!guild_id) {
       return res.status(400).json({ error: "guild_id is required" });

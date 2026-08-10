@@ -74,11 +74,14 @@ app.get("/health", (_req, res) => {
 app.post("/api/webhook/team-update", async (req, res) => {
   try {
     const webhookSecret = process.env.WEBHOOK_SECRET || process.env.BOT_API_SECRET;
-    if (webhookSecret) {
-      const receivedSecret = req.headers["x-webhook-secret"] || req.query.secret;
-      if (receivedSecret !== webhookSecret) {
-        return res.status(401).json({ error: "Unauthorized: Invalid webhook secret" });
-      }
+    if (!webhookSecret) {
+      logger.error("[Webhook] Secret non configuré dans l'environnement");
+      return res.status(500).json({ error: "Server authentication misconfiguration" });
+    }
+
+    const receivedSecret = req.headers["x-webhook-secret"] || req.query.secret;
+    if (receivedSecret !== webhookSecret) {
+      return res.status(401).json({ error: "Unauthorized: Invalid webhook secret" });
     }
 
     const webhookService = new WebhookRolesService(client);
