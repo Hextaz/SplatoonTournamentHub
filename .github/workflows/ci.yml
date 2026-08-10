@@ -27,10 +27,16 @@ jobs:
 
       - name: 🧪 Run Unit Tests (Vitest)
         working-directory: ./bot
+        env:
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_SERVICE_ROLE_KEY: dummy_key_for_ci
         run: npm run test
 
       - name: 🛠️ Run TypeScript compilation (build)
         working-directory: ./bot
+        env:
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_SERVICE_ROLE_KEY: dummy_key_for_ci
         run: npm run build
 
   validate-web:
