@@ -1,12 +1,17 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
+import { getAuthenticatedGuildId, verifyTeamGuild, verifyTournamentGuild } from "../utils/tenant";
 
 export const teamRouter = Router();
 
 // POST /api/teams — Create a team with its members
 teamRouter.post("/", async (req, res) => {
   try {
-    const { tournament_id, name, captain_discord_id, is_checked_in, members, guildId } = req.body;
+    const { tournament_id, name, captain_discord_id, is_checked_in, members } = req.body;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournament_id, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
 
     if (!tournament_id || !name) {
       return res.status(400).json({ error: "tournament_id and name are required" });
@@ -54,13 +59,20 @@ teamRouter.post("/", async (req, res) => {
 // POST /api/teams/generate-fake — Generate fake teams for testing
 teamRouter.post("/generate-fake", async (req, res) => {
   try {
-    const { tournament_id, count, guildId } = req.body;
-
-    if (!tournament_id || !count || count <= 0) {
-      return res.status(400).json({ error: "tournament_id and a positive count are required" });
+    const { tournament_id, count } = req.body;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournament_id, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
     }
 
-    const fakeTeams = Array.from({ length: count }).map(() => ({
+    if (!tournament_id || typeof count !== "number" || count <= 0) {
+      return res.status(400).json({ error: "tournament_id and a positive count integer are required" });
+    }
+
+    // Plafonner la génération d'équipes fictives à 64 max pour éviter le DoS / Memory Exhaustion
+    const safeCount = Math.min(Math.max(1, count), 64);
+
+    const fakeTeams = Array.from({ length: safeCount }).map(() => ({
       tournament_id,
       name: `Equipe Fictive ${Math.floor(Math.random() * 10000)}`,
       captain_discord_id: `999999999${Math.floor(Math.random() * 10000)}`,
@@ -120,6 +132,11 @@ teamRouter.post("/generate-fake", async (req, res) => {
 teamRouter.put("/:id", async (req, res) => {
   try {
     const teamId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTeamGuild(teamId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : cette équipe n'appartient pas à votre serveur." });
+    }
+
     const { name, captain_discord_id, members } = req.body;
 
     if (!name) {
@@ -169,6 +186,11 @@ teamRouter.put("/:id", async (req, res) => {
 teamRouter.patch("/:id/checkin", async (req, res) => {
   try {
     const teamId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTeamGuild(teamId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : cette équipe n'appartient pas à votre serveur." });
+    }
+
     const { is_checked_in } = req.body;
 
     if (typeof is_checked_in !== "boolean") {
@@ -196,6 +218,10 @@ teamRouter.patch("/:id/checkin", async (req, res) => {
 teamRouter.delete("/:id", async (req, res) => {
   try {
     const teamId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTeamGuild(teamId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : cette équipe n'appartient pas à votre serveur." });
+    }
 
     // team_members cascade or we delete manually
     await supabase.from("team_members").delete().eq("team_id", teamId);

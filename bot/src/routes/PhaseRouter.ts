@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { BracketGeneratorService } from "../services/BracketGeneratorService";
 import { RoundRobinGeneratorService } from "../services/RoundRobinGeneratorService";
 import { LifecycleService } from "../services/LifecycleService";
+import { getAuthenticatedGuildId, verifyPhaseGuild, verifyTournamentGuild } from "../utils/tenant";
 
 export const phaseRouter = Router();
 
@@ -10,6 +11,11 @@ export const phaseRouter = Router();
 phaseRouter.post("/", async (req, res) => {
   try {
     const { tournament_id, name, format, phase_order, bracket_size, settings } = req.body;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournament_id, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
+
     const { data: newPhase, error } = await supabase
       .from("phases")
       .insert({
@@ -33,10 +39,16 @@ phaseRouter.post("/", async (req, res) => {
 // Obtenir les phases d'un tournoi
 phaseRouter.get("/:tournamentId", async (req, res) => {
   try {
+    const tournamentId = req.params.tournamentId;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournamentId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
+
     const { data: phases, error } = await supabase
       .from("phases")
       .select("*")
-      .eq("tournament_id", req.params.tournamentId)
+      .eq("tournament_id", tournamentId)
       .order("phase_order", { ascending: true });
 
     if (error) throw error;
@@ -50,6 +62,11 @@ phaseRouter.get("/:tournamentId", async (req, res) => {
 phaseRouter.put("/:id/seeding", async (req, res) => {
   try {
     const phaseId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyPhaseGuild(phaseId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : cette phase n'appartient pas à votre serveur." });
+    }
+
     const { participants } = req.body;
 
     // 0. Sécurité : Vérifier si des matchs ont déjà commencé
@@ -116,6 +133,11 @@ phaseRouter.put("/:id/seeding", async (req, res) => {
 phaseRouter.get("/:id/seeding", async (req, res) => {
   try {
     const phaseId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyPhaseGuild(phaseId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : cette phase n'appartient pas à votre serveur." });
+    }
+
     const { data: seeded, error: err1 } = await supabase.from('phase_teams').select('team_id, seed, teams(id, name, logo_url)').eq('phase_id', phaseId).order('seed', { ascending: true });
     if (err1) throw err1;
     res.status(200).json(seeded || []);
@@ -128,6 +150,10 @@ phaseRouter.get("/:id/seeding", async (req, res) => {
 phaseRouter.delete("/:id", async (req, res) => {
   try {
     const phaseId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyPhaseGuild(phaseId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : cette phase n'appartient pas à votre serveur." });
+    }
 
     const { error: matchErr } = await supabase.from("matches").delete().eq("phase_id", phaseId);
     if (matchErr) throw matchErr;
@@ -149,6 +175,11 @@ phaseRouter.delete("/:id", async (req, res) => {
 phaseRouter.put("/:id", async (req, res) => {
   try {
     const phaseId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyPhaseGuild(phaseId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : cette phase n'appartient pas à votre serveur." });
+    }
+
     const { name, phase_order, bracket_size, max_groups, settings } = req.body;
 
     const updatePayload: any = {};
@@ -177,6 +208,11 @@ phaseRouter.put("/:id", async (req, res) => {
 phaseRouter.post("/:id/sync", async (req, res) => {
   try {
     const phaseId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyPhaseGuild(phaseId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : cette phase n'appartient pas à votre serveur." });
+    }
+
     const { guildId } = req.body;
     const discordClient = req.app.locals.discordClient;
 

@@ -2,12 +2,18 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { ScoreService } from "../services/ScoreService";
 import { TextChannel } from "discord.js";
+import { getAuthenticatedGuildId, verifyMatchGuild } from "../utils/tenant";
 
 export const matchRouter = Router();
 
 matchRouter.put("/:id/force-score", async (req, res) => {
   try {
     const matchId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyMatchGuild(matchId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce match n'appartient pas à votre serveur." });
+    }
+
     const { team1_score, team2_score } = req.body;
 
     if (

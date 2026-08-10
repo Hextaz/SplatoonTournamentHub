@@ -4,6 +4,7 @@ import { RegistrationService } from "../services/RegistrationService";
 import { LifecycleService } from "../services/LifecycleService";
 import { ArchiveService } from "../services/ArchiveService";
 import { SchedulerService } from "../services/SchedulerService";
+import { getAuthenticatedGuildId, verifyTournamentGuild } from "../utils/tenant";
 
 export const tournamentRouter = Router();
 
@@ -19,7 +20,14 @@ tournamentRouter.post("/", async (req, res) => {
     } = req.body;
 
     const effectiveGuildId = guild_id || guildId;
-    if (!effectiveGuildId || !name) {
+    const authGuildId = getAuthenticatedGuildId(req);
+
+    if (!authGuildId || (effectiveGuildId && effectiveGuildId !== authGuildId)) {
+      return res.status(403).json({ error: "Accès refusé : vous ne pouvez créer un tournoi que sur votre propre serveur." });
+    }
+
+    const targetGuildId = effectiveGuildId || authGuildId;
+    if (!targetGuildId || !name) {
       return res.status(400).json({ error: "guild_id and name are required" });
     }
 
@@ -27,13 +35,13 @@ tournamentRouter.post("/", async (req, res) => {
     const { data: serverSettings } = await supabase
       .from("server_settings")
       .select("*")
-      .eq("guild_id", effectiveGuildId)
+      .eq("guild_id", targetGuildId)
       .single();
 
     const { data: created, error } = await supabase
       .from("tournaments")
       .insert({
-        guild_id: effectiveGuildId,
+        guild_id: targetGuildId,
         name,
         description: description || null,
         status: "DRAFT",
@@ -62,6 +70,11 @@ tournamentRouter.post("/", async (req, res) => {
 tournamentRouter.put("/:id/settings", async (req, res) => {
   try {
     const tournamentId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournamentId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
+
     const {
       start_at, checkin_start_at, checkin_end_at,
       discord_registration_channel_id, discord_announcement_channel_id,
@@ -154,6 +167,11 @@ tournamentRouter.put("/:id/settings", async (req, res) => {
 tournamentRouter.patch("/:id/visibility", async (req, res) => {
   try {
     const tournamentId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournamentId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
+
     const { is_public } = req.body;
 
     if (typeof is_public !== "boolean") {
@@ -181,12 +199,16 @@ tournamentRouter.patch("/:id/visibility", async (req, res) => {
 tournamentRouter.post("/:id/launch", async (req, res) => {
   try {
     const tournamentId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournamentId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
+
     const { guildId } = req.body;
     const discordClient = req.app.locals.discordClient;
 
-    if (!guildId) return res.status(400).json({ error: "Missing guildId" });
-
-    await LifecycleService.launchTournament(tournamentId, guildId, discordClient);
+    const targetGuildId = guildId || authGuildId;
+    await LifecycleService.launchTournament(tournamentId, targetGuildId, discordClient);
     res.json({ success: true, message: "Tournament launched successfully." });
   } catch (error: any) {
     console.error(`[TournamentRouter] Error launching tournament:`, error);
@@ -198,12 +220,16 @@ tournamentRouter.post("/:id/launch", async (req, res) => {
 tournamentRouter.post("/:id/close", async (req, res) => {
   try {
     const tournamentId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournamentId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
+
     const { guildId } = req.body;
     const discordClient = req.app.locals.discordClient;
 
-    if (!guildId) return res.status(400).json({ error: "Missing guildId" });
-
-    await LifecycleService.closeTournament(tournamentId, guildId, discordClient);
+    const targetGuildId = guildId || authGuildId;
+    await LifecycleService.closeTournament(tournamentId, targetGuildId, discordClient);
     res.json({ success: true, message: "Tournament closed successfully." });
   } catch (error: any) {
     console.error(`[TournamentRouter] Error closing tournament:`, error);
@@ -215,8 +241,12 @@ tournamentRouter.post("/:id/close", async (req, res) => {
 tournamentRouter.post("/:id/registrations", async (req, res) => {
   try {
     const tournamentId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournamentId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
+
     const { action } = req.body;
-    
     const discordClient = req.app.locals.discordClient;
     
     if (action === 'open') {
@@ -243,8 +273,7 @@ tournamentRouter.post("/:id/registrations", async (req, res) => {
           return res.status(400).json({ error: "Cannot open registrations: The tournament has already reached the check-in phase or has already started." });
         }
 
-        const result = await RegistrationService.sendRegistrationEmbed(tournamentId, discordClient);
-        // Si result == vrai, pas d'erreur c'est good
+        await RegistrationService.sendRegistrationEmbed(tournamentId, discordClient);
 
         // Marque les inscriptions comme ouvertes dans la DB
         await supabase
@@ -264,6 +293,10 @@ tournamentRouter.post("/:id/registrations", async (req, res) => {
 tournamentRouter.post("/:id/checkin/stop", async (req, res) => {
   try {
     const tournamentId = req.params.id;
+    const authGuildId = getAuthenticatedGuildId(req);
+    if (!authGuildId || !(await verifyTournamentGuild(tournamentId, authGuildId))) {
+      return res.status(403).json({ error: "Accès refusé : ce tournoi n'appartient pas à votre serveur." });
+    }
 
     const { data: tournament, error: fetchErr } = await supabase
       .from("tournaments")
