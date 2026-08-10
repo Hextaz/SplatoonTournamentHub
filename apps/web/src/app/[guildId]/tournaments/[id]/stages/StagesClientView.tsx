@@ -5,21 +5,23 @@ import { GitCommit } from "lucide-react";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
 import { useRouter } from "next/navigation";
 import { useSupabaseSubscription } from "@/hooks/useSupabaseSubscription";
+import { useRealtimeMatches } from "@/hooks/useRealtimeMatches";
+import { RealtimeBadge } from "@/components/RealtimeBadge";
 
 type Phase = any;
 type Match = any;
 type Team = any;
 
-export function StagesClientView({ phases, matches, teams, phaseTeams }: { phases: Phase[], matches: Match[], teams: Team[], phaseTeams?: any[] }) {
+export function StagesClientView({ phases, matches: initialMatches, teams, phaseTeams }: { phases: Phase[], matches: Match[], teams: Team[], phaseTeams?: any[] }) {
   const router = useRouter();
   const sortedPhases = [...phases].sort((a, b) => a.phase_order - b.phase_order);
   const [activePhaseId, setActivePhaseId] = useState<string | null>(sortedPhases[0]?.id || null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [groupTab, setGroupTab] = useState<"ranking" | "rounds">("ranking");
 
-  useSupabaseSubscription({
-    table: "matches",
-    onChange: () => router.refresh()
+  const { matches, recentlyUpdatedMatchId, isConnected } = useRealtimeMatches({
+    initialMatches,
+    phaseId: activePhaseId || undefined,
   });
 
   useSupabaseSubscription({
@@ -171,7 +173,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
                           )}
 
                           {/* Match box content */}
-                          <div className="h-full bg-[#151722] border border-slate-800/80 hover:border-slate-600/80 rounded-md overflow-hidden flex flex-col shadow-sm transition-colors text-sm font-mono cursor-pointer relative z-10 w-full">
+                          <div className={`h-full bg-[#151722] rounded-md overflow-hidden flex flex-col shadow-sm transition-all duration-500 text-sm font-mono cursor-pointer relative z-10 w-full ${recentlyUpdatedMatchId === match.id ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/50 shadow-emerald-500/30 bg-emerald-950/20' : 'border border-slate-800/80 hover:border-slate-600/80'}`}>
                             <div className={`flex justify-between items-center p-2 border-b border-slate-800/50 ${isTeam1Winner ? 'bg-slate-800/30' : ''}`}>
                               <span className={`truncate mr-2 ${isTeam1Winner ? 'text-slate-200 font-bold' : match.team1?.name ? 'text-slate-400' : 'text-slate-600 italic'}`}>
                                 {match.team1?.name || "TBD"}
@@ -352,7 +354,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
   return (
     <div className="bg-[#0f111a] text-slate-200">
       {/* Top Phase Navigation */}
-      <div className="flex gap-4 mb-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8 pb-4 border-b border-slate-800/50">
         <div className="flex flex-wrap gap-2 items-center">
           {sortedPhases.map((phase) => (
             <button
@@ -363,7 +365,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
               }}
               className={`px-4 py-1.5 text-sm font-semibold transition-colors ${
                 activePhaseId === phase.id
-                  ? "text-blue-400"
+                  ? "text-blue-400 border-b-2 border-blue-400 pb-1"
                   : "text-slate-500 hover:text-slate-300"
               }`}
             >
@@ -371,6 +373,7 @@ export function StagesClientView({ phases, matches, teams, phaseTeams }: { phase
             </button>
           ))}
         </div>
+        <RealtimeBadge isLive={isConnected} />
       </div>
 
       <div className="mt-4">
