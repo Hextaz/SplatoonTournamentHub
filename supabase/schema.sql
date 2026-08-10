@@ -34,6 +34,7 @@ CREATE TABLE tournaments (
     discord_captain_role_id TEXT,
     discord_to_role_id TEXT,
     discord_category_id VARCHAR(50),
+    game_type VARCHAR(50) DEFAULT 'GENERIC',
     admin_ids VARCHAR(50)[],
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()

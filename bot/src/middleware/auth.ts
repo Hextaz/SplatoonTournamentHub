@@ -68,6 +68,15 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
  * - ManageGuild permission
  * - The configured TO role for the server
  */
+interface PermCacheEntry {
+  allowed: boolean;
+  adminCheck?: any;
+  timestamp: number;
+}
+
+const permCache = new Map<string, PermCacheEntry>();
+const PERM_CACHE_TTL_MS = 30_000; // 30 seconds TTL
+
 export function requireGuildAdmin(discordClient: any) {
   return async (req: Request, res: Response, next: NextFunction) => {
     // Resolve discord user ID
@@ -90,6 +99,18 @@ export function requireGuildAdmin(discordClient: any) {
       return res.status(400).json({ error: "guildId required — provide in body, query, or X-Guild-Id header" });
     }
 
+    const cacheKey = `${guildId}:${discordId}`;
+    const cached = permCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && now - cached.timestamp < PERM_CACHE_TTL_MS) {
+      if (!cached.allowed) {
+        return res.status(403).json({ error: "Insufficient Discord permissions (cached)" });
+      }
+      (req as any).adminCheck = cached.adminCheck;
+      return next();
+    }
+
     try {
       const guild = await discordClient.guilds.fetch(guildId).catch(() => null);
       if (!guild) {
@@ -98,6 +119,7 @@ export function requireGuildAdmin(discordClient: any) {
 
       const member = await guild.members.fetch(discordId).catch(() => null);
       if (!member) {
+        permCache.set(cacheKey, { allowed: false, timestamp: now });
         return res.status(403).json({ error: "User not found in guild" });
       }
 
@@ -121,18 +143,24 @@ export function requireGuildAdmin(discordClient: any) {
         hasToRole = member.roles.cache.has(serverSettings.to_role_id);
       }
 
-      if (!isOwner && !hasAdminPerm && !hasToRole) {
-        return res.status(403).json({ error: "Insufficient Discord permissions" });
-      }
+      const isAllowed = isOwner || hasAdminPerm || hasToRole;
 
-      // Attach admin info for downstream use
-      (req as any).adminCheck = {
+      const adminCheck = {
         discordId,
         guildId,
         isOwner,
         hasAdminPerm,
         hasToRole,
       };
+
+      permCache.set(cacheKey, { allowed: isAllowed, adminCheck, timestamp: now });
+
+      if (!isAllowed) {
+        return res.status(403).json({ error: "Insufficient Discord permissions" });
+      }
+
+      // Attach admin info for downstream use
+      (req as any).adminCheck = adminCheck;
 
       next();
     } catch (err) {
