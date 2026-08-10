@@ -25,6 +25,10 @@ jobs:
         working-directory: ./bot
         run: npm ci
 
+      - name: 🧪 Run Unit Tests (Vitest)
+        working-directory: ./bot
+        run: npm run test
+
       - name: 🛠️ Run TypeScript compilation (build)
         working-directory: ./bot
         run: npm run build

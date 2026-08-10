@@ -44,6 +44,7 @@ tournamentRouter.post("/", async (req, res) => {
         guild_id: targetGuildId,
         name,
         description: description || null,
+        game_type: req.body.game_type || "GENERIC",
         status: "DRAFT",
         start_at: start_at || null,
         checkin_start_at: checkin_start_at || null,

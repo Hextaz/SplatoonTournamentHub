@@ -16,7 +16,7 @@ interface MatchData {
 }
 
 export class BracketGeneratorService {
-  private static getStandardSeeds(bracketSize: number): number[] {
+  public static getStandardSeeds(bracketSize: number): number[] {
     let seeds = [1, 2];
     for (let currentSize = 4; currentSize <= bracketSize; currentSize *= 2) {
       const nextSeeds = [];

@@ -75,6 +75,10 @@ lint:
 	@echo "🔍 Linting dans /web..."
 	cd web && npm run lint
 
+test:
+	@echo "🧪 Exécution des tests unitaires dans /bot..."
+	cd bot && npm run test
+
 build:
 	@echo "🛠️ Compilation de /bot..."
 	cd bot && npm run build
