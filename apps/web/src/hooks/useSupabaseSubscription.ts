@@ -23,10 +23,15 @@ export function useSupabaseSubscription({
 }: UseSupabaseSubscriptionOptions) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const stableCallback = useCallback((payload: any) => {
-    onChangeRef.current(payload);
+    if (onChangeRef.current) {
+      onChangeRef.current(payload);
+    }
   }, []);
 
   useEffect(() => {
