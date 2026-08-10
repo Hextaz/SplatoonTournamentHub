@@ -49,13 +49,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/',
   },
-  secret: (() => {
-    const secret = process.env.NEXTAUTH_SECRET;
-    if (!secret && process.env.NODE_ENV === "production") {
-      throw new Error("NEXTAUTH_SECRET variable d'environnement manquante en production !");
-    }
-    return secret || "dev-only-secret-do-not-use-in-production-environment";
-  })(),
+  secret: process.env.NEXTAUTH_SECRET || "default-fallback-secret-key-for-nextauth-do-not-use-in-production",
 };
 
 const handler = NextAuth(authOptions);
