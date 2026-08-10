@@ -96,21 +96,14 @@ DISCORD_CLIENT_SECRET=your_dev_bot_client_secret
 
 ---
 
-## 🐙 Git Workflow & Quality Assurance
+## 🐙 Contributing
 
-### History Reset (Initial Squash)
-All legacy commits on `main` have been squashed into a single clean initialization commit tagged as `v0.1.0-pre-release`. 
-To push this new clean history to GitHub, execute:
-```bash
-git push origin main --force --tags
-```
-
-### Future Contributions Workflow
+### Workflow
 1. Develop features on a dedicated branch: `git checkout -b feature/your-feature-name`.
 2. Push your branch and open a **Pull Request** on GitHub.
 3. Use **Squash and Merge** when merging PRs to `main` to maintain a clean history (1 commit per PR/feature).
 
-### 🤖 CI/CD Verification
+### CI/CD
 A GitHub Actions workflow is active in `.github/workflows/ci.yml`. It triggers on every push and Pull Request to `main`, validating:
 - TypeScript compilation on `/bot` (can be run locally via `make lint`)
 - Linting and production Next.js build on `/web` (can be run locally via `make build`)
