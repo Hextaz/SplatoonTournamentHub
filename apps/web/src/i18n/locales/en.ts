@@ -507,4 +507,21 @@ export const en: typeof fr = {
     noTournaments: "No tournaments found.",
     notDefined: "Not set",
   },
+  adminHeaders: {
+    matchesTitle: "Matches & Refereeing",
+    matchesSubtitle: "Manage all fixtures, override match scores, and monitor tournament progress.",
+    structureTitle: "Tournament Structure",
+    structureSubtitle: "Manage phase structures (brackets, round-robin pools) for your event. Start by defining the overall format.",
+    participantsTitle: "Participants",
+    participantsSubtitle: "Manage registered teams and their check-in status.",
+    placementTitle: "Seeding & Placement",
+    placementSubtitle: "Select a phase to place and seed your teams.",
+    configurePhaseTitle: "Structure / Configure phase \"{name}\"",
+  },
+  error: {
+    title: "An error occurred",
+    desc: "An unexpected error occurred. You can retry or return to the home page.",
+    retry: "Retry",
+    home: "Home",
+  },
 };

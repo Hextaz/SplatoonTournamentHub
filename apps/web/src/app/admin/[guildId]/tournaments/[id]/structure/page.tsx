@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { StructureClient } from "./StructureClient";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +13,8 @@ export default async function TournamentStructurePage({
   params: Promise<{ guildId: string; id: string }>;
 }) {
   const { guildId, id: tournamentId } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // Verify tournament and retrieve info
   const { data: tournament, error: tErr } = await supabase
@@ -34,10 +39,9 @@ export default async function TournamentStructurePage({
   return (
     <div className="p-6 md:p-8 space-y-6 min-h-full">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Structure du Tournoi</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">{t(locale, "adminHeaders.structureTitle")}</h1>
         <p className="text-slate-400">
-          Gérez les phases (arbres de parcours, poules) de votre événement. 
-          Commencez par définir le format global.
+          {t(locale, "adminHeaders.structureSubtitle")}
         </p>
       </header>
 

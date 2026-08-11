@@ -505,4 +505,21 @@ export const fr = {
     noTournaments: "Aucun tournoi trouvé.",
     notDefined: "Non défini",
   },
+  adminHeaders: {
+    matchesTitle: "Matchs & Arbitrage",
+    matchesSubtitle: "Gérez l'ensemble des rencontres, forcez les résultats et observez l'avancée du tournoi.",
+    structureTitle: "Structure du Tournoi",
+    structureSubtitle: "Gérez les phases (arbres de parcours, poules) de votre événement. Commencez par définir le format global.",
+    participantsTitle: "Participants",
+    participantsSubtitle: "Gérez les équipes inscrites et leur statut de check-in.",
+    placementTitle: "Placement",
+    placementSubtitle: "Sélectionnez une phase pour y répartir vos équipes (seeding).",
+    configurePhaseTitle: "Structure / Configurer la phase \"{name}\"",
+  },
+  error: {
+    title: "Une erreur est survenue",
+    desc: "Une erreur inattendue s'est produite. Vous pouvez réessayer ou revenir à l'accueil.",
+    retry: "Réessayer",
+    home: "Accueil",
+  },
 };
