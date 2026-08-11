@@ -46,7 +46,7 @@ export function TournamentLifecycleManager({ tournamentId, guildId, status }: Pr
   const handleClose = async () => {
     const confirmName = window.prompt(t("admin.closePrompt"));
     if (confirmName !== "CLOTURER") {
-      alert("Annulation.");
+      alert(t("admin.cancelNotice"));
       return;
     }
 

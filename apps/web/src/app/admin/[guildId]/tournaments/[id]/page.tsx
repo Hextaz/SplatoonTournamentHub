@@ -143,7 +143,9 @@ export default async function TournamentDashboard({ params }: { params: Promise<
                 <div key={phase.id} className="flex justify-between items-center p-3 rounded-lg bg-slate-950 border border-slate-800/50">
                   <div>
                     <h3 className="text-sm font-bold text-white mb-0.5">{phase.phase_order}. {phase.name}</h3>
-                    <p className="text-xs text-slate-500">{phase.format.replace('_', ' ')} • {phase.max_groups ? `${phase.max_groups} Groupes` : `Arbre de ${phase.bracket_size}`}</p>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {phase.format === "ROUND_ROBIN" ? t(locale, "adminStructure.roundRobin") : (phase.format === "SWISS" ? t(locale, "adminStructure.swiss") : (phase.format === "DOUBLE_ELIM" ? t(locale, "adminStructure.doubleElim") : t(locale, "adminStructure.singleElim")))} • {phase.max_groups ? t(locale, "admin.groupsCountSummary", { count: phase.max_groups }) : t(locale, "admin.treeSizeSummary", { size: phase.bracket_size })}
+                    </p>
                   </div>
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300">
                     {!phase.matches || phase.matches.length === 0 

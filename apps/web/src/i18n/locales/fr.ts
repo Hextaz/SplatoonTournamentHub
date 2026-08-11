@@ -143,6 +143,9 @@ export const fr = {
     missing: "Manquants",
     active: "Actifs",
     continueConfig: "Continuer la configuration",
+    groupsCountSummary: "{count} Groupes",
+    treeSizeSummary: "Arbre de {size}",
+    cancelNotice: "Annulation.",
     lifecycleTitle: "Cycle de Vie du Tournoi",
     lifecycleDesc:
       "Contrôlez l'état d'avancement et gérez automatiquement l'infrastructure Discord de l'évènement.",
@@ -295,7 +298,7 @@ export const fr = {
     descPlaceholder: "Règles ou sous-titre de l'évènement...",
     draftWarning: "Le tournoi sera créé sous statut DRAFT. Vous pourrez configurer ses salons, phases et planification horaire ultérieurement.",
     creating: "Création...",
-    createDraftSubmit: "🚀 Créer Brouillon",
+    createDraftSubmit: "Créer Brouillon",
     openEmbedSent: "Embed d'inscription envoyé sur Discord !",
     alreadyOpen: "Inscriptions déjà ouvertes",
     privateBlock: "Tournoi privé (inscriptions bloquées)",
@@ -485,6 +488,8 @@ export const fr = {
     forfeit: "Forfait",
     forfeitDesc: "Attribue des points lorsqu'un participant est forfait dans un match (peut être négatif pour une pénalité).",
     updatedNotice: "Paramètres mis à jour !",
+    update: "Mettre à jour",
+    updateAndReturn: "Mettre à jour + Retour",
   },
   tournamentsHistory: {
     title: "Historique des Tournois",
