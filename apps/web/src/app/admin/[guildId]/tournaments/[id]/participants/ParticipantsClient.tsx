@@ -5,9 +5,11 @@ import { getBotApiUrl, botApiFetch } from '@/utils/api';
 
 import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, UserPlus, Trash2, Search, Pencil } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { tournamentId: string; guildId: string; initialTeams: any[] }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [teams, setTeams] = useState(initialTeams);
   const [isAdding, setIsAdding] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
@@ -280,9 +282,9 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          Liste des Équipes
+          {t("adminParticipants.title")}
           <span className="text-sm font-normal px-2.5 py-0.5 rounded-full bg-slate-700 text-slate-300">
-            {teams.length} inscrits
+            {teams.length} {t("adminParticipants.registeredCount", { count: teams.length })}
           </span>
         </h2>
         <div className="flex gap-2">
@@ -291,14 +293,14 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-blue-500/20"
           >
             <UserPlus className="w-4 h-4" />
-            Ajouter manuellement
+            {t("adminParticipants.addManual")}
           </button>
 
           <button
             onClick={handleGenerateFakeTeams}
             className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-yellow-500/20"
           >
-            Générer Fake
+            {t("adminParticipants.generateFake")}
           </button>
         </div>
       </div>
