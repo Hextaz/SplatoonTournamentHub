@@ -13,7 +13,8 @@ interface Props {
 
 export function CheckinTimeManager({ tournament, guildId }: Props) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const dateLocale = locale === "en" ? "en-US" : "fr-FR";
   const [loadingStop, setLoadingStop] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
@@ -114,8 +115,8 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
             </p>
             <p className="text-xs text-slate-400">
               {t("adminCheckin.endScheduled", {
-                time: checkinEnd.toLocaleTimeString(),
-                date: checkinEnd.toLocaleDateString()
+                time: checkinEnd.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }),
+                date: checkinEnd.toLocaleDateString(dateLocale, { dateStyle: 'medium' })
               })}
             </p>
           </div>
@@ -149,8 +150,8 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
             <p className="font-semibold text-blue-400">{t("adminCheckin.plannedNoticeTitle")}</p>
             <p>
               {t("adminCheckin.plannedNoticeText", {
-                start: checkinStart.toLocaleString(),
-                end: checkinEnd.toLocaleString()
+                start: checkinStart.toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' }),
+                end: checkinEnd.toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' })
               })}
             </p>
             <p className="text-slate-400">{t("adminCheckin.plannedNoticeBot")}</p>
@@ -164,8 +165,8 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
           <ShieldAlert className="w-5 h-5 text-slate-500" />
           <div className="text-xs">
             {t("adminCheckin.closedNotice", {
-              date: checkinEnd.toLocaleDateString(),
-              time: checkinEnd.toLocaleTimeString()
+              date: checkinEnd.toLocaleDateString(dateLocale, { dateStyle: 'medium' }),
+              time: checkinEnd.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })
             })}
           </div>
         </div>

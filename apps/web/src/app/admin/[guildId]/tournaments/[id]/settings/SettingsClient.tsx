@@ -74,7 +74,8 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
       discord_announcement_channel_id: tournament.discord_announcement_channel_id || "",
       discord_checkin_channel_id: tournament.discord_checkin_channel_id || "",
       discord_captain_role_id: tournament.discord_captain_role_id || "",
-      discord_to_role_id: tournament.discord_to_role_id || ""
+      discord_to_role_id: tournament.discord_to_role_id || "",
+      language: tournament.language || "fr",
     }
   });
 
@@ -96,6 +97,7 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
           discord_checkin_channel_id: data.discord_checkin_channel_id || null,
           discord_captain_role_id: data.discord_captain_role_id || null,
           discord_to_role_id: data.discord_to_role_id || null,
+          language: data.language || "fr",
         }),
       });
 
@@ -256,6 +258,22 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
             </div>
           </div>
         )}
+
+        <h2 className="text-xl font-bold text-white mb-2 mt-8 flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-indigo-400" />
+          {t("adminSettingsPage.tournamentLanguage")}
+        </h2>
+        <p className="text-xs text-slate-400 mb-4">{t("adminSettingsPage.tournamentLanguageDesc")}</p>
+
+        <div className="max-w-xs mb-6">
+          <select
+            {...register("language")}
+            className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+          >
+            <option value="fr">🇫🇷 Français</option>
+            <option value="en">🇬🇧 English</option>
+          </select>
+        </div>
 
         <div className="pt-6 mt-6 border-t border-slate-700/80 flex justify-end">
           <button

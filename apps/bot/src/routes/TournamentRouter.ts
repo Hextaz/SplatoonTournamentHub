@@ -54,6 +54,7 @@ tournamentRouter.post("/", async (req, res) => {
         discord_checkin_channel_id: discord_checkin_channel_id || serverSettings?.checkin_channel_id || null,
         discord_captain_role_id: discord_captain_role_id || serverSettings?.captain_role_id || null,
         discord_to_role_id: discord_to_role_id || serverSettings?.to_role_id || null,
+        language: req.body.language || serverSettings?.language || "fr",
       })
       .select()
       .single();
@@ -80,6 +81,7 @@ tournamentRouter.put("/:id/settings", async (req, res) => {
       start_at, checkin_start_at, checkin_end_at,
       discord_registration_channel_id, discord_announcement_channel_id,
       discord_checkin_channel_id, discord_captain_role_id, discord_to_role_id,
+      language,
     } = req.body;
 
     // Fetch the current tournament state to check if we transition from DRAFT to REGISTRATION
@@ -112,6 +114,7 @@ tournamentRouter.put("/:id/settings", async (req, res) => {
       discord_checkin_channel_id: discord_checkin_channel_id || null,
       discord_captain_role_id: discord_captain_role_id || null,
       discord_to_role_id: discord_to_role_id || null,
+      language: language && (language === 'en' || language === 'fr') ? language : (currentTournament.language || 'fr'),
       updated_at: new Date().toISOString(),
     };
 

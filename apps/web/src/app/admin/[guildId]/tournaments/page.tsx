@@ -25,7 +25,7 @@ export default function TournamentsPage({
 }) {
   const router = useRouter();
   const { guildId } = use(params);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,7 +172,7 @@ export default function TournamentsPage({
                 )}
                 <div className="flex flex-wrap gap-4 text-sm text-slate-500">
                   <span>ID: {tournament.id.split('-')[0]}...</span>
-                  <span>📅 {tournament.start_at ? new Date(tournament.start_at).toLocaleDateString() : t("adminTournaments.draft")}</span>
+                  <span>📅 {tournament.start_at ? new Date(tournament.start_at).toLocaleDateString(locale === "en" ? "en-US" : "fr-FR") : t("adminTournaments.draft")}</span>
                 </div>
               </div>
               <div className="p-4 bg-slate-900/50">

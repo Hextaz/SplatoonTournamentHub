@@ -39,7 +39,20 @@ export function tBot(lang: BotLocale, key: string, params?: Record<string, any>)
   return result;
 }
 
-export async function getGuildLanguage(guildId?: string | null): Promise<BotLocale> {
+export async function getGuildLanguage(guildId?: string | null, tournamentId?: string | null): Promise<BotLocale> {
+  if (tournamentId) {
+    try {
+      const { data: tourn } = await supabase
+        .from('tournaments')
+        .select('language')
+        .eq('id', tournamentId)
+        .single();
+      if (tourn?.language && (tourn.language === 'fr' || tourn.language === 'en')) {
+        return tourn.language as BotLocale;
+      }
+    } catch (e) {}
+  }
+
   if (!guildId) return 'fr';
   try {
     const { data } = await supabase

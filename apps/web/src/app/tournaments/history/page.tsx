@@ -7,7 +7,7 @@ import { useTranslation } from "@/i18n/LanguageContext";
 
 export default function TournamentsHistoryPage() {
   const guildId = process.env.NEXT_PUBLIC_DISCORD_GUILD_ID || "";
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +64,7 @@ export default function TournamentsHistoryPage() {
                 {history.map((tItem) => (
                   <tr key={tItem.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="p-4 font-medium text-gray-900">{tItem.name}</td>
-                    <td className="p-4 text-gray-600 text-sm">{new Date(tItem.created_at).toLocaleDateString()}</td>
+                    <td className="p-4 text-gray-600 text-sm">{new Date(tItem.created_at).toLocaleDateString(locale === "en" ? "en-US" : "fr-FR")}</td>
                     <td className="p-4 text-center">
                       <span className={`px-2 py-1 text-xs font-semibold rounded ${tItem.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800'}`}>
                         {tItem.status}

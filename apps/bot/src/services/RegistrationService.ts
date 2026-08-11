@@ -61,13 +61,20 @@ export class RegistrationService {
         }
       };
 
+      const toggleLang = lang === 'fr' ? 'en' : 'fr';
+      const toggleLabel = lang === 'fr' ? 'View in 🇬🇧 English' : 'Voir en 🇫🇷 Français';
+
       const row = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(
           new ButtonBuilder()
             .setCustomId(`btn_register_${tournament.id}`)
             .setLabel(tBot(lang, 'registration.buttonLabel'))
             .setStyle(ButtonStyle.Primary)
-            .setEmoji("📝")
+            .setEmoji("📝"),
+          new ButtonBuilder()
+            .setCustomId(`btn_toggle_lang_${tournament.id}_${toggleLang}`)
+            .setLabel(toggleLabel)
+            .setStyle(ButtonStyle.Secondary)
         );
 
       await channel.send({ embeds: [embed], components: [row] });
@@ -83,6 +90,8 @@ export class RegistrationService {
     if (interaction.isButton()) {
       if (interaction.customId.startsWith('btn_register_')) {
         await this.handleRegisterButton(interaction);
+      } else if (interaction.customId.startsWith('btn_toggle_lang_')) {
+        await this.handleToggleLangButton(interaction);
       } else if (interaction.customId.startsWith('btn_add_subs_')) {
         await this.handleSubsButton(interaction);
       } else if (interaction.customId.startsWith('btn_skip_subs_')) {
@@ -95,6 +104,43 @@ export class RegistrationService {
         await this.handleSubsModalSubmit(interaction);
       }
     }
+  }
+
+  private static async handleToggleLangButton(interaction: any) {
+    const parts = interaction.customId.split('_');
+    const tournamentId = parts[3];
+    const targetLang = (parts[4] as 'fr' | 'en') || 'en';
+
+    try {
+      const { data: tournament } = await supabase
+        .from('tournaments')
+        .select('*')
+        .eq('id', tournamentId)
+        .single();
+
+      if (tournament) {
+        const embed = {
+          title: tBot(targetLang, 'registration.embedTitle', { name: tournament.name }),
+          description: tournament.description || tBot(targetLang, 'registration.embedDescription'),
+          color: 0x5865F2,
+          fields: [
+            {
+              name: tBot(targetLang, 'registration.friendCodeRuleTitle'),
+              value: tBot(targetLang, 'registration.friendCodeRuleValue')
+            }
+          ],
+          footer: {
+            text: `Tournoi ID: ${tournament.id}`
+          }
+        };
+
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+      }
+    } catch (e) {
+      console.error("[RegistrationService] Language toggle error:", e);
+    }
+
+    return interaction.reply({ content: "Language preference updated.", ephemeral: true });
   }
 
   private static async handleRegisterButton(interaction: any) {

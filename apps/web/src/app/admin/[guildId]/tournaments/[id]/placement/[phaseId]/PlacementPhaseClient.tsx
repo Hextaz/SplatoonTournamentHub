@@ -76,7 +76,7 @@ export function PlacementPhaseClient({
   initialPhaseTeams: any[];
 }) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const isGroups = phase.format === "ROUND_ROBIN";
   const isSwiss = phase.format === "SWISS";
@@ -968,7 +968,7 @@ export function PlacementPhaseClient({
                           {team.name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 text-right">
-                          {new Date(team.created_at).toLocaleString("fr-FR", {
+                          {new Date(team.created_at).toLocaleString(locale === "en" ? "en-US" : "fr-FR", {
                             dateStyle: "short",
                             timeStyle: "medium",
                           })}

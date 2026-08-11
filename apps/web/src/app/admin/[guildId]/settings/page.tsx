@@ -27,6 +27,7 @@ export default function SettingsPage({
     checkin_channel_id: "",
     announcement_channel_id: "",
     registration_channel_id: "",
+    language: "fr",
   });
 
   const [discordRoles, setDiscordRoles] = useState<{ id: string; name: string }[]>([]);
@@ -52,6 +53,7 @@ export default function SettingsPage({
             checkin_channel_id: dbSettings.checkin_channel_id || "",
             announcement_channel_id: dbSettings.announcement_channel_id || "",
             registration_channel_id: dbSettings.registration_channel_id || "",
+            language: dbSettings.language || "fr",
           });
         }
 
@@ -81,6 +83,13 @@ export default function SettingsPage({
     loadData();
   }, [guildId, session, status, t]);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setSettings((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -98,6 +107,7 @@ export default function SettingsPage({
           checkin_channel_id: settings.checkin_channel_id,
           announcement_channel_id: settings.announcement_channel_id,
           registration_channel_id: settings.registration_channel_id,
+          language: settings.language,
         }),
       });
 
@@ -112,11 +122,6 @@ export default function SettingsPage({
       setMessage({ type: "error", text: t("adminSettings.saveError") + err.message });
     }
     setSaving(false);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSettings((prev) => ({ ...prev, [name]: value }));
   };
 
   if (loading) {
@@ -284,6 +289,23 @@ export default function SettingsPage({
                 />
               )}
             </div>
+          </div>
+        </div>
+
+        {/* BOT LANGUAGE */}
+        <div className="space-y-4 pt-4">
+          <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2">{t("adminSettings.botLanguage")}</h2>
+          <p className="text-xs text-slate-400">{t("adminSettings.botLanguageDesc")}</p>
+          <div className="max-w-xs">
+            <select
+              name="language"
+              value={settings.language}
+              onChange={handleChange}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
           </div>
         </div>
 

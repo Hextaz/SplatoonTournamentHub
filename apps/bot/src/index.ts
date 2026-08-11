@@ -472,7 +472,11 @@ const bootstrap = async () => {
         const missingGuilds = guildsInCache.filter((id) => !existingIds.has(id));
 
         if (missingGuilds.length > 0) {
-          const inserts = missingGuilds.map((id) => ({ guild_id: id }));
+          const inserts = missingGuilds.map((id) => {
+            const g = client.guilds.cache.get(id);
+            const detectedLang = g?.preferredLocale?.toLowerCase().startsWith("en") ? "en" : "fr";
+            return { guild_id: id, language: detectedLang };
+          });
           const { error: insertErr } = await supabase.from("server_settings").insert(inserts);
           if (insertErr) {
             logger.error(`[Sync] Failed to insert missing guilds to DB:`, insertErr);
@@ -525,9 +529,13 @@ const bootstrap = async () => {
     // Register new guilds when bot joins a server
     client.on("guildCreate", async (guild) => {
       try {
-        const { error } = await supabase.from("server_settings").insert({ guild_id: guild.id });
+        const detectedLang = guild.preferredLocale?.toLowerCase().startsWith("en") ? "en" : "fr";
+        const { error } = await supabase.from("server_settings").insert({ 
+          guild_id: guild.id,
+          language: detectedLang 
+        });
         if (!error) {
-          logger.info(`[Sync] Registered new server: ${guild.name} (${guild.id})`);
+          logger.info(`[Sync] Registered new server: ${guild.name} (${guild.id}) with language ${detectedLang}`);
         }
       } catch (e) {
         logger.error(`Failed to register server ${guild.id}:`, e);

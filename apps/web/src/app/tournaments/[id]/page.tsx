@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 interface TournamentPageProps {
   params: Promise<{
@@ -11,6 +14,9 @@ interface TournamentPageProps {
 export default async function TournamentDetailPage(props: TournamentPageProps) {
   const params = await props.params;
   const tournamentId = params.id;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
+  const dateLocale = locale === "en" ? "en-US" : "fr-FR";
 
   const { data: tournament, error } = await supabase
     .from("tournaments")
@@ -27,7 +33,7 @@ export default async function TournamentDetailPage(props: TournamentPageProps) {
       <div className="max-w-[1600px] w-full mx-auto">
         <div className="mb-6 flex items-center justify-between">
           <Link href="/tournaments" className="text-blue-600 hover:underline font-medium">
-            ← Retour à la liste
+            ← {t(locale, "nav.tournaments")}
           </Link>
         </div>
 
@@ -39,19 +45,19 @@ export default async function TournamentDetailPage(props: TournamentPageProps) {
           
           <div className="mt-6 flex flex-wrap gap-6 border-t pt-6 bg-gray-50 -mx-8 px-8 pb-4 rounded-b-xl border">
             <div>
-              <span className="block text-xs font-semibold text-gray-500 uppercase">Début du Check-in</span>
+              <span className="block text-xs font-semibold text-gray-500 uppercase">{t(locale, "settings.checkinStart")}</span>
               <span className="font-medium text-gray-800">
-                {tournament.checkin_start_at ? new Date(tournament.checkin_start_at).toLocaleString() : "Non défini"}
+                {tournament.checkin_start_at ? new Date(tournament.checkin_start_at).toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' }) : t(locale, "tournamentsPage.notDefined")}
               </span>
             </div>
             <div>
-              <span className="block text-xs font-semibold text-gray-500 uppercase">Fin du Check-in</span>
+              <span className="block text-xs font-semibold text-gray-500 uppercase">{t(locale, "adminSettingsPage.checkinEnd")}</span>
               <span className="font-medium text-gray-800">
-                {tournament.checkin_end_at ? new Date(tournament.checkin_end_at).toLocaleString() : "Non défini"}
+                {tournament.checkin_end_at ? new Date(tournament.checkin_end_at).toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' }) : t(locale, "tournamentsPage.notDefined")}
               </span>
             </div>
             <div>
-              <span className="block text-xs font-semibold text-gray-500 uppercase">Serveur (Guild ID)</span>
+              <span className="block text-xs font-semibold text-gray-500 uppercase">Guild ID</span>
               <span className="font-medium text-gray-800">
                 {tournament.guild_id}
               </span>
@@ -65,5 +71,3 @@ export default async function TournamentDetailPage(props: TournamentPageProps) {
     </div>
   );
 }
-
-
