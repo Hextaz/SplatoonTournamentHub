@@ -32,7 +32,7 @@ export const en: typeof fr = {
     round: "Round",
   },
   nav: {
-    brand: "SplatoonHub",
+    brand: "TournamentHub",
     myServers: "My Servers",
     tournaments: "Tournaments",
     settings: "Settings",

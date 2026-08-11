@@ -30,7 +30,7 @@ export const fr = {
     round: "Round",
   },
   nav: {
-    brand: "SplatoonHub",
+    brand: "TournamentHub",
     myServers: "Mes Serveurs",
     tournaments: "Tournois",
     settings: "Paramètres",
