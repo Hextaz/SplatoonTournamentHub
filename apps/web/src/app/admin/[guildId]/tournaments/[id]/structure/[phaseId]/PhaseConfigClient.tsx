@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { botApiFetch } from "@/utils/api";
 import Link from "next/link";
 import { CheckCircle2, ChevronLeft } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export function PhaseConfigClient({ 
   phase, 
@@ -18,6 +19,7 @@ export function PhaseConfigClient({
   totalTeams: number 
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<"general" | "advanced">("general");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,18 +131,18 @@ export function PhaseConfigClient({
           onClick={() => setActiveTab('general')}
           className={activeTab === 'general' ? activeTabClasses : inactiveTabClasses}
         >
-          Général
+          {t("adminPhaseConfig.generalTab")}
         </button>
         {isGroups && (
           <button 
             onClick={() => setActiveTab('advanced')}
             className={activeTab === 'advanced' ? activeTabClasses : inactiveTabClasses}
           >
-            Avancé
+            {t("adminPhaseConfig.advancedTab")}
           </button>
         )}
-        <button className={inactiveTabClasses + " cursor-not-allowed opacity-40"}>Placement</button>
-        <button className={inactiveTabClasses + " cursor-not-allowed opacity-40"}>Paramètres de match</button>
+        <button className={inactiveTabClasses + " cursor-not-allowed opacity-40"}>{t("adminPhaseConfig.placementTab")}</button>
+        <button className={inactiveTabClasses + " cursor-not-allowed opacity-40"}>{t("adminPhaseConfig.matchSettingsTab")}</button>
       </div>
 
       <div className="p-6 md:p-8 space-y-8 bg-slate-900/40 min-h-[400px] text-slate-200">
@@ -150,7 +152,7 @@ export function PhaseConfigClient({
             
             {/* Phase Order */}
             <div>
-              <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Numéro <span className="text-slate-500 font-normal">?</span></label>
+              <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.numberLabel")}</label>
               <input 
                 type="number"
                 name="phase_order"
@@ -162,7 +164,7 @@ export function PhaseConfigClient({
 
             {/* Sizes */}
             <div>
-              <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Taille <span className="text-slate-500 font-normal">({totalTeams} max recommandé)</span></label>
+              <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.sizeLabel")} <span className="text-slate-500 font-normal">{t("adminPhaseConfig.recommendedMax", { count: totalTeams })}</span></label>
               <input 
                 type="number"
                 name="bracket_size"
@@ -173,16 +175,16 @@ export function PhaseConfigClient({
               />
               <p className="text-xs text-slate-500 mt-1.5">
                 {isGroups 
-                  ? "Définit le nombre total d'équipes acceptées dans les groupes." 
+                  ? t("adminPhaseConfig.sizeHelpGroups") 
                   : phase.format === "SWISS" 
-                    ? "Définit le nombre total d'équipes acceptées dans la ronde suisse." 
-                    : "Définit la taille de l'arbre de tournoi (ex : 8, 16, 32)."}
+                    ? t("adminPhaseConfig.sizeHelpSwiss") 
+                    : t("adminPhaseConfig.sizeHelpBracket")}
               </p>
             </div>
 
             {/* Name */}
             <div>
-              <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Nom <span className="text-slate-500 font-normal">(30 caractères maximum)</span></label>
+              <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.nameLabel")} <span className="text-slate-500 font-normal">{t("adminPhaseConfig.maxChar")}</span></label>
               <input 
                 type="text"
                 name="name"
@@ -195,7 +197,7 @@ export function PhaseConfigClient({
             {/* Number of Groups or 3rd place */}
             {isGroups ? (
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Nombre de groupes</label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.groupsCount")}</label>
                 <input 
                   type="number"
                   name="max_groups"
@@ -206,7 +208,7 @@ export function PhaseConfigClient({
               </div>
             ) : phase.format === "DOUBLE_ELIM" ? (
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Bracket Reset ? <span className="text-slate-500 font-normal">(Match additionnel si le gagnant du Winner Bracket perd en Grande Finale)</span></label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.bracketReset")} <span className="text-slate-500 font-normal">{t("adminPhaseConfig.bracketResetHelp")}</span></label>
                 <div className="flex items-center gap-6 mt-3">
                   <label className="flex items-center gap-2 cursor-pointer text-slate-300 font-medium hover:text-white transition-colors">
                     <input 
@@ -216,7 +218,7 @@ export function PhaseConfigClient({
                       onChange={() => handleRadioChange('bracket_reset', true)}
                       className="accent-indigo-600 w-4 h-4 cursor-pointer"
                     />
-                    Oui
+                    {t("common.yes")}
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-slate-300 font-medium hover:text-white transition-colors">
                     <input 
@@ -226,13 +228,13 @@ export function PhaseConfigClient({
                       onChange={() => handleRadioChange('bracket_reset', false)}
                       className="accent-indigo-600 w-4 h-4 cursor-pointer"
                     />
-                    Non
+                    {t("common.no")}
                   </label>
                 </div>
               </div>
             ) : phase.format === "SWISS" ? (
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Nombre de tours (Rondes Suisses)</label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.swissRounds")}</label>
                 <input 
                   type="number"
                   name="settings.swiss_rounds_count"
@@ -245,7 +247,7 @@ export function PhaseConfigClient({
               </div>
             ) : (
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Match pour la 3e place ? <span className="text-slate-500 font-normal">?</span></label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.thirdPlaceMatch")}</label>
                 <div className="flex items-center gap-6 mt-3">
                   <label className="flex items-center gap-2 cursor-pointer text-slate-300 font-medium hover:text-white transition-colors">
                     <input 
@@ -255,7 +257,7 @@ export function PhaseConfigClient({
                       onChange={() => handleRadioChange('third_place_match', true)}
                       className="accent-indigo-600 w-4 h-4 cursor-pointer"
                     />
-                    Oui
+                    {t("common.yes")}
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-slate-300 font-medium hover:text-white transition-colors">
                     <input 
@@ -265,7 +267,7 @@ export function PhaseConfigClient({
                       onChange={() => handleRadioChange('third_place_match', false)}
                       className="accent-indigo-600 w-4 h-4 cursor-pointer"
                     />
-                    Non
+                    {t("common.no")}
                   </label>
                 </div>
               </div>
@@ -278,13 +280,13 @@ export function PhaseConfigClient({
           <div className="space-y-8 animate-in fade-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Composition de groupe</label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.groupComposition")}</label>
                 <select disabled className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-slate-500 bg-slate-900/50 cursor-not-allowed font-medium">
-                  <option>Effort équilibré</option>
+                  <option>{t("adminPhaseConfig.balancedEffort")}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">Méthode d'appariement</label>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5 font-sans">{t("adminPhaseConfig.pairingMethod")}</label>
                 <select disabled className="w-full border border-slate-800 rounded-lg px-3 py-2.5 text-slate-500 bg-slate-900/50 cursor-not-allowed font-medium">
                   <option>Round-robin</option>
                 </select>
@@ -292,20 +294,20 @@ export function PhaseConfigClient({
             </div>
 
             <div>
-              <h4 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-1">Attribution de points <span className="text-slate-500 font-normal">?</span></h4>
+              <h4 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-1">{t("adminPhaseConfig.pointAttribution")}</h4>
               
               {/* Point Card */}
               <div className="border border-slate-800 rounded-lg p-5 mb-4 bg-slate-900">
                  <div className="flex items-start gap-3 mb-4">
                    <input type="checkbox" checked readOnly className="mt-1 accent-indigo-600 w-4 h-4 rounded bg-slate-950 border-slate-800" />
                    <div>
-                     <span className="font-extrabold text-white text-sm block">Résultat de match</span>
-                     <p className="text-sm text-slate-400 mt-1 leading-relaxed">Attribue des points en fonction du résultat du match (victoire, match nul ou défaite).</p>
+                     <span className="font-extrabold text-white text-sm block">{t("adminPhaseConfig.matchResult")}</span>
+                     <p className="text-sm text-slate-400 mt-1 leading-relaxed">{t("adminPhaseConfig.matchResultDesc")}</p>
                    </div>
                  </div>
                  <div className="pl-7 grid grid-cols-3 gap-4 max-w-md">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Victoire</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">{t("adminPhaseConfig.win")}</label>
                       <input 
                         type="number" 
                         name="settings.points_win" 
@@ -315,7 +317,7 @@ export function PhaseConfigClient({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Match nul</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">{t("stages.table.draws")}</label>
                       <input 
                         type="number" 
                         name="settings.points_draw" 
@@ -325,7 +327,7 @@ export function PhaseConfigClient({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Défaite</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">{t("stages.table.losses")}</label>
                       <input 
                         type="number" 
                         name="settings.points_loss" 
@@ -337,22 +339,13 @@ export function PhaseConfigClient({
                  </div>
               </div>
 
-              {/* Match Score Card Disabled visually */}
-              <div className="border border-slate-800 bg-slate-955 rounded-lg p-4 mb-4 opacity-40">
-                 <div className="flex items-center gap-3">
-                   <input type="checkbox" disabled className="accent-slate-500 cursor-not-allowed w-4 h-4" />
-                   <span className="font-semibold text-slate-400 text-sm">Score de match</span>
-                 </div>
-                 <p className="text-sm text-slate-500 pl-7 mt-1">Attribue des points égaux au score du match.</p>
-              </div>
-
               {/* Forfeit Card */}
               <div className="border border-slate-800 rounded-lg p-5 bg-slate-900">
                  <div className="flex items-start gap-3 mb-4">
                    <input type="checkbox" checked readOnly className="mt-1 accent-indigo-600 w-4 h-4 rounded bg-slate-950 border-slate-800" />
                    <div>
-                     <span className="font-extrabold text-white text-sm block">Forfait</span>
-                     <p className="text-sm text-slate-400 mt-1 leading-relaxed">Attribue des points lorsqu'un participant est forfait dans un match (peut être négatif pour une pénalité).</p>
+                     <span className="font-extrabold text-white text-sm block">{t("stages.table.forfeits")}</span>
+                     <p className="text-sm text-slate-400 mt-1 leading-relaxed">{t("adminPhaseConfig.forfeitDesc")}</p>
                    </div>
                  </div>
                  <div className="pl-7 max-w-[120px]">
@@ -376,21 +369,21 @@ export function PhaseConfigClient({
           href={`/admin/${guildId}/tournaments/${tournamentId}/structure`}
           className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors mr-auto w-full sm:w-auto border border-slate-700"
         >
-          <ChevronLeft className="w-4 h-4" /> Retour
+          <ChevronLeft className="w-4 h-4" /> {t("common.back")}
         </Link>
         <button 
           onClick={() => onSubmit(true)}
           disabled={isSubmitting}
           className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all shadow-md disabled:opacity-50"
         >
-          Mettre à jour + Retour
+          {t("adminPhaseConfig.updateAndReturn")}
         </button>
         <button 
           onClick={() => onSubmit(false)}
           disabled={isSubmitting}
           className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all shadow-md disabled:opacity-50"
         >
-          <CheckCircle2 className="w-4 h-4" /> Mettre à jour
+          <CheckCircle2 className="w-4 h-4" /> {t("adminPhaseConfig.update")}
         </button>
       </div>
 
