@@ -2,6 +2,9 @@ export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { notFound } from "next/navigation";
 import { PlacementPhaseClient } from "./PlacementPhaseClient";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export default async function PlacementPhasePage({
   params
@@ -9,6 +12,8 @@ export default async function PlacementPhasePage({
   params: Promise<{ guildId: string; id: string; phaseId: string }>;
 }) {
   const { guildId, id: tournamentId, phaseId } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // 1. Fetch phase
   const { data: phase, error: phaseError } = await supabaseAdmin
@@ -45,7 +50,7 @@ export default async function PlacementPhasePage({
     <div className="min-h-[calc(100vh-2rem)] flex flex-col p-6 md:p-8">
       <header className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
-          <div className="text-sm text-blue-400 font-bold mb-1 tracking-wider uppercase">Placement</div>
+          <div className="text-sm text-blue-400 font-bold mb-1 tracking-wider uppercase">{t(locale, "adminHeaders.placementTitle")}</div>
           <h1 className="text-3xl font-bold text-white leading-tight">
             {phase.name}
           </h1>

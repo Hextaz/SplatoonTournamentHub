@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { Users, User, X } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 type Team = any;
 
 export function ParticipantsClientView({ teams }: { teams: Team[] }) {
+  const { t } = useTranslation();
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
   const handleClose = () => setSelectedTeam(null);
@@ -13,12 +15,12 @@ export function ParticipantsClientView({ teams }: { teams: Team[] }) {
   return (
     <div className="space-y-6">
       <div className="text-slate-300 font-bold mb-4 border-b border-slate-800 pb-2">
-        Taille: {teams.length} Équipes
+        {t("participants.sizeTeams", { count: teams.length })}
       </div>
 
       {teams.length === 0 ? (
         <div className="py-12 bg-[#151722] rounded-xl border border-slate-800/50 flex flex-col items-center justify-center text-slate-500">
-          <p>Aucun participant n'est encore validé pour ce tournoi.</p>
+          <p>{t("participants.noValidated")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -60,7 +62,7 @@ export function ParticipantsClientView({ teams }: { teams: Team[] }) {
                    <Users className="w-10 h-10 text-slate-500" />
                 </div>
                 <div className="mt-3 sm:mt-0 pb-1 flex-grow text-center sm:text-left">
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Equipe</p>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t("participants.team")}</p>
                   <h2 className="text-3xl font-extrabold text-white">{selectedTeam.name}</h2>
                 </div>
               </div>
@@ -69,17 +71,17 @@ export function ParticipantsClientView({ teams }: { teams: Team[] }) {
             {/* Modal Tabs */}
             <div className="px-6 mt-6 border-b border-slate-800 flex gap-4">
                <button className="pb-3 text-sm font-semibold border-b-2 border-blue-500 text-blue-400">
-                 À propos
+                 {t("participants.about")}
                </button>
                {/* Disabled Activity tab for aesthetic purposes until match linking */}
                <button className="pb-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 cursor-not-allowed">
-                 Activité
+                 {t("participants.activity")}
                </button>
             </div>
 
             {/* Modal Content */}
             <div className="p-6 bg-[#151722] min-h-[250px] overflow-y-auto">
-               <h3 className="text-lg font-bold text-slate-300 mb-4">Lineup</h3>
+               <h3 className="text-lg font-bold text-slate-300 mb-4">{t("participants.lineup")}</h3>
                
                <div className="space-y-2">
                  {selectedTeam.members && Array.isArray(selectedTeam.members) && selectedTeam.members.length > 0 ? (
@@ -87,13 +89,13 @@ export function ParticipantsClientView({ teams }: { teams: Team[] }) {
                      <div key={index} className="bg-slate-900 border border-slate-800 p-4 rounded flex items-center gap-3">
                        <User className="w-5 h-5 text-slate-500" />
                        <span className="text-slate-300 font-medium">
-                         {typeof member === 'string' ? member : (member.name || member.id || `Player #${index + 1}`)}
+                         {typeof member === 'string' ? member : (member.name || member.id || t("participants.playerNumber", { number: index + 1 }))}
                        </span>
                      </div>
                    ))
                  ) : (
                    <div className="bg-slate-900 border border-slate-800 p-4 rounded text-center text-slate-500">
-                     <p>Aucun membre renseigné.</p>
+                     <p>{t("participants.noMembers")}</p>
                    </div>
                  )}
                </div>

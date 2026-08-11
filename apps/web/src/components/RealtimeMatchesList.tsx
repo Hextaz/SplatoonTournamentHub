@@ -2,6 +2,7 @@
 
 import { useRealtimeMatches } from "@/hooks/useRealtimeMatches";
 import { RealtimeBadge } from "@/components/RealtimeBadge";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 interface RealtimeMatchesListProps {
   initialMatches: any[];
@@ -20,6 +21,7 @@ export function RealtimeMatchesList({
   limitUpcoming,
   showBadge = true,
 }: RealtimeMatchesListProps) {
+  const { t } = useTranslation();
   const { matches, recentlyUpdatedMatchId, isConnected } = useRealtimeMatches({
     initialMatches,
     tournamentId,
@@ -59,7 +61,7 @@ export function RealtimeMatchesList({
     <div className="space-y-6">
       {showBadge && (
         <div className="flex justify-between items-center border-b border-slate-800/50 pb-3">
-          <h3 className="text-sm font-semibold text-slate-300">Matchs du Tournoi</h3>
+          <h3 className="text-sm font-semibold text-slate-300">{t("matches.tournamentMatches")}</h3>
           <RealtimeBadge isLive={isConnected} />
         </div>
       )}
@@ -69,13 +71,13 @@ export function RealtimeMatchesList({
         <div>
           <div className="flex text-sm text-slate-400 border-b border-slate-800/50 mb-4 pb-2">
             <span className="font-semibold text-slate-200 border-b-2 border-slate-200 px-2 pb-[10px] -mb-[10px]">
-              Derniers résultats ({recentMatchesAll.length})
+              {t("matches.recentResultsCount", { count: recentMatchesAll.length })}
             </span>
           </div>
           <div className="space-y-3">
             {recentMatches.length === 0 ? (
               <p className="text-slate-500 py-4 text-center bg-[#151722] rounded-lg border border-slate-800/30">
-                Aucun match terminé
+                {t("tournaments.noCompletedMatches")}
               </p>
             ) : (
               recentMatches.map((match) => {
@@ -97,46 +99,46 @@ export function RealtimeMatchesList({
                   >
                     <div className="text-xs text-slate-500 px-3 py-1.5 border-b border-slate-800/50 bg-[#12141d] flex justify-between">
                       <span>
-                        {match.phase?.name || "Match"} • Round {match.round_number || "?"}
+                        {match.phase?.name || t("common.match")} • Round {match.round_number || "?"}
                       </span>
                       {match.match_number && (
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400">
-                          Match #{match.match_number}
+                          {t("common.match")} #{match.match_number}
                         </span>
                       )}
                     </div>
                     <div className="flex flex-col p-2">
                       <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
                         <span className={`font-semibold ${team1Wins ? "text-slate-200" : "text-slate-400"}`}>
-                          {match.team1?.name || "TBD"}
+                          {match.team1?.name || t("common.tbd")}
                         </span>
                         <div className="flex items-center gap-3">
                           {!isBye && <span className="text-slate-300 font-bold">{s1}</span>}
-                          {isBye && <span className="text-green-500 font-bold text-xs uppercase">Auto</span>}
+                          {isBye && <span className="text-green-500 font-bold text-xs uppercase">{t("common.auto")}</span>}
                           {team1Wins ? (
                             <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">
-                              V
+                              {t("common.win")}
                             </span>
                           ) : (
                             <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">
-                              D
+                              {t("common.loss")}
                             </span>
                           )}
                         </div>
                       </div>
                       <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
                         <span className={`font-semibold ${team2Wins ? "text-slate-200" : "text-slate-400"}`}>
-                          {isBye ? "BYE" : match.team2?.name || "TBD"}
+                          {isBye ? t("common.bye") : match.team2?.name || t("common.tbd")}
                         </span>
                         <div className="flex items-center gap-3">
                           {!isBye && <span className="text-slate-300 font-bold">{s2}</span>}
                           {team2Wins ? (
                             <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">
-                              V
+                              {t("common.win")}
                             </span>
                           ) : (
                             <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">
-                              D
+                              {t("common.loss")}
                             </span>
                           )}
                         </div>
@@ -153,13 +155,13 @@ export function RealtimeMatchesList({
         <div>
           <div className="flex text-sm text-slate-400 border-b border-slate-800/50 mb-4 pb-2">
             <span className="font-semibold text-slate-200 border-b-2 border-slate-200 px-2 pb-[10px] -mb-[10px]">
-              À venir ({upcomingMatchesAll.length})
+              {t("matches.upcomingCount", { count: upcomingMatchesAll.length })}
             </span>
           </div>
           <div className="space-y-3">
             {upcomingMatches.length === 0 ? (
               <p className="text-slate-500 py-4 text-center bg-[#151722] rounded-lg border border-slate-800/30">
-                Aucun match programmé
+                {t("tournaments.noUpcomingMatches")}
               </p>
             ) : (
               upcomingMatches.map((match) => {
@@ -176,22 +178,22 @@ export function RealtimeMatchesList({
                   >
                     <div className="text-xs text-slate-500 px-3 py-1.5 border-b border-slate-800/50 bg-[#12141d] flex justify-between">
                       <span>
-                        {match.phase?.name || "Match"} • Round {match.round_number || "?"}
+                        {match.phase?.name || t("common.match")} • Round {match.round_number || "?"}
                       </span>
                       {match.match_number && (
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400">
-                          Match #{match.match_number}
+                          {t("common.match")} #{match.match_number}
                         </span>
                       )}
                     </div>
                     <div className="flex flex-col p-2 text-slate-300">
                       <div className="flex justify-between items-center py-1.5 px-2">
-                        <span className="font-semibold">{match.team1?.name || "TBD"}</span>
+                        <span className="font-semibold">{match.team1?.name || t("common.tbd")}</span>
                         <span className="text-slate-500 text-xs">VS</span>
                       </div>
                       <div className="flex justify-between items-center py-1.5 px-2 border-t border-slate-800/30">
-                        <span className="font-semibold">{match.team2?.name || "TBD"}</span>
-                        <span className="text-slate-500 text-xs">PENDING</span>
+                        <span className="font-semibold">{match.team2?.name || t("common.tbd")}</span>
+                        <span className="text-slate-500 text-xs">{t("admin.pending").toUpperCase()}</span>
                       </div>
                     </div>
                   </div>
@@ -204,3 +206,4 @@ export function RealtimeMatchesList({
     </div>
   );
 }
+

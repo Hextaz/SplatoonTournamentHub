@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { PhaseConfigClient } from "./PhaseConfigClient";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +13,8 @@ export default async function PhaseConfigPage({
   params: Promise<{ guildId: string; id: string; phaseId: string }>
 }) {
   const { guildId, id: tournamentId, phaseId } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // Retrieve phase data
   const { data: phase, error } = await supabase
@@ -21,7 +26,6 @@ export default async function PhaseConfigPage({
   if (error || !phase) notFound();
 
   // For Round-Robin (Groupes) we also need to know the number of teams for size
-  // Let's get the tournament context to ensure the user has teams registered
   const { count: teamsCount } = await supabase
     .from('teams')
     .select('*', { count: 'exact', head: true })
@@ -31,7 +35,7 @@ export default async function PhaseConfigPage({
     <div className="space-y-6">
       <header className="mb-6 border-b border-slate-800 pb-4">
         <h1 className="text-2xl font-bold text-white">
-          Structure / Configurer la phase "{phase.name}"
+          {t(locale, "adminHeaders.configurePhaseTitle", { name: phase.name })}
         </h1>
       </header>
 

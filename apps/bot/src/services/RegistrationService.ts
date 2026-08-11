@@ -1,5 +1,6 @@
 import { Client, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Interaction } from 'discord.js';
 import { supabase } from '../lib/supabase';
+import { tBot, getGuildLanguage } from '../i18n';
 
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -43,14 +44,16 @@ export class RegistrationService {
       const channel = await client.channels.fetch(tournament.discord_registration_channel_id).catch(() => null) as TextChannel | null;
       if (!channel) throw new Error(`Impossible de trouver le salon Discord avec l'ID ${tournament.discord_registration_channel_id}. Vérifiez que le bot y a accès.`);
 
+      const lang = await getGuildLanguage(tournament.guild_id);
+
       const embed = {
-        title: `📝 Inscriptions: ${tournament.name}`,
-        description: tournament.description || `Cliquez sur le bouton ci-dessous pour inscrire votre équipe. Le capitaine doit obligatoirement enregistrer le roster principal (4 joueurs minimum, dont lui-même) incluant les Codes Amis Valides.`,
+        title: tBot(lang, 'registration.embedTitle', { name: tournament.name }),
+        description: tournament.description || tBot(lang, 'registration.embedDescription'),
         color: 0x5865F2,
         fields: [
           {
-            name: "Règle Code Ami",
-            value: "Format attendu: **`SW-XXXX-XXXX-XXXX`**. (ex: `Pseudo SW-1234-5678-9012`). \n*Note: le séparateur entre le pseudo et le code ami n'est pas obligatoire.*"
+            name: tBot(lang, 'registration.friendCodeRuleTitle'),
+            value: tBot(lang, 'registration.friendCodeRuleValue')
           }
         ],
         footer: {
@@ -58,13 +61,20 @@ export class RegistrationService {
         }
       };
 
+      const toggleLang = lang === 'fr' ? 'en' : 'fr';
+      const toggleLabel = lang === 'fr' ? 'View in 🇬🇧 English' : 'Voir en 🇫🇷 Français';
+
       const row = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(
           new ButtonBuilder()
             .setCustomId(`btn_register_${tournament.id}`)
-            .setLabel("S'inscrire (Main Roster)")
+            .setLabel(tBot(lang, 'registration.buttonLabel'))
             .setStyle(ButtonStyle.Primary)
-            .setEmoji("📝")
+            .setEmoji("📝"),
+          new ButtonBuilder()
+            .setCustomId(`btn_toggle_lang_${tournament.id}_${toggleLang}`)
+            .setLabel(toggleLabel)
+            .setStyle(ButtonStyle.Secondary)
         );
 
       await channel.send({ embeds: [embed], components: [row] });
@@ -80,6 +90,8 @@ export class RegistrationService {
     if (interaction.isButton()) {
       if (interaction.customId.startsWith('btn_register_')) {
         await this.handleRegisterButton(interaction);
+      } else if (interaction.customId.startsWith('btn_toggle_lang_')) {
+        await this.handleToggleLangButton(interaction);
       } else if (interaction.customId.startsWith('btn_add_subs_')) {
         await this.handleSubsButton(interaction);
       } else if (interaction.customId.startsWith('btn_skip_subs_')) {
@@ -92,6 +104,43 @@ export class RegistrationService {
         await this.handleSubsModalSubmit(interaction);
       }
     }
+  }
+
+  private static async handleToggleLangButton(interaction: any) {
+    const parts = interaction.customId.split('_');
+    const tournamentId = parts[3];
+    const targetLang = (parts[4] as 'fr' | 'en') || 'en';
+
+    try {
+      const { data: tournament } = await supabase
+        .from('tournaments')
+        .select('*')
+        .eq('id', tournamentId)
+        .single();
+
+      if (tournament) {
+        const embed = {
+          title: tBot(targetLang, 'registration.embedTitle', { name: tournament.name }),
+          description: tournament.description || tBot(targetLang, 'registration.embedDescription'),
+          color: 0x5865F2,
+          fields: [
+            {
+              name: tBot(targetLang, 'registration.friendCodeRuleTitle'),
+              value: tBot(targetLang, 'registration.friendCodeRuleValue')
+            }
+          ],
+          footer: {
+            text: `Tournoi ID: ${tournament.id}`
+          }
+        };
+
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+      }
+    } catch (e) {
+      console.error("[RegistrationService] Language toggle error:", e);
+    }
+
+    return interaction.reply({ content: "Language preference updated.", ephemeral: true });
   }
 
   private static async handleRegisterButton(interaction: any) {

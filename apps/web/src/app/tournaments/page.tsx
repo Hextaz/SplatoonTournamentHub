@@ -1,13 +1,16 @@
 import { supabase } from "@/lib/supabase";
-import { getBotApiUrl } from '@/utils/api';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export default async function TournamentsPage() {
   const guildId = process.env.NEXT_PUBLIC_DISCORD_GUILD_ID || "";
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // 1. Charger les tournois de ce serveur
   const { data: tournaments } = await supabase
@@ -84,38 +87,30 @@ export default async function TournamentsPage() {
     revalidatePath("/tournaments");
   }
 
-  // Pour simplifier l'UI d'édition, les dates requièrent le format adaptatif ("yyyy-MM-ddThh:mm")
-  const formatForInput = (isoString?: string) => {
-    if (!isoString) return "";
-    const d = new Date(isoString);
-    // On enlève la Z timezone et on triche un peu sur l'affichage local vs utc, mais pour l'exemple c'est OK
-    return d.toISOString().slice(0, 16); 
-  };
-
   return (
     <div className="w-full min-h-[calc(100vh-4rem)] p-8 bg-[#0a0a0f] text-slate-200 flex items-start justify-center">
       <div className="bg-[#151722] p-8 rounded-2xl border border-slate-800 shadow-2xl max-w-[1600px] w-full mx-auto">
         <h1 className="text-2xl font-bold text-white mb-6 border-b border-slate-800 pb-4">
-          Gestion des Tournois
+          {t(locale, "tournamentsPage.title")}
         </h1>
  
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* LEFT: FORM (Création ou update du dernier) */}
+          {/* LEFT: FORM */}
           <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4 text-slate-300">Créer / Modifier un tournoi</h2>
+            <h2 className="text-xl font-semibold mb-4 text-slate-300">
+              {t(locale, "tournamentsPage.createOrEdit")}
+            </h2>
             <form action={saveTournament} className="flex flex-col gap-4">
-              {/* Fake hidden ID field just to allow updates if we wanted standard edit. 
-                  We'll leave id blank by default to create a new one, or can pre-fill. */}
               <input type="hidden" name="id" value="" />
               
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-slate-300">
-                  Nom du Tournoi
+                  {t(locale, "tournamentsPage.nameLabel")}
                 </label>
                 <input
                   name="name"
                   type="text"
-                  placeholder="Ex: Splatoon Summer Cup"
+                  placeholder={t(locale, "tournamentsPage.namePlaceholder")}
                   className="p-3 border border-slate-700 bg-slate-900 rounded-lg text-slate-100 focus:border-blue-500 focus:outline-none"
                   required
                 />
@@ -123,7 +118,7 @@ export default async function TournamentsPage() {
  
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-slate-300">
-                  Début du Check-in (Ouverture du bouton)
+                  {t(locale, "tournamentsPage.checkinStartLabel")}
                 </label>
                 <input
                   name="checkinStartAt"
@@ -135,7 +130,7 @@ export default async function TournamentsPage() {
  
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-slate-300">
-                  Fin du Check-in (Fermeture du bouton)
+                  {t(locale, "tournamentsPage.checkinEndLabel")}
                 </label>
                 <input
                   name="checkinEndAt"
@@ -149,41 +144,43 @@ export default async function TournamentsPage() {
                 type="submit"
                 className="mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition-colors"
               >
-                Sauvegarder & Programmer le Bot
+                {t(locale, "tournamentsPage.saveButton")}
               </button>
             </form>
           </div>
  
           {/* RIGHT: LIST */}
           <div>
-            <h2 className="text-xl font-semibold mb-4 text-slate-300">Tournois configurés</h2>
+            <h2 className="text-xl font-semibold mb-4 text-slate-300">
+              {t(locale, "tournamentsPage.configuredTitle")}
+            </h2>
             <div className="flex flex-col gap-3">
-              {tournaments?.map((t: any) => (
-                <div key={t.id} className="p-4 border border-slate-800 rounded-lg bg-[#1a1d2d] shadow-sm flex flex-col gap-1">
-                  <span className="font-bold text-white">{t.name}</span>
-                  <span className="text-sm text-slate-400">ID: {t.id}</span>
+              {tournaments?.map((tourn: any) => (
+                <div key={tourn.id} className="p-4 border border-slate-800 rounded-lg bg-[#1a1d2d] shadow-sm flex flex-col gap-1">
+                  <span className="font-bold text-white">{tourn.name}</span>
+                  <span className="text-sm text-slate-400">ID: {tourn.id}</span>
                   <div className="text-sm text-slate-300 mt-2 grid grid-cols-2 gap-2">
                     <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-emerald-400">Début Check-in:</span>
-                      <span>{t.checkin_start_at ? new Date(t.checkin_start_at).toLocaleString() : 'Non défini'}</span>
+                      <span className="text-xs font-semibold text-emerald-400">{t(locale, "tournamentsPage.checkinStart")}</span>
+                      <span>{tourn.checkin_start_at ? new Date(tourn.checkin_start_at).toLocaleString() : t(locale, "tournamentsPage.notDefined")}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-rose-400">Fin Check-in:</span>
-                      <span>{t.checkin_end_at ? new Date(t.checkin_end_at).toLocaleString() : 'Non défini'}</span>
+                      <span className="text-xs font-semibold text-rose-400">{t(locale, "tournamentsPage.checkinEnd")}</span>
+                      <span>{tourn.checkin_end_at ? new Date(tourn.checkin_end_at).toLocaleString() : t(locale, "tournamentsPage.notDefined")}</span>
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-slate-800 w-full">
                     <Link
-                      href={`/tournaments/${t.id}`}
+                      href={`/tournaments/${tourn.id}`}
                       className="w-full bg-blue-900/40 hover:bg-blue-900/60 text-blue-300 font-semibold py-2 px-4 rounded-lg flex justify-center transition-colors shadow-sm"
                     >
-                      ⚙️ Gérer ce tournoi
+                      {t(locale, "tournamentsPage.manage")}
                     </Link>
                   </div>
                 </div>
               ))}
               {(!tournaments || tournaments.length === 0) && (
-                <p className="text-slate-400 italic">Aucun tournoi trouvé.</p>
+                <p className="text-slate-400 italic">{t(locale, "tournamentsPage.noTournaments")}</p>
               )}
             </div>
           </div>

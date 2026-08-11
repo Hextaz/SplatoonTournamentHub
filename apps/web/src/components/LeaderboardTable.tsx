@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export interface PhaseTeamStat {
   id: string;
@@ -22,6 +25,8 @@ export interface PhaseTeamStat {
 }
 
 export function LeaderboardTable({ teams, matches, settings }: { teams: PhaseTeamStat[], matches?: any[], settings?: any }) {
+  const { t } = useTranslation();
+
   // Config defaults (from backend LeaderboardService)
   const pointsWin = settings?.points_win ?? 3;
   const pointsDraw = settings?.points_draw ?? 1;
@@ -90,23 +95,23 @@ export function LeaderboardTable({ teams, matches, settings }: { teams: PhaseTea
         <thead>
           <tr className="bg-slate-800 text-slate-300 font-semibold border-b border-slate-700/50 uppercase text-xs tracking-wider">
             <th className="px-4 py-3 text-center w-12">#</th>
-            <th className="px-4 py-3">Équipe</th>
-            <th className="px-3 py-3 text-center" title="Joués">J</th>
-            <th className="px-3 py-3 text-center" title="Victoires">V</th>
-            <th className="px-3 py-3 text-center" title="Nuls">N</th>
-            <th className="px-3 py-3 text-center" title="Défaites">D</th>
-            <th className="px-3 py-3 text-center" title="Forfaits">F</th>
-            <th className="px-3 py-3 text-center" title="Scores Pour">SP</th>
-            <th className="px-3 py-3 text-center" title="Scores Contre">SC</th>
-            <th className="px-3 py-3 text-center" title="Différentiel">+/-</th>
-            <th className="px-4 py-3 text-center font-bold text-blue-400">Pts</th>
+            <th className="px-4 py-3">{t("stages.table.team")}</th>
+            <th className="px-3 py-3 text-center" title={t("stages.table.playedTitle")}>{t("stages.table.played")}</th>
+            <th className="px-3 py-3 text-center" title={t("stages.table.winsTitle")}>{t("stages.table.wins")}</th>
+            <th className="px-3 py-3 text-center" title={t("stages.table.drawsTitle")}>{t("stages.table.draws")}</th>
+            <th className="px-3 py-3 text-center" title={t("stages.table.lossesTitle")}>{t("stages.table.losses")}</th>
+            <th className="px-3 py-3 text-center" title={t("stages.table.forfeitsTitle")}>{t("stages.table.forfeits")}</th>
+            <th className="px-3 py-3 text-center" title={t("stages.table.scoreForTitle")}>{t("stages.table.scoreFor")}</th>
+            <th className="px-3 py-3 text-center" title={t("stages.table.scoreAgainstTitle")}>{t("stages.table.scoreAgainst")}</th>
+            <th className="px-3 py-3 text-center" title={t("stages.table.differentialTitle")}>{t("stages.table.differential")}</th>
+            <th className="px-4 py-3 text-center font-bold text-blue-400">{t("stages.table.points")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/40">
           {sortedTeams.length === 0 ? (
             <tr>
               <td colSpan={11} className="px-6 py-8 text-center text-slate-400 italic">
-                Aucune équipe dans ce groupe.
+                {t("stages.noTeamsInGroup")}
               </td>
             </tr>
           ) : (
@@ -128,7 +133,7 @@ export function LeaderboardTable({ teams, matches, settings }: { teams: PhaseTea
                       </div>
                     )}
                     <span className="truncate max-w-[150px] md:max-w-[200px]" title={stat.teams?.name}>
-                      {stat.teams?.name || "Équipe Inconnue"}
+                      {stat.teams?.name || t("common.unknownTeam")}
                     </span>
                   </div>
                 </td>

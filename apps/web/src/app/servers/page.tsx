@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 interface DiscordGuild {
   id: string;
@@ -15,6 +18,8 @@ interface DiscordGuild {
 
 export default async function ServersPage() {
   const session = await getServerSession(authOptions);
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   if (!session || !(session as any).accessToken) {
     redirect("/");
@@ -29,14 +34,13 @@ export default async function ServersPage() {
   });
 
   if (!discordRes.ok) {
-    // Si token expiré, on redirige généralement pour forcer la reconnexion
     return (
       <div className="p-8 text-center text-red-500 font-medium bg-red-50 border border-red-200 mt-12 rounded-xl">
         <p>
-          Session expirée ou vous n'avez pas accordé les permissions "serveurs".
+          {t(locale, "servers.sessionExpired")}
         </p>
         <Link href="/" className="mt-4 block underline text-red-700">
-          Retour à l'accueil
+          {t(locale, "servers.backToHome")}
         </Link>
       </div>
     );
@@ -56,7 +60,6 @@ export default async function ServersPage() {
   const configuredGuildIds = (serverSettings || []).map((s) => s.guild_id);
 
   // 3. Matcher les deux : Serveurs du joueur OÙ le bot est aussi déployé
-  // + Possibilité de checker s'il est admin via: `(guild.permissions & 0x20) === 0x20`
   const matchedGuilds = userGuilds.filter((g) =>
     configuredGuildIds.includes(g.id),
   );
@@ -65,11 +68,10 @@ export default async function ServersPage() {
     <div className="w-full min-h-[calc(100vh-4rem)] bg-[#0a0a0f] p-8 pt-12 text-slate-200">
       <div className="mb-10">
         <h1 className="text-4xl font-extrabold text-white tracking-tight">
-          Mes Serveurs
+          {t(locale, "servers.title")}
         </h1>
         <p className="text-slate-400 mt-3 text-lg max-w-2xl">
-          Sélectionnez un serveur Discord pour accéder à ses tournois et à son
-          panel d'administration.
+          {t(locale, "servers.subtitle")}
         </p>
       </div>
 
@@ -79,12 +81,10 @@ export default async function ServersPage() {
             <span className="text-4xl">🤖</span>
           </div>
           <h2 className="text-2xl font-bold text-slate-200">
-            Aucun serveur trouvé
+            {t(locale, "servers.noServersFound")}
           </h2>
           <p className="text-slate-400 mt-4 leading-relaxed">
-            Vous n'êtes présent sur aucun serveur Discord enregistré avec le
-            Bot, ou vous n'avez pas accordé les permissions pour lire vos
-            serveurs.
+            {t(locale, "servers.noServersDesc")}
           </p>
         </div>
       ) : (
@@ -123,12 +123,12 @@ export default async function ServersPage() {
 
                 <div className="mt-3 flex items-center gap-2 text-sm text-slate-400 font-medium">
                   <Trophy size={16} className="text-amber-500" />
-                  <span>Tournois gérés</span>
+                  <span>{t(locale, "servers.managedTournaments")}</span>
                 </div>
               </div>
               <div className="bg-[#0f111a] border-t border-slate-800/50 px-6 py-4 flex items-center justify-end group-hover:bg-[#1a1d2d] transition-colors">
                 <span className="text-blue-500 font-semibold flex items-center gap-2">
-                  Accéder{" "}
+                  {t(locale, "servers.access")}{" "}
                   <span className="group-hover:translate-x-1 transition-transform">
                     →
                   </span>
@@ -141,3 +141,4 @@ export default async function ServersPage() {
     </div>
   );
 }
+

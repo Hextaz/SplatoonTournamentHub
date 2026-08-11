@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { ParticipantsClient } from "./ParticipantsClient";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export default async function ParticipantsPage({
   params
@@ -8,6 +11,8 @@ export default async function ParticipantsPage({
   params: Promise<{ guildId: string; id: string }>;
 }) {
   const { guildId, id: tournamentId } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   const { data: tournament, error: tournamentError } = await supabase
     .from("tournaments")
@@ -31,8 +36,8 @@ export default async function ParticipantsPage({
   return (
     <div className="p-6 md:p-8 space-y-6 min-h-full">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Participants</h1>
-        <p className="text-slate-400">Gérez les équipes inscrites et leur statut de check-in.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">{t(locale, "adminHeaders.participantsTitle")}</h1>
+        <p className="text-slate-400">{t(locale, "adminHeaders.participantsSubtitle")}</p>
       </div>
 
       <ParticipantsClient 

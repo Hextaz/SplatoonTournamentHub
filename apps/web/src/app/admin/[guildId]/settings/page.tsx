@@ -5,6 +5,7 @@ import { botApiFetch } from '@/utils/api';
 import { supabase } from "@/lib/supabase";
 import { Save, Loader2, RefreshCw } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export default function SettingsPage({
   params,
@@ -14,6 +15,7 @@ export default function SettingsPage({
   const unwrappedParams = use(params);
   const { guildId } = unwrappedParams;
   const { data: session, status } = useSession();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,6 +27,7 @@ export default function SettingsPage({
     checkin_channel_id: "",
     announcement_channel_id: "",
     registration_channel_id: "",
+    language: "fr",
   });
 
   const [discordRoles, setDiscordRoles] = useState<{ id: string; name: string }[]>([]);
@@ -37,7 +40,6 @@ export default function SettingsPage({
 
       setLoading(true);
       try {
-        // Fetch Supabase settings (read-only, RLS public SELECT)
         const { data: dbSettings, error: dbError } = await supabase
           .from("server_settings")
           .select("*")
@@ -51,10 +53,10 @@ export default function SettingsPage({
             checkin_channel_id: dbSettings.checkin_channel_id || "",
             announcement_channel_id: dbSettings.announcement_channel_id || "",
             registration_channel_id: dbSettings.registration_channel_id || "",
+            language: dbSettings.language || "fr",
           });
         }
 
-        // Fetch Discord Roles via Bot API proxy
         try {
           const rolesRes = await fetch(`/api/bot/discord/roles?guildId=${guildId}`);
           if (rolesRes.ok) {
@@ -62,10 +64,9 @@ export default function SettingsPage({
             setDiscordRoles(roles);
           }
         } catch (e) {
-          setApiError("Impossible de joindre le Bot pour les rôles/salons. Vous devez renseigner les IDs manuellement.");
+          setApiError(t("adminSettings.botError"));
         }
 
-        // Fetch Discord Channels via Bot API proxy
         try {
           const channelsRes = await fetch(`/api/bot/discord/channels?guildId=${guildId}`);
           if (channelsRes.ok) {
@@ -80,7 +81,14 @@ export default function SettingsPage({
       setLoading(false);
     }
     loadData();
-  }, [guildId, session, status]);
+  }, [guildId, session, status, t]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setSettings((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +107,7 @@ export default function SettingsPage({
           checkin_channel_id: settings.checkin_channel_id,
           announcement_channel_id: settings.announcement_channel_id,
           registration_channel_id: settings.registration_channel_id,
+          language: settings.language,
         }),
       });
 
@@ -107,24 +116,19 @@ export default function SettingsPage({
         throw new Error(err.error || 'Erreur inconnue');
       }
 
-      setMessage({ type: "success", text: "Paramètres sauvegardés avec succès !" });
+      setMessage({ type: "success", text: t("adminSettings.savedSuccess") });
     } catch (err: any) {
       console.error(err);
-      setMessage({ type: "error", text: "Erreur lors de la sauvegarde : " + err.message });
+      setMessage({ type: "error", text: t("adminSettings.saveError") + err.message });
     }
     setSaving(false);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSettings((prev) => ({ ...prev, [name]: value }));
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 text-slate-400">
         <Loader2 className="w-8 h-8 animate-spin" />
-        <span className="ml-4">Chargement des paramètres...</span>
+        <span className="ml-4">{t("adminSettings.loading")}</span>
       </div>
     );
   }
@@ -132,8 +136,8 @@ export default function SettingsPage({
   return (
     <div className="p-6 md:p-8 w-full max-w-[1600px] mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">⚙️ Paramètres du Serveur</h1>
-        <p className="text-slate-400">Configurez les rôles clés et les salons de votre serveur Discord.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">{t("adminSettings.title")}</h1>
+        <p className="text-slate-400">{t("adminSettings.subtitle")}</p>
 
         {apiError && (
           <div className="mt-4 bg-yellow-900/30 border border-yellow-700/50 p-4 rounded-xl text-yellow-400 text-sm flex items-center">
@@ -146,11 +150,11 @@ export default function SettingsPage({
       <form onSubmit={handleSave} className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl space-y-6">
         {/* RÔLES */}
         <div className="space-y-6">
-          <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2">Rôles</h2>
+          <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2">{t("adminSettings.rolesSection")}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-400">Rôle Capitaine</label>
+              <label className="text-sm font-medium text-slate-400">{t("adminSettings.captainRole")}</label>
               {discordRoles.length > 0 ? (
                 <select
                   name="captain_role_id"
@@ -158,7 +162,7 @@ export default function SettingsPage({
                   onChange={handleChange}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="">Sélectionner un rôle</option>
+                  <option value="">{t("adminSettings.selectRole")}</option>
                   {discordRoles.map((role) => (
                     <option key={role.id} value={role.id}>{role.name}</option>
                   ))}
@@ -169,14 +173,14 @@ export default function SettingsPage({
                   name="captain_role_id"
                   value={settings.captain_role_id}
                   onChange={handleChange}
-                  placeholder="ID du Rôle"
+                  placeholder={t("adminSettings.roleIdPlaceholder")}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-400">Rôle T.O (Tournament Organizer)</label>
+              <label className="text-sm font-medium text-slate-400">{t("adminSettings.toRole")}</label>
               {discordRoles.length > 0 ? (
                 <select
                   name="to_role_id"
@@ -184,7 +188,7 @@ export default function SettingsPage({
                   onChange={handleChange}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="">Sélectionner un rôle</option>
+                  <option value="">{t("adminSettings.selectRole")}</option>
                   {discordRoles.map((role) => (
                     <option key={role.id} value={role.id}>{role.name}</option>
                   ))}
@@ -195,7 +199,7 @@ export default function SettingsPage({
                   name="to_role_id"
                   value={settings.to_role_id}
                   onChange={handleChange}
-                  placeholder="ID du Rôle"
+                  placeholder={t("adminSettings.roleIdPlaceholder")}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
@@ -205,11 +209,11 @@ export default function SettingsPage({
 
         {/* SALONS */}
         <div className="space-y-6 pt-4">
-          <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2">Salons</h2>
+          <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2">{t("adminSettings.channelsSection")}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-400">Salon de Check-in</label>
+              <label className="text-sm font-medium text-slate-400">{t("adminSettings.checkinChannel")}</label>
               {discordChannels.length > 0 ? (
                 <select
                   name="checkin_channel_id"
@@ -217,7 +221,7 @@ export default function SettingsPage({
                   onChange={handleChange}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="">Sélectionner un salon textuel</option>
+                  <option value="">{t("adminSettings.selectChannel")}</option>
                   {discordChannels.map((ch) => (
                     <option key={ch.id} value={ch.id}>#{ch.name}</option>
                   ))}
@@ -228,14 +232,14 @@ export default function SettingsPage({
                   name="checkin_channel_id"
                   value={settings.checkin_channel_id}
                   onChange={handleChange}
-                  placeholder="ID du Salon"
+                  placeholder={t("adminSettings.channelIdPlaceholder")}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-400">Salon d'Annonces (Public)</label>
+              <label className="text-sm font-medium text-slate-400">{t("adminSettings.announcementChannel")}</label>
               {discordChannels.length > 0 ? (
                 <select
                   name="announcement_channel_id"
@@ -243,7 +247,7 @@ export default function SettingsPage({
                   onChange={handleChange}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="">Sélectionner un salon textuel</option>
+                  <option value="">{t("adminSettings.selectChannel")}</option>
                   {discordChannels.map((ch) => (
                     <option key={ch.id} value={ch.id}>#{ch.name}</option>
                   ))}
@@ -254,14 +258,14 @@ export default function SettingsPage({
                   name="announcement_channel_id"
                   value={settings.announcement_channel_id}
                   onChange={handleChange}
-                  placeholder="ID du Salon"
+                  placeholder={t("adminSettings.channelIdPlaceholder")}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
             </div>
 
             <div className="flex flex-col gap-2 md:col-span-2">
-              <label className="text-sm font-medium text-slate-400">Salon d'Inscriptions (Caché/Spécifique)</label>
+              <label className="text-sm font-medium text-slate-400">{t("adminSettings.registrationChannel")}</label>
               {discordChannels.length > 0 ? (
                 <select
                   name="registration_channel_id"
@@ -269,7 +273,7 @@ export default function SettingsPage({
                   onChange={handleChange}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="">Sélectionner un salon textuel pour les inscriptions</option>
+                  <option value="">{t("adminSettings.selectRegistrationChannel")}</option>
                   {discordChannels.map((ch) => (
                     <option key={ch.id} value={ch.id}>#{ch.name}</option>
                   ))}
@@ -280,11 +284,28 @@ export default function SettingsPage({
                   name="registration_channel_id"
                   value={settings.registration_channel_id}
                   onChange={handleChange}
-                  placeholder="ID du Salon"
+                  placeholder={t("adminSettings.channelIdPlaceholder")}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white"
                 />
               )}
             </div>
+          </div>
+        </div>
+
+        {/* BOT LANGUAGE */}
+        <div className="space-y-4 pt-4">
+          <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2">{t("adminSettings.botLanguage")}</h2>
+          <p className="text-xs text-slate-400">{t("adminSettings.botLanguageDesc")}</p>
+          <div className="max-w-xs">
+            <select
+              name="language"
+              value={settings.language}
+              onChange={handleChange}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
           </div>
         </div>
 
@@ -304,7 +325,7 @@ export default function SettingsPage({
             className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-            {saving ? "Sauvegarde..." : "Sauvegarder"}
+            {saving ? t("adminSettings.saving") : t("adminSettings.save")}
           </button>
         </div>
       </form>

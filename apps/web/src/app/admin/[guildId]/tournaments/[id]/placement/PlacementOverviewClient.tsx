@@ -2,6 +2,7 @@
 
 import { CopyX, GitMerge, LayoutGrid, Network, LayoutList } from "lucide-react";
 import Link from "next/link";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export function PlacementOverviewClient({ 
   tournamentId, 
@@ -12,13 +13,14 @@ export function PlacementOverviewClient({
   guildId: string; 
   initialPhases: any[] 
 }) {
+  const { t } = useTranslation();
 
   const getFormatDetails = (format: string) => {
-    if (format === 'SINGLE_ELIM') return { icon: GitMerge, label: 'Élimination directe' };
-    if (format === 'ROUND_ROBIN') return { icon: LayoutGrid, label: 'Groupes "round-robin"' };
-    if (format === 'DOUBLE_ELIM') return { icon: CopyX, label: 'Double élimination' };
-    if (format === 'SWISS') return { icon: Network, label: 'Ronde suisse' };
-    return { icon: LayoutList, label: 'Inconnu' };
+    if (format === 'SINGLE_ELIM') return { icon: GitMerge, label: t("adminStructure.singleElimLabel") };
+    if (format === 'ROUND_ROBIN') return { icon: LayoutGrid, label: t("adminStructure.roundRobinLabel") };
+    if (format === 'DOUBLE_ELIM') return { icon: CopyX, label: t("adminStructure.doubleElimLabel") };
+    if (format === 'SWISS') return { icon: Network, label: t("adminStructure.swissLabel") };
+    return { icon: LayoutList, label: t("common.unknown") };
   };
 
   return (
@@ -26,7 +28,7 @@ export function PlacementOverviewClient({
       
       {initialPhases.length === 0 ? (
         <div className="bg-orange-500/10 border border-orange-500/20 text-orange-400 p-6 rounded-xl text-center">
-          Aucune phase trouvée. Veuillez générer une phase depuis l'onglet Structure d'abord.
+          {t("adminPlacement.noPhasesFound")}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -52,7 +54,7 @@ export function PlacementOverviewClient({
                     href={`/admin/${guildId}/tournaments/${tournamentId}/placement/${phase.id}`}
                     className="text-indigo-400 hover:text-indigo-300 text-sm font-bold px-4 py-2.5 transition-colors w-full text-center"
                   >
-                    Gérer les placements
+                    {t("adminPlacement.managePlacements")}
                   </Link>
                 </div>
               </div>

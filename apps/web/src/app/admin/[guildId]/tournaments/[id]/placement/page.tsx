@@ -1,6 +1,9 @@
-﻿import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { PlacementOverviewClient } from "./PlacementOverviewClient";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export default async function PlacementPage({
   params
@@ -8,6 +11,8 @@ export default async function PlacementPage({
   params: Promise<{ guildId: string; id: string }>;
 }) {
   const { guildId, id: tournamentId } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // Retrieve tournament
   const { data: tournament, error: tErr } = await supabase
@@ -32,9 +37,9 @@ export default async function PlacementPage({
   return (
     <div className="p-6 md:p-8 space-y-6 min-h-full flex flex-col">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Placement</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">{t(locale, "adminHeaders.placementTitle")}</h1>
         <p className="text-slate-400">
-          Sélectionnez une phase pour y répartir vos équipes (seeding).
+          {t(locale, "adminHeaders.placementSubtitle")}
         </p>
       </header>
 

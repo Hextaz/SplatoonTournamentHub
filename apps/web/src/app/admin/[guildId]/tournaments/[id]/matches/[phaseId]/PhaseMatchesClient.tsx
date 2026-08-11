@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 import { Search, Trophy, Check, X, CalendarDays, Loader2, ArrowLeft, Users, AlertCircle } from "lucide-react";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
 import { useSupabaseSubscription } from "@/hooks/useSupabaseSubscription";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatches, phaseTeams, dbGroups }: any) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
       router.refresh();
     } catch (err) {
       console.error(err);
-      alert("Impossible de mettre à jour le match.");
+      alert(t("adminMatches.updateError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -103,9 +105,9 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
   };
 
   const getMatchStatusText = (match: any) => {
-    if (match.status === "COMPLETED" || match.status === "FF") return "Terminé";
-    if (match.team1_id && match.team2_id) return "A jouer";
-    return "En attente";
+    if (match.status === "COMPLETED" || match.status === "FF") return t("tournaments.statusCompleted");
+    if (match.team1_id && match.team2_id) return t("tournaments.statusActive");
+    return t("adminParticipants.pending");
   };
 
 
@@ -119,7 +121,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
 
       return (
         <div className="p-6 md:p-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Groupes</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">{t("adminMatches.groupsTitle")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {displayGroups.map((g: any, i: number) => (
               <div 
@@ -131,7 +133,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                   <Users className="w-6 h-6" />
                 </div>
                 <h3 className="text-lg font-bold text-white">{g.name || `Group ${i + 1}`}</h3>
-                <span className="text-sm text-slate-500 mt-2">Cliquez pour voir les détails</span>
+                <span className="text-sm text-slate-500 mt-2">{t("adminMatches.clickToViewDetails")}</span>
               </div>
             ))}
           </div>
@@ -157,12 +159,12 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
       <div className="p-6 md:p-8 flex flex-col gap-8">
         <div className="flex items-center justify-between">
           <button onClick={() => setSelectedGroup(null)} className="flex items-center gap-2 text-blue-400 hover:text-blue-300 font-bold transition-colors">
-            <ArrowLeft className="w-5 h-5"/> Retour aux Groupes
+            <ArrowLeft className="w-5 h-5"/> {t("adminMatches.backToGroups")}
           </button>
           <div className="flex gap-2">
-            <button className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 text-sm font-bold rounded shadow-sm border border-slate-700">Tie-break manuel</button>
+            <button className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 text-sm font-bold rounded shadow-sm border border-slate-700">{t("adminMatches.manualTiebreak")}</button>
             <button className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 text-sm font-bold rounded shadow-sm flex items-center gap-2">
-              <Check className="w-4 h-4"/> Valider
+              <Check className="w-4 h-4"/> {t("adminMatches.validate")}
             </button>
           </div>
         </div>
@@ -176,7 +178,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
         <div className="flex flex-col gap-6">
            {Object.keys(rounds).sort((a,b) => Number(a)-Number(b)).map(roundNum => (
              <div key={roundNum} className="flex flex-col gap-3">
-               <h4 className="text-xl font-bold text-slate-400">Round {roundNum}</h4>
+               <h4 className="text-xl font-bold text-slate-400">{t("adminMatches.roundHeader", { round: roundNum })}</h4>
                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                  {rounds[roundNum].map((match: any) => {
                     const isCompleted = match.status === "COMPLETED" || match.status === "FF";
@@ -190,13 +192,13 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                       >
                          <div className="flex items-center justify-between p-3 border-b border-slate-700/50">
                             <span className={`text-sm font-semibold truncate ${match.team1_score > match.team2_score ? 'text-white' : 'text-slate-500'}`}>
-                              {match.team1?.name || 'TBD'}
+                              {match.team1?.name || t("common.tbd")}
                             </span>
                             {isCompleted && <span className="text-sm font-bold ml-2">{match.team1_score}</span>}
                          </div>
                          <div className="flex items-center justify-between p-3">
                             <span className={`text-sm font-semibold truncate ${match.team2_score > match.team1_score ? 'text-white' : 'text-slate-500'}`}>
-                              {match.team2?.name || 'TBD'}
+                              {match.team2?.name || t("common.tbd")}
                             </span>
                             {isCompleted && <span className="text-sm font-bold ml-2">{match.team2_score}</span>}
                          </div>
@@ -226,7 +228,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     if (roundNumbers.length === 0) {
       return (
         <div className="py-12 text-center flex flex-col items-center">
-          <p className="text-slate-400">L'arbre n'a pas encore été généré.</p>
+          <p className="text-slate-400">{t("adminMatches.treeNotGenerated")}</p>
         </div>
       );
     }
@@ -329,7 +331,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                           >
                              <div className="flex items-stretch border-b border-slate-700/50 h-10">
                                 <div className={`flex-1 px-3 flex flex-col justify-center truncate ${isTeam1Winner ? 'font-bold text-slate-200' : 'font-medium text-slate-500'}`}>
-                                   {match.team1?.name || "TBD"}
+                                   {match.team1?.name || t("common.tbd")}
                                 </div>
                                 {isCompleted && (
                                    <div className="px-3 border-l border-slate-700/50 flex items-center justify-center font-bold text-slate-355 w-10 shrink-0 bg-[#0f111a]">
@@ -342,8 +344,8 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                                    {match.team2?.name ? (
                                       match.team2.name
                                    ) : isBye ? (
-                                      <span className="text-slate-400 font-bold italic">BYE (TBD)</span>
-                                   ) : "TBD"}
+                                      <span className="text-slate-400 font-bold italic">BYE ({t("common.tbd")})</span>
+                                   ) : t("common.tbd")}
                                 </div>
                                 {isCompleted && (
                                    <div className="px-3 border-l border-slate-700/50 flex items-center justify-center font-bold text-slate-355 w-10 shrink-0 bg-[#0f111a]">
@@ -390,8 +392,8 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
 
       return (
         <div className="bg-slate-950 flex flex-col gap-2 py-6 overflow-y-auto max-h-[calc(100vh-140px)]">
-          {renderRoundRow(wbRoundNumbers, "Winner Bracket (Tableau Principal)")}
-          {renderRoundRow(lbRoundNumbers, "Loser Bracket (Tableau de Repêchage)")}
+          {renderRoundRow(wbRoundNumbers, t("adminMatches.winnerBracket"))}
+          {renderRoundRow(lbRoundNumbers, t("adminMatches.loserBracket"))}
         </div>
       );
     }
@@ -415,8 +417,8 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
     return (
       <div className="p-6 md:p-8 flex flex-col gap-8 overflow-y-auto">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{phase.name} - Rondes Suisses</h2>
-          <p className="text-sm text-slate-500">Classement et matchs de la phase de rondes suisses.</p>
+          <h2 className="text-2xl font-bold text-white mb-2">{t("adminMatches.swissTitle", { name: phase.name })}</h2>
+          <p className="text-sm text-slate-500">{t("adminMatches.swissSubtitle")}</p>
         </div>
 
         {/* Standings */}
@@ -428,7 +430,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
         <div className="flex flex-col gap-6">
            {Object.keys(rounds).sort((a,b) => Number(a)-Number(b)).map(roundNum => (
              <div key={roundNum} className="flex flex-col gap-3">
-               <h4 className="text-xl font-bold text-slate-400">Ronde {roundNum}</h4>
+               <h4 className="text-xl font-bold text-slate-400">{t("adminMatches.swissRoundHeader", { round: roundNum })}</h4>
                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                  {rounds[roundNum].map((match: any) => {
                     const isCompleted = match.status === "COMPLETED" || match.status === "FF" || match.status === "BYE";
@@ -443,16 +445,16 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                       >
                          <div className="flex items-center justify-between p-3 border-b border-slate-700/50">
                             <span className={`text-sm font-semibold truncate ${match.team1_score > match.team2_score || isBye ? 'text-white' : 'text-slate-500'}`}>
-                              {match.team1?.name || 'TBD'}
+                              {match.team1?.name || t("common.tbd")}
                             </span>
                             {isCompleted && <span className="text-sm font-bold ml-2">{match.team1_score}</span>}
                          </div>
                          <div className="flex items-center justify-between p-3">
                             <span className={`text-sm font-semibold truncate ${match.team2_score > match.team1_score ? 'text-white' : 'text-slate-500'}`}>
                               {isBye ? (
-                                <span className="text-slate-400 font-bold italic">BYE (Exempt)</span>
+                                <span className="text-slate-400 font-bold italic">{t("adminMatches.byeExempt")}</span>
                               ) : (
-                                match.team2?.name || 'TBD'
+                                match.team2?.name || t("common.tbd")
                               )}
                             </span>
                             {isCompleted && !isBye && <span className="text-sm font-bold ml-2">{match.team2_score}</span>}
@@ -478,7 +480,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
           <div className="flex items-center gap-3 text-green-400">
             <Check className="w-5 h-5" />
             <p className="font-semibold text-sm">
-              Phase terminée ! Les résultats finaux ont été validés. ({completedMatches}/{totalMatches} matchs joués)
+              {t("adminMatches.phaseCompletedBanner", { completed: completedMatches, total: totalMatches })}
             </p>
           </div>
         </div>
@@ -497,7 +499,7 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
             {/* Header */}
             <div className="p-6 pb-0 flex flex-col items-center text-center shrink-0">
                <h2 className="text-slate-400 font-bold uppercase tracking-wider text-xs mb-4">
-                 Match #{selectedMatch.round_number}.{selectedMatch.match_number}
+                 {t("adminMatches.editMatchTitle", { round: selectedMatch.round_number, match: selectedMatch.match_number })}
                </h2>
                <div className="flex items-center gap-12 w-full justify-center">
                  <span className="text-2xl font-bold text-slate-200 flex-1 text-right truncate bg-[#0f111a] px-4 py-2 rounded-lg border border-slate-700/50">{selectedMatch.team1?.name}</span>
@@ -512,8 +514,8 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
 
             {/* Tabs Mock */}
             <div className="px-8 mt-6 border-b border-slate-800/50 flex gap-6 shrink-0">
-              <div className="pb-3 border-b-2 border-blue-500 text-blue-600 font-bold text-sm cursor-pointer">Résultat</div>
-              <div className="pb-3 border-transparent text-slate-500 font-bold text-sm cursor-pointer">Infos</div>
+              <div className="pb-3 border-b-2 border-blue-500 text-blue-600 font-bold text-sm cursor-pointer">{t("adminMatches.resultTab")}</div>
+              <div className="pb-3 border-transparent text-slate-500 font-bold text-sm cursor-pointer">{t("adminMatches.infoTab")}</div>
             </div>
 
             {/* Body */}
@@ -523,10 +525,10 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                <table className="w-full">
                   <thead>
                     <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700/50">
-                      <th className="text-left pb-4 w-1/2">Nom</th>
-                      <th className="text-center pb-4 w-24">Forfait</th>
-                      <th className="text-center pb-4 w-32">Score</th>
-                      <th className="text-right pb-4 w-32 pr-2">Résultat</th>
+                      <th className="text-left pb-4 w-1/2">{t("adminMatches.nameHeader")}</th>
+                      <th className="text-center pb-4 w-24">{t("adminMatches.forfeitHeader")}</th>
+                      <th className="text-center pb-4 w-32">{t("adminMatches.scoreHeader")}</th>
+                      <th className="text-right pb-4 w-32 pr-2">{t("adminMatches.resultHeader")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
@@ -593,14 +595,14 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
                  disabled={isSubmitting}
                  className="px-6 py-2.5 bg-[#0f111a]0 hover:bg-slate-600 text-white font-bold rounded shadow-sm transition-colors flex items-center gap-2"
                >
-                 <ArrowLeft className="w-4 h-4"/> Retour
+                 <ArrowLeft className="w-4 h-4"/> {t("common.back")}
                </button>
                <button 
                  onClick={handleUpdateMatch}
                  disabled={isSubmitting}
                  className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded shadow-sm transition-colors flex items-center gap-2"
                >
-                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : "Mettre à jour"}
+                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : t("adminPhaseConfig.update")}
                </button>
             </div>
             

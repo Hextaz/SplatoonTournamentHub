@@ -1,15 +1,19 @@
 export const dynamic = 'force-dynamic';
 
 import { supabase } from "@/lib/supabase";
-import { Calendar, Monitor, Users, ExternalLink } from "lucide-react";
-import Link from "next/link";
+import { Calendar, Monitor, Users } from "lucide-react";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export default async function PublicTournamentOverview({
   params,
 }: {
   params: Promise<{ guildId: string; id: string }>;
 }) {
-  const { guildId, id } = await params;
+  const { id } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // Parallel fetching
   const [
@@ -73,13 +77,13 @@ export default async function PublicTournamentOverview({
         <div>
           <div className="flex text-sm text-slate-400 border-b border-slate-800/50 mb-4 pb-2">
             <span className="font-semibold text-slate-200 border-b-2 border-slate-200 px-2 pb-[10px] -mb-[10px]">
-              Derniers résultats
+              {t(locale, "tournaments.recentResults")}
             </span>
           </div>
           <div className="space-y-3">
             {recentMatches.length === 0 ? (
               <p className="text-slate-500 py-4 text-center bg-[#151722] rounded-lg border border-slate-800/30">
-                Aucun match terminé
+                {t(locale, "tournaments.noCompletedMatches")}
               </p>
             ) : (
               recentMatches.map(match => {
@@ -97,28 +101,28 @@ export default async function PublicTournamentOverview({
                     <div className="flex flex-col p-2">
                       <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
                         <span className={`font-semibold ${team1Wins ? 'text-slate-200' : 'text-slate-400'}`}>
-                          {match.team1?.name || "TBD"}
+                          {match.team1?.name || t(locale, "common.tbd")}
                         </span>
                         <div className="flex items-center gap-3">
                           {!isBye && <span className="text-slate-300 font-bold">{s1}</span>}
-                          {isBye && <span className="text-green-500 font-bold text-xs uppercase">Auto</span>}
+                          {isBye && <span className="text-green-500 font-bold text-xs uppercase">{t(locale, "common.auto")}</span>}
                           {team1Wins ? (
-                            <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">V</span>
+                            <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">{t(locale, "common.win")}</span>
                           ) : (
-                            <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">D</span>
+                            <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">{t(locale, "common.loss")}</span>
                           )}
                         </div>
                       </div>
                       <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
                         <span className={`font-semibold ${team2Wins ? 'text-slate-200' : 'text-slate-400'}`}>
-                          {isBye ? "BYE" : (match.team2?.name || "TBD")}
+                          {isBye ? t(locale, "common.bye") : (match.team2?.name || t(locale, "common.tbd"))}
                         </span>
                         <div className="flex items-center gap-3">
                           {!isBye && <span className="text-slate-300 font-bold">{s2}</span>}
                           {team2Wins ? (
-                            <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">V</span>
+                            <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">{t(locale, "common.win")}</span>
                           ) : (
-                            <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">D</span>
+                            <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">{t(locale, "common.loss")}</span>
                           )}
                         </div>
                       </div>
@@ -133,13 +137,13 @@ export default async function PublicTournamentOverview({
         <div>
           <div className="flex text-sm text-slate-400 border-b border-slate-800/50 mb-4 pb-2">
             <span className="font-semibold text-slate-200 border-b-2 border-slate-200 px-2 pb-[10px] -mb-[10px]">
-              À venir
+              {t(locale, "tournaments.upcoming")}
             </span>
           </div>
           <div className="space-y-3">
             {upcomingMatches.length === 0 ? (
               <p className="text-slate-500 py-4 text-center bg-[#151722] rounded-lg border border-slate-800/30">
-                Aucun match programmé
+                {t(locale, "tournaments.noUpcomingMatches")}
               </p>
             ) : (
               upcomingMatches.map(match => (
@@ -149,11 +153,11 @@ export default async function PublicTournamentOverview({
                   </div>
                   <div className="flex flex-col p-2 text-slate-300">
                     <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
-                      <span>{match.team1?.name || "TBD"}</span>
+                      <span>{match.team1?.name || t(locale, "common.tbd")}</span>
                       <span className="text-slate-500">-</span>
                     </div>
                     <div className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-800/20 rounded">
-                      <span>{match.team2?.name || "TBD"}</span>
+                      <span>{match.team2?.name || t(locale, "common.tbd")}</span>
                       <span className="text-slate-500">-</span>
                     </div>
                   </div>
@@ -166,7 +170,7 @@ export default async function PublicTournamentOverview({
 
       {/* Information Cards section */}
       <div>
-        <h2 className="text-xl font-bold text-slate-200 mb-6">Informations</h2>
+        <h2 className="text-xl font-bold text-slate-200 mb-6">{t(locale, "tournaments.information")}</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-[#151722] border border-slate-800/50 p-5 rounded-lg flex items-start gap-4 hover:border-slate-700 transition-colors">
@@ -175,8 +179,8 @@ export default async function PublicTournamentOverview({
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-orange-500"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-200">Splatoon 3</p>
-              <p className="text-xs text-slate-500 mt-1">Switch</p>
+              <p className="text-sm font-semibold text-slate-200">{t(locale, "tournaments.game")}</p>
+              <p className="text-xs text-slate-500 mt-1">{t(locale, "tournaments.platform")}</p>
             </div>
           </div>
           
@@ -185,8 +189,8 @@ export default async function PublicTournamentOverview({
               <Users className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-200">Taille</p>
-              <p className="text-xs text-slate-500 mt-1">{totalTeams} Équipes (4 joueurs)</p>
+              <p className="text-sm font-semibold text-slate-200">{t(locale, "tournaments.size")}</p>
+              <p className="text-xs text-slate-500 mt-1">{t(locale, "tournaments.teamsCount", { count: totalTeams })}</p>
             </div>
           </div>
 
@@ -195,8 +199,8 @@ export default async function PublicTournamentOverview({
               <Monitor className="w-5 h-5 text-purple-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-200">Format</p>
-              <p className="text-xs text-slate-500 mt-1">Online</p>
+              <p className="text-sm font-semibold text-slate-200">{t(locale, "tournaments.format")}</p>
+              <p className="text-xs text-slate-500 mt-1">{t(locale, "tournaments.online")}</p>
             </div>
           </div>
         </div>
@@ -207,11 +211,11 @@ export default async function PublicTournamentOverview({
               <Calendar className="w-5 h-5 text-slate-400" />
             </div>
             <div className="w-full">
-              <p className="text-sm font-semibold text-slate-200 mb-3">Planning</p>
+              <p className="text-sm font-semibold text-slate-200 mb-3">{t(locale, "tournaments.schedule")}</p>
                 <div className="flex flex-col gap-1 bg-slate-800/40 p-3 rounded text-sm text-slate-400 font-mono">
-                  <span className="text-xs text-slate-500 uppercase tracking-widest font-sans">Dates du tournoi</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-widest font-sans">{t(locale, "tournaments.tournamentDates")}</span>
                   <span className="text-slate-200">
-                  {tournament.start_at ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' }).format(new Date(tournament.start_at)) : 'TBD'}
+                  {tournament.start_at ? new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'fr-FR', { dateStyle: 'short' }).format(new Date(tournament.start_at)) : t(locale, "common.tbd")}
                 </span>
               </div>
             </div>
@@ -222,3 +226,4 @@ export default async function PublicTournamentOverview({
     </div>
   );
 }
+
