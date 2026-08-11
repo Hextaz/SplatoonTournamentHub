@@ -2,6 +2,9 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { PublicTournamentNav } from "@/components/PublicTournamentNav";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export default async function PublicTournamentLayout({
   children,
@@ -11,6 +14,8 @@ export default async function PublicTournamentLayout({
   params: Promise<{ guildId: string; id: string }>;
 }) {
   const { guildId, id } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // Fetch only what's needed for the layout (banner, logo, title)
   const { data: tournament } = await supabase
@@ -22,9 +27,9 @@ export default async function PublicTournamentLayout({
   if (!tournament) {
     return (
       <div className="min-h-screen p-8 text-center text-slate-400 bg-[#0f111a]">
-        <p className="text-xl">Tournoi introuvable.</p>
+        <p className="text-xl">{t(locale, "tournaments.notFound")}</p>
         <Link href={`/${guildId}`} className="text-blue-500 hover:text-blue-400 mt-4 inline-block">
-          Retour aux tournois du serveur
+          {t(locale, "tournaments.backToServerTournaments")}
         </Link>
       </div>
     );
@@ -42,7 +47,7 @@ export default async function PublicTournamentLayout({
             <Link 
               href={`/${guildId}`}
               className="p-2 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md transition-colors"
-              title="Retour aux tournois du serveur"
+              title={t(locale, "tournaments.backToServerTournaments")}
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
@@ -85,4 +90,5 @@ export default async function PublicTournamentLayout({
     </div>
   );
 }
+
 

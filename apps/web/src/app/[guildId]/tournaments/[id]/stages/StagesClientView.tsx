@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useSupabaseSubscription } from "@/hooks/useSupabaseSubscription";
 import { useRealtimeMatches } from "@/hooks/useRealtimeMatches";
 import { RealtimeBadge } from "@/components/RealtimeBadge";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 type Phase = any;
 type Match = any;
@@ -14,6 +15,7 @@ type Team = any;
 
 export function StagesClientView({ phases, matches: initialMatches, teams, phaseTeams }: { phases: Phase[], matches: Match[], teams: Team[], phaseTeams?: any[] }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const sortedPhases = [...phases].sort((a, b) => a.phase_order - b.phase_order);
   const [activePhaseId, setActivePhaseId] = useState<string | null>(sortedPhases[0]?.id || null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
       return (
         <div className="py-12 text-center flex flex-col items-center">
           <GitCommit className="w-12 h-12 text-slate-600 mb-4 rotate-90" />
-          <p className="text-slate-400">L'arbre n'a pas encore été généré.</p>
+          <p className="text-slate-400">{t("stages.bracketNotGenerated")}</p>
         </div>
       );
     }
@@ -85,8 +87,8 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
       if (activePhase?.format === "DOUBLE_ELIM") {
         if (r < 10) return `Winner Bracket - Round ${r}`;
         if (r >= 11 && r < 21) return `Loser Bracket - Round ${r - 10}`;
-        if (r === 21) return `Grande Finale`;
-        return `Grande Finale - Reset`;
+        if (r === 21) return t("stages.grandFinal");
+        return t("stages.grandFinalReset");
       }
       return `Round ${r}`;
     };
@@ -176,7 +178,7 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
                           <div className={`h-full bg-[#151722] rounded-md overflow-hidden flex flex-col shadow-sm transition-all duration-500 text-sm font-mono cursor-pointer relative z-10 w-full ${recentlyUpdatedMatchId === match.id ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/50 shadow-emerald-500/30 bg-emerald-950/20' : 'border border-slate-800/80 hover:border-slate-600/80'}`}>
                             <div className={`flex justify-between items-center p-2 border-b border-slate-800/50 ${isTeam1Winner ? 'bg-slate-800/30' : ''}`}>
                               <span className={`truncate mr-2 ${isTeam1Winner ? 'text-slate-200 font-bold' : match.team1?.name ? 'text-slate-400' : 'text-slate-600 italic'}`}>
-                                {match.team1?.name || "TBD"}
+                                {match.team1?.name || t("common.tbd")}
                               </span>
                               <span className={`font-bold ${isTeam1Winner ? 'text-green-400' : isCompleted ? 'text-slate-500' : 'text-slate-600'}`}>
                                 {isCompleted ? (match.team1_score || 0) : "-"}
@@ -187,8 +189,8 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
                                 {match.team2?.name ? (
                                   match.team2.name
                                 ) : isBye ? (
-                                  <span className="text-slate-400 font-bold italic">BYE (TBD)</span>
-                                ) : "TBD"}
+                                  <span className="text-slate-400 font-bold italic">{t("common.bye")} ({t("common.tbd")})</span>
+                                ) : t("common.tbd")}
                               </span>
                               <span className={`font-bold ${isTeam2Winner ? 'text-green-400' : isCompleted ? 'text-slate-500' : 'text-slate-600'}`}>
                                 {isCompleted ? (match.team2_score || 0) : "-"}
@@ -233,8 +235,8 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
 
       return (
         <div className="flex flex-col gap-2">
-          {renderRoundRow(wbRoundNumbers, "Winner Bracket (Tableau Principal)")}
-          {renderRoundRow(lbRoundNumbers, "Loser Bracket (Tableau de Repêchage)")}
+          {renderRoundRow(wbRoundNumbers, t("stages.winnerBracket"))}
+          {renderRoundRow(lbRoundNumbers, t("stages.loserBracket"))}
         </div>
       );
     }
@@ -276,7 +278,7 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
                     : "bg-[#151722] text-slate-400 border border-slate-800/50 hover:bg-slate-800"
                 }`}
               >
-                Group {index + 1}
+                {t("stages.groupNumber", { number: index + 1 })}
               </button>
             ))}
           </div>
@@ -292,7 +294,7 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
-            Classement
+            {t("stages.ranking")}
           </button>
           <button
             onClick={() => setGroupTab("rounds")}
@@ -302,7 +304,7 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
-            Tours
+            {t("stages.rounds")}
           </button>
         </div>
 
@@ -323,19 +325,19 @@ export function StagesClientView({ phases, matches: initialMatches, teams, phase
                       <div key={match.id} className="bg-[#151722] border border-slate-800/80 rounded flex overflow-hidden font-mono text-sm">
                         <div className="flex flex-col w-full">
                           <div className={`flex justify-between items-center p-2.5 border-b border-slate-800/40 ${isTeam1Winner ? 'bg-slate-800/30 text-slate-200' : 'text-slate-400'}`}>
-                            <span className="truncate mr-4">{match.team1?.name || "TBD"}</span>
+                            <span className="truncate mr-4">{match.team1?.name || t("common.tbd")}</span>
                             <div className="flex items-center gap-3 shrink-0">
                                {isCompleted ? <span className="font-bold">{match.team1_score}</span> : <span>-</span>}
-                               {isTeam1Winner && <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">V</span>}
-                               {!isTeam1Winner && isCompleted && <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">D</span>}
+                               {isTeam1Winner && <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">{t("common.win")}</span>}
+                               {!isTeam1Winner && isCompleted && <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">{t("common.loss")}</span>}
                             </div>
                           </div>
                           <div className={`flex justify-between items-center p-2.5 ${isTeam2Winner ? 'bg-slate-800/30 text-slate-200' : 'text-slate-400'}`}>
-                            <span className="truncate mr-4">{match.team2?.name || "TBD"}</span>
+                            <span className="truncate mr-4">{match.team2?.name || t("common.tbd")}</span>
                             <div className="flex items-center gap-3 shrink-0">
                                {isCompleted ? <span className="font-bold">{match.team2_score}</span> : <span>-</span>}
-                               {isTeam2Winner && <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">V</span>}
-                               {!isTeam2Winner && isCompleted && <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">D</span>}
+                               {isTeam2Winner && <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 text-green-400 rounded text-[10px] font-bold">{t("common.win")}</span>}
+                               {!isTeam2Winner && isCompleted && <span className="w-5 h-5 flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[10px] font-bold">{t("common.loss")}</span>}
                             </div>
                           </div>
                         </div>

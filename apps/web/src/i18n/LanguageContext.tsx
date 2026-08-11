@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Locale, TranslationParams } from "./types";
 import { defaultLocale, t as translate } from "./index";
 
@@ -24,6 +25,7 @@ export function LanguageProvider({
   children: React.ReactNode;
   initialLocale?: Locale;
 }) {
+  const router = useRouter();
   const [locale, setLocaleState] = useState<Locale>(
     initialLocale || defaultLocale,
   );
@@ -32,9 +34,11 @@ export function LanguageProvider({
     // 1. Try reading from localStorage on mount
     const saved = localStorage.getItem(STORAGE_KEY) as Locale | null;
     if (saved === "fr" || saved === "en") {
-      setLocaleState(saved);
-      document.documentElement.lang = saved;
-      document.cookie = `${COOKIE_NAME}=${saved}; path=/; max-age=31536000; SameSite=Lax`;
+      if (saved !== locale) {
+        setLocaleState(saved);
+        document.documentElement.lang = saved;
+        document.cookie = `${COOKIE_NAME}=${saved}; path=/; max-age=31536000; SameSite=Lax`;
+      }
     } else {
       // Check navigator language
       const navLang = navigator.language?.toLowerCase();
@@ -53,6 +57,8 @@ export function LanguageProvider({
       document.cookie = `${COOKIE_NAME}=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
       document.documentElement.lang = newLocale;
     }
+    // Instantly refresh Server Component routes without manual page reload
+    router.refresh();
   };
 
   const t = (key: string, params?: TranslationParams) => {
@@ -65,6 +71,7 @@ export function LanguageProvider({
     </LanguageContext.Provider>
   );
 }
+
 
 export function useTranslation() {
   const context = useContext(LanguageContext);

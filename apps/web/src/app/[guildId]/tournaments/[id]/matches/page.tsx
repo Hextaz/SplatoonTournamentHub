@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { RealtimeMatchesList } from "@/components/RealtimeMatchesList";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 export default async function PublicMatchesPage({
   params,
@@ -7,6 +10,8 @@ export default async function PublicMatchesPage({
   params: Promise<{ guildId: string; id: string }>;
 }) {
   const { id } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // Get phase IDs via tournament
   const { data: phases } = await supabase.from("phases").select("id").eq("tournament_id", id);
@@ -24,7 +29,7 @@ export default async function PublicMatchesPage({
   if (!matches || matches.length === 0) {
     return (
       <div className="py-12 bg-[#151722] rounded-xl border border-slate-800/50 flex flex-col items-center justify-center text-slate-500 animate-in fade-in duration-300">
-        <p>Aucun match disponible pour le moment.</p>
+        <p>{t(locale, "matches.noMatchesAvailable")}</p>
       </div>
     );
   }
