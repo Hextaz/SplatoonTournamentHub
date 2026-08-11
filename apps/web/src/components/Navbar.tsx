@@ -21,7 +21,7 @@ export default function Navbar() {
               className="flex-shrink-0 flex items-center gap-2"
             >
               <span className="font-bold text-xl tracking-tight">
-                SplatoonHub
+                TournamentHub
               </span>
             </Link>
             <ConnectionIndicator isOnline={isOnline} />

@@ -12,7 +12,7 @@ export default function Home() {
       <div className="max-w-3xl text-center space-y-8">
         <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight">
           Le hub ultime pour vos tournois{" "}
-          <span className="text-blue-500">Splatoon</span>
+          <span className="text-blue-500">E-sport</span>
         </h1>
         <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
           Gérez vos événements communautaires, générez vos arbres de tournoi et
