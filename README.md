@@ -1,14 +1,15 @@
-# Splatoon Tournament Hub
+# Tournament Hub
 
-Discord Bot + Web App for managing Splatoon Tournaments.
+Discord Bot + Web App for managing E-sport Tournaments (Multi-game).
 
 ---
 
 ## 🚀 Project Structure
 
-- **`/bot`**: Node.js & Express + Discord.js hybrid backend targeted for Fly.io. Contains the bot runner and API endpoints interacting with Discord.
-- **`/web`**: Next.js App Router for frontend UI and admin dashboard (TO Back-office) targeted for Vercel. 
-- **`/supabase`**: Contains the PostgreSQL configuration, migrations, and schema for local and remote deployment.
+- **`apps/bot`**: Node.js & Express + Discord.js hybrid backend targeted for Fly.io. Contains the bot runner and API endpoints interacting with Discord.
+- **`apps/web`**: Next.js App Router for frontend UI and admin dashboard (TO Back-office) targeted for Vercel. 
+- **`packages/shared`**: Shared TypeScript types, schemas, and utilities used across both bot and web applications.
+- **`supabase`**: Contains the PostgreSQL configuration, migrations, and schema for local and remote deployment.
 
 ---
 
@@ -27,7 +28,7 @@ We use a `Makefile` to simplify local development commands.
    ```bash
    make init
    ```
-   *This single command will install all npm dependencies, start your local Supabase stack in Docker, automatically configure your local `.env` and `.env.local` files with the local database keys, and apply the SQL database schema.*
+   *This single command will install all npm dependencies, start your local Supabase stack in Docker, automatically configure your local `apps/bot/.env` and `apps/web/.env.local` files with the local database keys, and apply the SQL database schema.*
 
 2. **Launch Dev Instances**:
    Start both the Next.js frontend and the Discord Bot concurrently in the background:
@@ -55,10 +56,10 @@ We use a `Makefile` to simplify local development commands.
 
 ## 🔑 Environment Configuration
 
-Do **NOT** use the production Discord bot token locally. Create a separate Discord application (e.g., *Splatoon Hub Dev*) in the [Discord Developer Portal](https://discord.com/developers/applications) and invite it to a dedicated testing server.
+Do **NOT** use the production Discord bot token locally. Create a separate Discord application (e.g., *Tournament Hub Dev*) in the [Discord Developer Portal](https://discord.com/developers/applications) and invite it to a dedicated testing server.
 
-### A. Discord Bot Backend (`/bot/.env`)
-Create `/bot/.env` (from [bot/.env.example](file:///workspaces/SplatoonTournamentHub/bot/.env.example)):
+### A. Discord Bot Backend (`apps/bot/.env`)
+Create `apps/bot/.env` (from `apps/bot/.env.example`):
 ```env
 # Local Supabase credentials
 SUPABASE_URL=http://127.0.0.1:54321
@@ -73,8 +74,8 @@ PORT=8080
 BOT_API_SECRET=your_local_shared_secret
 ```
 
-### B. Next.js Web App (`/web/.env.local`)
-Create `/web/.env.local` (from [web/.env.example](file:///workspaces/SplatoonTournamentHub/web/.env.example)):
+### B. Next.js Web App (`apps/web/.env.local`)
+Create `apps/web/.env.local` (from `apps/web/.env.example`):
 ```env
 # Local Supabase credentials
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
@@ -105,5 +106,5 @@ DISCORD_CLIENT_SECRET=your_dev_bot_client_secret
 
 ### CI/CD
 A GitHub Actions workflow is active in `.github/workflows/ci.yml`. It triggers on every push and Pull Request to `main`, validating:
-- TypeScript compilation on `/bot` (can be run locally via `make lint`)
-- Linting and production Next.js build on `/web` (can be run locally via `make build`)
+- TypeScript compilation on `apps/bot` (can be run locally via `make lint`)
+- Linting and production Next.js build on `apps/web` (can be run locally via `make build`)

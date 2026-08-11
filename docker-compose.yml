@@ -1,6 +1,6 @@
 services:
   bot-dev:
-    container_name: splatoon_bot_dev
+    container_name: tournament_bot_dev
     build:
       context: .
       dockerfile: apps/bot/Dockerfile
@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
 
   web-dev:
-    container_name: splatoon_web_dev
+    container_name: tournament_web_dev
     build:
       context: .
       dockerfile: apps/web/Dockerfile
