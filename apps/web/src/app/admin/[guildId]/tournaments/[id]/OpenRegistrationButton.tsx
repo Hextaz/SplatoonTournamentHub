@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { getBotApiUrl } from '@/utils/api';
-
 import { RefreshCw, Send } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export function OpenRegistrationButton({ tournamentId, guildId, isRegistrationOpen, isPublic, hasStartedOrCheckin }: { tournamentId: string; guildId: string; isRegistrationOpen: boolean; isPublic: boolean; hasStartedOrCheckin: boolean }) {
   const [isGeneratingEmbed, setIsGeneratingEmbed] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const { t } = useTranslation();
 
   const isDisabled = isGeneratingEmbed || isRegistrationOpen || !isPublic || hasStartedOrCheckin;
 
@@ -21,7 +22,7 @@ export function OpenRegistrationButton({ tournamentId, guildId, isRegistrationOp
         body: JSON.stringify({ action: "open", guildId: guildId })
       });
       if (res.ok) {
-        setMessage({ type: 'success', text: "Embed d'inscription envoyé sur Discord !" });
+        setMessage({ type: 'success', text: t("adminTournaments.openEmbedSent") });
       } else {
         const errorData = await res.json();
         setMessage({ type: 'error', text: "Erreur Discord: " + (errorData.error || "Inconnue") });
@@ -44,12 +45,12 @@ export function OpenRegistrationButton({ tournamentId, guildId, isRegistrationOp
       >
         {isGeneratingEmbed ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         {isRegistrationOpen 
-          ? "Inscriptions déjà ouvertes" 
+          ? t("adminTournaments.alreadyOpen") 
           : !isPublic 
-            ? "Tournoi privé (inscriptions bloquées)"
+            ? t("adminTournaments.privateBlock")
             : hasStartedOrCheckin
-              ? "Date de check-in / début dépassée"
-              : "Ouvrir inscriptions (Discord)"}
+              ? t("adminTournaments.passedCheckin")
+              : t("adminTournaments.openRegistrationsDiscord")}
       </button>
 
       {message && (
