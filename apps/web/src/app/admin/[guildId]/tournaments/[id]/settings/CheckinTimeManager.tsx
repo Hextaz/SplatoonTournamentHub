@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { botApiFetch } from "@/utils/api";
 import { useRouter } from "next/navigation";
 import { Square, Clock, ShieldAlert, Calendar } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 interface Props {
   tournament: any;
@@ -12,6 +13,7 @@ interface Props {
 
 export function CheckinTimeManager({ tournament, guildId }: Props) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [loadingStop, setLoadingStop] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
@@ -38,7 +40,7 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
   const isDraft = tournament.status === "DRAFT";
 
   const handleStopCheckin = async () => {
-    if (!window.confirm("🛑 Êtes-vous sûr de vouloir arrêter le check-in maintenant ? Cela fermera immédiatement les inscriptions et empêchera de nouvelles validations.")) return;
+    if (!window.confirm(t("adminCheckin.stopConfirm"))) return;
 
     setError(null);
     setLoadingStop(true);
@@ -68,10 +70,10 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Clock className="w-5 h-5 text-emerald-400" />
-            Statut du Check-in
+            {t("adminCheckin.title")}
           </h2>
           <p className="text-slate-400 text-xs mt-1">
-            Suivi temps réel et contrôle manuel des inscriptions/check-ins.
+            {t("adminCheckin.subtitle")}
           </p>
         </div>
         <div>
@@ -87,12 +89,12 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
             }`}
           >
             {isCheckinRunning
-              ? "⚡ Check-in EN COURS"
+              ? t("adminCheckin.runningStatus")
               : isCheckinClosed
-              ? "🛑 Check-in CLOS"
+              ? t("adminCheckin.closedStatus")
               : isDraft
-              ? "📝 Brouillon (Non publié)"
-              : "📅 Planifié (Non démarré)"}
+              ? t("adminCheckin.draftStatus")
+              : t("adminCheckin.plannedStatus")}
           </span>
         </div>
       </div>
@@ -108,10 +110,13 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
         <div className="bg-green-950/20 border border-green-800/40 rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="space-y-1">
             <p className="text-sm text-green-400 font-medium">
-              Le check-in est actuellement ouvert sur Discord.
+              {t("adminCheckin.openNotice")}
             </p>
             <p className="text-xs text-slate-400">
-              Fin programmée : <span className="font-semibold text-white">{checkinEnd.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span> (le {checkinEnd.toLocaleDateString("fr-FR")}).
+              {t("adminCheckin.endScheduled", {
+                time: checkinEnd.toLocaleTimeString(),
+                date: checkinEnd.toLocaleDateString()
+              })}
             </p>
           </div>
 
@@ -121,7 +126,7 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
             className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-lg font-bold transition-all shadow-md shadow-red-900/35 active:scale-[0.98] disabled:opacity-50"
           >
             <Square className="w-4 h-4 fill-white" />
-            {loadingStop ? "Arrêt en cours..." : "Stopper le Check-in (Kill Switch)"}
+            {loadingStop ? t("adminCheckin.stopping") : t("adminCheckin.killSwitch")}
           </button>
         </div>
       )}
@@ -131,7 +136,7 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
         <div className="bg-slate-900/40 border border-slate-700/50 rounded-xl p-5 flex items-center gap-3 text-slate-400">
           <Calendar className="w-5 h-5 text-slate-500" />
           <div className="text-xs">
-            Le tournoi est actuellement au statut **Brouillon**. Renseignez et enregistrez des dates valides dans le formulaire ci-dessous pour le publier et planifier automatiquement les check-ins.
+            {t("adminCheckin.draftNotice")}
           </div>
         </div>
       )}
@@ -141,11 +146,14 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
         <div className="bg-blue-950/20 border border-blue-900/40 rounded-xl p-5 flex items-center gap-3 text-slate-300">
           <Calendar className="w-5 h-5 text-blue-400" />
           <div className="text-xs space-y-1">
-            <p className="font-semibold text-blue-400">Check-in planifié et en attente de démarrage :</p>
+            <p className="font-semibold text-blue-400">{t("adminCheckin.plannedNoticeTitle")}</p>
             <p>
-              Du <span className="font-bold text-white">{checkinStart.toLocaleString("fr-FR")}</span> au <span className="font-bold text-white">{checkinEnd.toLocaleString("fr-FR")}</span>.
+              {t("adminCheckin.plannedNoticeText", {
+                start: checkinStart.toLocaleString(),
+                end: checkinEnd.toLocaleString()
+              })}
             </p>
-            <p className="text-slate-400">Le bot Discord publiera l'embed et ouvrira automatiquement les validations à la date prévue.</p>
+            <p className="text-slate-400">{t("adminCheckin.plannedNoticeBot")}</p>
           </div>
         </div>
       )}
@@ -155,8 +163,10 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
         <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl p-5 flex items-center gap-3 text-slate-400">
           <ShieldAlert className="w-5 h-5 text-slate-500" />
           <div className="text-xs">
-            Le check-in de ce tournoi s'est terminé le <span className="font-semibold text-slate-300">{checkinEnd.toLocaleDateString("fr-FR")} à {checkinEnd.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>.
-            Vous pouvez à présent lancer le tournoi pour générer l'infrastructure Discord.
+            {t("adminCheckin.closedNotice", {
+              date: checkinEnd.toLocaleDateString(),
+              time: checkinEnd.toLocaleTimeString()
+            })}
           </div>
         </div>
       )}

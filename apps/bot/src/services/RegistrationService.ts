@@ -1,5 +1,6 @@
 import { Client, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Interaction } from 'discord.js';
 import { supabase } from '../lib/supabase';
+import { tBot, getGuildLanguage } from '../i18n';
 
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -43,14 +44,16 @@ export class RegistrationService {
       const channel = await client.channels.fetch(tournament.discord_registration_channel_id).catch(() => null) as TextChannel | null;
       if (!channel) throw new Error(`Impossible de trouver le salon Discord avec l'ID ${tournament.discord_registration_channel_id}. Vérifiez que le bot y a accès.`);
 
+      const lang = await getGuildLanguage(tournament.guild_id);
+
       const embed = {
-        title: `📝 Inscriptions: ${tournament.name}`,
-        description: tournament.description || `Cliquez sur le bouton ci-dessous pour inscrire votre équipe. Le capitaine doit obligatoirement enregistrer le roster principal (4 joueurs minimum, dont lui-même) incluant les Codes Amis Valides.`,
+        title: tBot(lang, 'registration.embedTitle', { name: tournament.name }),
+        description: tournament.description || tBot(lang, 'registration.embedDescription'),
         color: 0x5865F2,
         fields: [
           {
-            name: "Règle Code Ami",
-            value: "Format attendu: **`SW-XXXX-XXXX-XXXX`**. (ex: `Pseudo SW-1234-5678-9012`). \n*Note: le séparateur entre le pseudo et le code ami n'est pas obligatoire.*"
+            name: tBot(lang, 'registration.friendCodeRuleTitle'),
+            value: tBot(lang, 'registration.friendCodeRuleValue')
           }
         ],
         footer: {
@@ -62,7 +65,7 @@ export class RegistrationService {
         .addComponents(
           new ButtonBuilder()
             .setCustomId(`btn_register_${tournament.id}`)
-            .setLabel("S'inscrire (Main Roster)")
+            .setLabel(tBot(lang, 'registration.buttonLabel'))
             .setStyle(ButtonStyle.Primary)
             .setEmoji("📝")
         );

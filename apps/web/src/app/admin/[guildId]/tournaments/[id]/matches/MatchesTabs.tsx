@@ -1,11 +1,13 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, Trophy } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export default function MatchesTabs({ guildId, tournamentId, phases }: { guildId: string; tournamentId: string; phases: any[] }) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const basePath = `/admin/${guildId}/tournaments/${tournamentId}/matches`;
 
   return (
@@ -19,7 +21,7 @@ export default function MatchesTabs({ guildId, tournamentId, phases }: { guildId
         }`}
       >
         <LayoutDashboard className="w-4 h-4" />
-        Vue d&apos;ensemble
+        {t("adminMatches.overviewTab")}
       </Link>
 
       {phases.map((phase, index) => {

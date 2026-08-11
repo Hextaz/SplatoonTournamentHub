@@ -9,10 +9,12 @@ import dayjs from "dayjs";
 import { Save, CalendarDays, RefreshCw, MessageSquare, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export function SettingsClient({ tournament, guildId, initialChannels = [], initialRoles = [] }: { tournament: any; guildId: string; initialChannels?: any[]; initialRoles?: any[] }) {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const { t } = useTranslation();
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
@@ -41,7 +43,7 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
         } else {
           const errText = await channelsRes.text();
           console.error("Failed to fetch Discord channels:", errText);
-          setDiscordError("Impossible de charger les salons Discord. Vérifiez que le bot est bien connecté et que la variable d'environnement BOT_API_SECRET est configurée.");
+          setDiscordError(t("adminSettingsPage.loadChannelsError"));
         }
 
         if (rolesRes.ok) {
@@ -50,18 +52,18 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
         } else {
           const errText = await rolesRes.text();
           console.error("Failed to fetch Discord roles:", errText);
-          setDiscordError("Impossible de charger les rôles Discord.");
+          setDiscordError(t("adminSettingsPage.loadRolesError"));
         }
       } catch (e) {
         console.error("Failed to fetch Discord data", e);
-        setDiscordError("Erreur lors du chargement des données Discord.");
+        setDiscordError(t("adminSettingsPage.discordDataError"));
       } finally {
         setIsLoadingDiscord(false);
       }
     };
 
     fetchDiscordData();
-  }, [guildId, session, status]);
+  }, [guildId, session, status, t]);
 
   const { register, handleSubmit } = useForm({
     defaultValues: {
@@ -102,10 +104,10 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
         throw new Error(err.error || 'Erreur inconnue');
       }
 
-      setMessage({ type: 'success', text: 'Paramètres sauvegardés avec succès !' });
+      setMessage({ type: 'success', text: t("adminSettings.savedSuccess") });
       router.refresh();
     } catch (err: any) {
-      setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde : ' + err.message });
+      setMessage({ type: 'error', text: t("adminSettings.saveError") + err.message });
     } finally {
       setIsSaving(false);
     }
@@ -117,9 +119,9 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
             <CalendarDays className="w-8 h-8 text-blue-400" />
-            Paramètres du Tournoi
+            {t("adminSettingsPage.title")}
           </h1>
-          <p className="text-slate-400">Configurez les dates de ce tournoi et les paramètres Discord.</p>
+          <p className="text-slate-400">{t("adminSettingsPage.subtitle")}</p>
         </div>
       </div>
 
@@ -138,11 +140,11 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
       <CheckinTimeManager tournament={tournament} guildId={guildId} />
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-slate-800 rounded-xl p-8 border border-slate-700 space-y-6 shadow-xl">
-        <h2 className="text-xl font-bold text-white mb-4">Dates & Horaires</h2>
+        <h2 className="text-xl font-bold text-white mb-4">{t("adminSettingsPage.datesSection")}</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3 md:col-span-2">
-            <label className="block text-sm font-semibold text-slate-300">Date de début du tournoi</label>
+            <label className="block text-sm font-semibold text-slate-300">{t("adminSettingsPage.startDate")}</label>
             <input
               type="datetime-local"
               {...register("start_at")}
@@ -151,7 +153,7 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
           </div>
 
           <div className="space-y-3">
-            <label className="block text-sm font-semibold text-slate-300">Début des check-ins</label>
+            <label className="block text-sm font-semibold text-slate-300">{t("adminSettingsPage.checkinStart")}</label>
             <input
               type="datetime-local"
               {...register("checkin_start_at")}
@@ -160,7 +162,7 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
           </div>
 
           <div className="space-y-3">
-            <label className="block text-sm font-semibold text-slate-300">Fin des check-ins</label>
+            <label className="block text-sm font-semibold text-slate-300">{t("adminSettingsPage.checkinEnd")}</label>
             <input
               type="datetime-local"
               {...register("checkin_end_at")}
@@ -171,21 +173,21 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
 
         <h2 className="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-indigo-400" />
-          Salons Discord
+          {t("adminSettingsPage.channelsSection")}
         </h2>
 
         {isLoadingDiscord ? (
-          <div className="text-slate-400 text-sm animate-pulse">Chargement des salons et rôles depuis Discord...</div>
+          <div className="text-slate-400 text-sm animate-pulse">{t("adminSettingsPage.loadingDiscord")}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             <div className="space-y-3">
-              <label className="block text-sm font-semibold text-slate-300">Salon des inscriptions</label>
+              <label className="block text-sm font-semibold text-slate-300">{t("adminSettingsPage.regChannel")}</label>
               <select
                 {...register("discord_registration_channel_id")}
                 className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
               >
-                <option value="">-- Aucun salon --</option>
+                <option value="">{t("adminSettingsPage.noChannel")}</option>
                 {channels.map((ch: any) => (
                   <option key={ch.id} value={ch.id}>#{ch.name}</option>
                 ))}
@@ -193,12 +195,12 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
             </div>
 
             <div className="space-y-3">
-              <label className="block text-sm font-semibold text-slate-300">Salon des annonces</label>
+              <label className="block text-sm font-semibold text-slate-300">{t("adminSettingsPage.annChannel")}</label>
               <select
                 {...register("discord_announcement_channel_id")}
                 className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
               >
-                <option value="">-- Aucun salon --</option>
+                <option value="">{t("adminSettingsPage.noChannel")}</option>
                 {channels.map((ch: any) => (
                   <option key={ch.id} value={ch.id}>#{ch.name}</option>
                 ))}
@@ -206,12 +208,12 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
             </div>
 
             <div className="space-y-3">
-              <label className="block text-sm font-semibold text-slate-300">Salon des check-ins</label>
+              <label className="block text-sm font-semibold text-slate-300">{t("adminSettingsPage.checkinChannelLabel")}</label>
               <select
                 {...register("discord_checkin_channel_id")}
                 className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
               >
-                <option value="">-- Aucun salon --</option>
+                <option value="">{t("adminSettingsPage.noChannel")}</option>
                 {channels.map((ch: any) => (
                   <option key={ch.id} value={ch.id}>#{ch.name}</option>
                 ))}
@@ -222,18 +224,18 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
 
         <h2 className="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
           <Shield className="w-5 h-5 text-purple-400" />
-          Rôles Discord
+          {t("adminSettingsPage.rolesSection")}
         </h2>
 
         {!isLoadingDiscord && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <label className="block text-sm font-semibold text-slate-300">Rôle Capitaine / Participant</label>
+              <label className="block text-sm font-semibold text-slate-300">{t("adminSettingsPage.captainRoleLabel")}</label>
               <select
                 {...register("discord_captain_role_id")}
                 className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none"
               >
-                <option value="">-- Aucun rôle --</option>
+                <option value="">{t("adminSettingsPage.noRole")}</option>
                 {roles.map((ro: any) => (
                   <option key={ro.id} value={ro.id}>@{ro.name}</option>
                 ))}
@@ -241,12 +243,12 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
             </div>
 
             <div className="space-y-3">
-              <label className="block text-sm font-semibold text-slate-300">Rôle TO (Organisateur)</label>
+              <label className="block text-sm font-semibold text-slate-300">{t("adminSettingsPage.toRoleLabel")}</label>
               <select
                 {...register("discord_to_role_id")}
                 className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none"
               >
-                <option value="">-- Aucun rôle --</option>
+                <option value="">{t("adminSettingsPage.noRole")}</option>
                 {roles.map((ro: any) => (
                   <option key={ro.id} value={ro.id}>@{ro.name}</option>
                 ))}
@@ -262,7 +264,7 @@ export function SettingsClient({ tournament, guildId, initialChannels = [], init
             className="flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20"
           >
             {isSaving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-            Enregistrer les paramètres
+            {isSaving ? t("adminSettingsPage.savingButton") : t("adminSettingsPage.saveButton")}
           </button>
         </div>
       </form>

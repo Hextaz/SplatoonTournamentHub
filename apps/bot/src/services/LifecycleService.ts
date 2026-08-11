@@ -1,5 +1,6 @@
 import { Client, Guild, ChannelType, CategoryChannel, PermissionFlagsBits, OverwriteData, PermissionResolvable } from 'discord.js';
 import { supabase } from '../lib/supabase';
+import { tBot, getGuildLanguage } from '../i18n';
 
 function hasPerm(list: PermissionResolvable[] | undefined, bit: bigint): boolean {
   if (!list) return false;
@@ -29,6 +30,8 @@ export class LifecycleService {
         .single();
 
       if (error || !tournament) throw new Error('Tournament not found');
+
+      const lang = await getGuildLanguage(guildId);
 
       const guild: Guild | undefined = discordClient.guilds.cache.get(guildId) || await discordClient.guilds.fetch(guildId).catch(() => undefined);
       if (!guild) throw new Error(`Guild ${guildId} not found by bot.`);
@@ -74,8 +77,8 @@ export class LifecycleService {
 
       const messagePayload: any = {
         embeds: [{
-          title: "🚀 Le Tournoi commence !",
-          description: `Bienvenue dans la zone sécurisée de l'évènement **${tournament.name}**.\nLes salons de match ainsi que l'arbre final seront générés ici sous peu.\n\nRestez à l'écoute des annonces !`,
+          title: tBot(lang, 'lifecycle.tournamentLaunchedTitle'),
+          description: tBot(lang, 'lifecycle.tournamentLaunchedDesc', { name: tournament.name }),
           color: 0x3b82f6,
         }]
       };
@@ -111,7 +114,7 @@ export class LifecycleService {
       if (tournament.discord_announcement_channel_id) {
         const annChannel = await guild.channels.fetch(tournament.discord_announcement_channel_id).catch(() => null);
         if (annChannel && annChannel.isTextBased()) {
-          await annChannel.send(`🏆 **${tournament.name}** est maintenant actif ! Les joueurs concernés ont accès à leur salon privatif.`);
+          await annChannel.send(tBot(lang, 'lifecycle.tournamentActiveAnnounce', { name: tournament.name }));
         }
       }
 
