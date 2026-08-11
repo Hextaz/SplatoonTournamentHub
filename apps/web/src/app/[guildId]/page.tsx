@@ -3,6 +3,9 @@ import { Trophy, Calendar, Settings } from "lucide-react";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 
 // Next.js 15: params is a Promise
 export default async function GuildHubPage({
@@ -11,6 +14,8 @@ export default async function GuildHubPage({
   params: Promise<{ guildId: string }>;
 }) {
   const { guildId } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // Verification if the user is a Discord Admin for this Guild
   const session = await getServerSession(authOptions);
@@ -49,7 +54,7 @@ export default async function GuildHubPage({
     console.error("Error fetching tournaments:", error);
     return (
       <div className="p-8 text-red-500">
-        Erreur lors du chargement des tournois.
+        {t(locale, "tournaments.loadError")}
       </div>
     );
   }
@@ -60,7 +65,7 @@ export default async function GuildHubPage({
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h1 className="text-4xl font-extrabold flex items-center gap-4 text-white">
             <Trophy className="w-10 h-10 text-yellow-500" />
-            Tournois du Serveur
+            {t(locale, "tournaments.serverTournaments")}
           </h1>
 
           {isAdmin && (
@@ -69,33 +74,33 @@ export default async function GuildHubPage({
               className="bg-[#151722] hover:bg-[#1a1d2d] transition-colors border border-slate-800/50 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-3 shadow-lg"
             >
               <Settings className="w-5 h-5 text-slate-300" />
-              Panel d'Administration
+              {t(locale, "nav.adminPanel")}
             </Link>
           )}
         </div>
 
         {tournaments?.length === 0 ? (
           <p className="text-slate-400">
-            Aucun tournoi trouvé pour ce serveur.
+            {t(locale, "tournaments.noTournamentsFound")}
           </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tournaments?.map((t) => (
-              <Link key={t.id} href={`/${guildId}/tournaments/${t.id}`}>
+            {tournaments?.map((tourn) => (
+              <Link key={tourn.id} href={`/${guildId}/tournaments/${tourn.id}`}>
                 <div className="bg-[#151722] border border-slate-800/50 p-6 rounded-xl hover:border-slate-700 transition-colors cursor-pointer group h-full flex flex-col">
                   <h2 className="text-2xl font-bold mb-2 text-white group-hover:text-blue-400 transition-colors">
-                    {t.name}
+                    {tourn.name}
                   </h2>
                   <p className="text-slate-400 mb-4 flex-grow line-clamp-3">
-                    {t.description || "Aucune description fournie."}
+                    {tourn.description || t(locale, "tournaments.noDescription")}
                   </p>
                   <div className="flex items-center text-sm text-slate-500 mt-auto">
                     <Calendar className="w-4 h-4 mr-2" />
-                    {t.start_date
-                      ? new Intl.DateTimeFormat("fr-FR", {
+                    {tourn.start_date
+                      ? new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", {
                           dateStyle: "long",
-                        }).format(new Date(t.start_date))
-                      : "Date non définie"}
+                        }).format(new Date(tourn.start_date))
+                      : t(locale, "common.dateNotSet")}
                   </div>
                 </div>
               </Link>
@@ -106,4 +111,5 @@ export default async function GuildHubPage({
     </div>
   );
 }
+
 

@@ -2,14 +2,17 @@
 
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
-import { LogOut, Menu, LogIn, Wifi, WifiOff } from "lucide-react";
+import { LogOut, Menu, LogIn, WifiOff } from "lucide-react";
 import { useState } from "react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useTranslation } from "@/i18n/LanguageContext";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export default function Navbar() {
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const isOnline = useOnlineStatus();
+  const { t } = useTranslation();
 
   return (
     <nav className="bg-[#0a0a0f] border-b border-slate-800/50 text-white shadow-md relative z-50">
@@ -21,22 +24,29 @@ export default function Navbar() {
               className="flex-shrink-0 flex items-center gap-2"
             >
               <span className="font-bold text-xl tracking-tight">
-                SplatoonHub
+                {t("nav.brand")}
               </span>
             </Link>
             <ConnectionIndicator isOnline={isOnline} />
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
+            <LanguageSwitcher />
             {!session ? (
               <button
                 onClick={() => signIn("discord", { callbackUrl: "/servers" })}
-                className="bg-[#151722] hover:bg-[#151722] text-white px-4 py-2 rounded-md text-sm font-medium transition flex items-center gap-2"
+                className="bg-[#151722] hover:bg-[#1a1d2d] text-white px-4 py-2 rounded-md text-sm font-medium transition flex items-center gap-2 border border-slate-800/50"
               >
-                <LogIn size={16} /> Connexion Discord
+                <LogIn size={16} /> {t("nav.loginDiscord")}
               </button>
             ) : (
               <div className="flex items-center gap-4">
+                <Link
+                  href="/servers"
+                  className="text-slate-300 hover:text-white text-sm font-medium transition"
+                >
+                  {t("nav.myServers")}
+                </Link>
                 <div className="flex items-center gap-3">
                   <img
                     src={
@@ -53,7 +63,7 @@ export default function Navbar() {
                 <button
                   onClick={() => signOut({ callbackUrl: "/" })}
                   className="text-slate-400 hover:text-white transition"
-                  title="Déconnexion"
+                  title={t("nav.logout")}
                 >
                   <LogOut size={20} />
                 </button>
@@ -62,6 +72,7 @@ export default function Navbar() {
           </div>
 
           <div className="md:hidden flex items-center gap-2">
+            <LanguageSwitcher />
             <ConnectionIndicator isOnline={isOnline} />
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -79,14 +90,14 @@ export default function Navbar() {
             <div className="px-4 py-2">
               <button
                 onClick={() => signIn("discord", { callbackUrl: "/servers" })}
-                className="w-full bg-[#151722] hover:bg-[#0a0a0f] border-b border-slate-800/50 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2"
+                className="w-full bg-[#151722] hover:bg-[#0a0a0f] border border-slate-800/50 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2"
               >
-                <LogIn size={16} /> Connexion Discord
+                <LogIn size={16} /> {t("nav.loginDiscord")}
               </button>
             </div>
           ) : (
             <div className="px-4">
-              <div className="flex items-center gap-3 py-3 border-b border-slate-800/50/50 mb-2">
+              <div className="flex items-center gap-3 py-3 border-b border-slate-800/50 mb-2">
                 <img
                   src={
                     session.user?.image ||
@@ -104,13 +115,13 @@ export default function Navbar() {
                 className="block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-[#151722]"
                 onClick={() => setIsOpen(false)}
               >
-                Mes Serveurs
+                {t("nav.myServers")}
               </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
                 className="w-full text-left mt-2 px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:text-white hover:bg-[#151722] flex items-center gap-2"
               >
-                <LogOut size={18} /> Déconnexion
+                <LogOut size={18} /> {t("nav.logout")}
               </button>
             </div>
           )}
@@ -121,15 +132,17 @@ export default function Navbar() {
 }
 
 function ConnectionIndicator({ isOnline }: { isOnline: boolean }) {
+  const { t } = useTranslation();
   if (isOnline) return null;
 
   return (
     <div
       className="flex items-center gap-1.5 text-xs text-red-400"
-      title="Connexion perdue"
+      title={t("common.connectionLost")}
     >
       <WifiOff size={14} />
-      <span className="hidden sm:inline">Hors ligne</span>
+      <span className="hidden sm:inline">{t("common.offline")}</span>
     </div>
   );
 }
+

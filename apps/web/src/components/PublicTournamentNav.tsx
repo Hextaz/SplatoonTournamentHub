@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export function PublicTournamentNav({ guildId, tournamentId }: { guildId: string, tournamentId: string }) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   
   const baseUrl = `/${guildId}/tournaments/${tournamentId}`;
   
   const tabs = [
-    { name: "Vue d'ensemble", path: "" },
-    { name: "Phases", path: "/stages" },
-    { name: "Matchs", path: "/matches" },
-    { name: "Participants", path: "/participants" },
+    { name: t("publicNav.overview"), path: "" },
+    { name: t("publicNav.stages"), path: "/stages" },
+    { name: t("publicNav.matches"), path: "/matches" },
+    { name: t("publicNav.participants"), path: "/participants" },
   ];
 
   return (
@@ -45,4 +47,5 @@ export function PublicTournamentNav({ guildId, tournamentId }: { guildId: string
     </nav>
   );
 }
+
 

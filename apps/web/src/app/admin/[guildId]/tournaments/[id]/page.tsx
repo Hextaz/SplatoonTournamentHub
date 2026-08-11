@@ -2,12 +2,17 @@ import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { ExternalLink, Users, Settings2, GitMerge } from "lucide-react";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { t } from "@/i18n";
+import { Locale } from "@/i18n/types";
 import { VisibilityToggle } from "./VisibilityToggle";
 import { OpenRegistrationButton } from "./OpenRegistrationButton";
 import { TournamentLifecycleManager } from "./TournamentLifecycleManager";
 
 export default async function TournamentDashboard({ params }: { params: Promise<{ guildId: string; id: string }> }) {
   const { guildId, id: tournamentId } = await params;
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get("NEXT_LOCALE")?.value as Locale) || "fr";
 
   // Récupération Tournoi
   const { data: tournament, error } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
@@ -40,15 +45,15 @@ export default async function TournamentDashboard({ params }: { params: Promise<
     <div className="p-6 md:p-8 space-y-6 min-h-full bg-slate-950 text-slate-200">
       <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Vue d'ensemble</h1>
-          <p className="text-slate-400">Gérez la structure, les paramètres et les participants de votre événement.</p>
+          <h1 className="text-3xl font-bold text-white mb-2">{t(locale, "admin.overviewTitle")}</h1>
+          <p className="text-slate-400">{t(locale, "admin.overviewSubtitle")}</p>
         </div>
         <Link 
           href={`/${guildId}/tournaments/${tournamentId}`} 
           target="_blank"
           className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
         >
-          Page publique <ExternalLink className="w-4 h-4" />
+          {t(locale, "nav.publicPage")} <ExternalLink className="w-4 h-4" />
         </Link>
       </header>
 
@@ -75,8 +80,8 @@ export default async function TournamentDashboard({ params }: { params: Promise<
           <div className="mt-4 pt-4 border-t border-slate-800 space-y-4">
             <p className="text-xs text-slate-500">
               {tournament.is_public 
-                ? "Le tournoi est actuellement visible par tous les joueurs via l'URL publique." 
-                : "Le tournoi est privé et masqué au grand public. Préparez-le avant de le publier."}
+                ? t(locale, "admin.publicTournamentNotice")
+                : t(locale, "admin.privateTournamentNotice")}
             </p>
             <OpenRegistrationButton
               tournamentId={tournamentId}
@@ -94,21 +99,21 @@ export default async function TournamentDashboard({ params }: { params: Promise<
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Users className="w-5 h-5 text-slate-400" />
-                Participants
+                {t(locale, "publicNav.participants")}
               </h2>
               <Link 
                 href={`/admin/${guildId}/tournaments/${tournamentId}/participants`}
                 className="text-sm font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
               >
-                + Gérer
+                {t(locale, "admin.manage")}
               </Link>
             </div>
             <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-              Consultez les équipes inscrites, validez leur check-in ou ajoutez-les manuellement pour vos brackets.
+              {t(locale, "admin.manageParticipants")}
             </p>
           </div>
           <div className="bg-slate-950 rounded-lg p-4 border border-slate-800/50 flex justify-between items-center text-sm">
-             <span className="text-slate-400">Équipes inscrites</span>
+             <span className="text-slate-400">{t(locale, "admin.registeredTeams")}</span>
              <span className="font-bold text-white bg-slate-800 px-3 py-1 rounded-md">{participantsCount}</span>
           </div>
         </div>
@@ -118,20 +123,20 @@ export default async function TournamentDashboard({ params }: { params: Promise<
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <GitMerge className="w-5 h-5 text-slate-400" />
-              Structure
+              {t(locale, "admin.structure")}
             </h2>
             <Link 
               href={`/admin/${guildId}/tournaments/${tournamentId}/structure`}
               className="text-sm font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
             >
-              + Nouv. phase
+              {t(locale, "admin.newPhase")}
             </Link>
           </div>
           
           <div className="flex-1 space-y-3">
             {!phases || phases.length === 0 ? (
               <div className="text-center py-8 rounded-lg border border-dashed border-slate-800 bg-slate-950/50">
-                <p className="text-sm text-slate-500">Aucune phase configurée pour le moment.</p>
+                <p className="text-sm text-slate-500">{t(locale, "admin.noPhasesConfigured")}</p>
               </div>
             ) : (
               phases.map((phase) => (
@@ -142,10 +147,10 @@ export default async function TournamentDashboard({ params }: { params: Promise<
                   </div>
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300">
                     {!phase.matches || phase.matches.length === 0 
-                      ? 'Brouillon' 
+                      ? t(locale, "tournaments.statusDraft") 
                       : phase.matches.every((m: any) => m.status === 'COMPLETED') 
-                        ? 'Terminée' 
-                        : 'En cours'}
+                        ? t(locale, "tournaments.statusCompleted") 
+                        : t(locale, "tournaments.statusActive")}
                   </span>
                 </div>
               ))
@@ -153,7 +158,7 @@ export default async function TournamentDashboard({ params }: { params: Promise<
           </div>
           <div className="mt-4 pt-4 border-t border-slate-800 text-center">
             <Link href={`/admin/${guildId}/tournaments/${tournamentId}/structure`} className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors">
-              Gérer l'arbre de tournoi
+              {t(locale, "admin.manageBracket")}
             </Link>
           </div>
         </div>
@@ -163,20 +168,20 @@ export default async function TournamentDashboard({ params }: { params: Promise<
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Settings2 className="w-5 h-5 text-slate-400" />
-              <h2 className="text-lg font-semibold text-white flex-1">Paramètres vitaux</h2>
+              <h2 className="text-lg font-semibold text-white flex-1">{t(locale, "admin.vitalSettings")}</h2>
             </div>
             <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-              Vérifiez la connexion avec Discord (rôles et salons) pour assurer le bon déroulement du bot en direct.
+              {t(locale, "admin.vitalSettingsDesc")}
             </p>
             
             <ul className="space-y-3 mb-6">
               <li className="flex justify-between items-center text-sm p-3 rounded-lg bg-slate-950 border border-slate-800/50">
-                <span className="text-slate-400">Salons d'annonce / Check-in</span>
-                {hasDiscordChannels ? <span className="text-emerald-400 font-medium">Liés</span> : <span className="text-orange-400 font-medium">Manquants</span>}
+                <span className="text-slate-400">{t(locale, "admin.channelsLinked")}</span>
+                {hasDiscordChannels ? <span className="text-emerald-400 font-medium">{t(locale, "admin.linked")}</span> : <span className="text-orange-400 font-medium">{t(locale, "admin.missing")}</span>}
               </li>
               <li className="flex justify-between items-center text-sm p-3 rounded-lg bg-slate-950 border border-slate-800/50">
-                <span className="text-slate-400">Rôles Discord Automatiques</span>
-                {hasDiscordRoles ? <span className="text-emerald-400 font-medium">Actifs</span> : <span className="text-orange-400 font-medium">Manquants</span>}
+                <span className="text-slate-400">{t(locale, "admin.rolesLinked")}</span>
+                {hasDiscordRoles ? <span className="text-emerald-400 font-medium">{t(locale, "admin.active")}</span> : <span className="text-orange-400 font-medium">{t(locale, "admin.missing")}</span>}
               </li>
             </ul>
           </div>
@@ -184,7 +189,7 @@ export default async function TournamentDashboard({ params }: { params: Promise<
           <Link href={`/admin/${guildId}/tournaments/${tournamentId}/settings`} className="block w-full">
             <button className="w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 border border-slate-700">
               <Settings2 className="w-4 h-4" />
-              Continuer la configuration
+              {t(locale, "admin.continueConfig")}
             </button>
           </Link>
         </div>
