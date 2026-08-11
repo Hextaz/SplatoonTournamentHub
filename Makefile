@@ -41,7 +41,7 @@ db-init:
 	@echo "🗄️ Application des migrations SQL locales..."
 	@for f in $$(ls supabase/migrations/*.sql | sort); do \
 		echo "-> Exécution de $$f..."; \
-		docker exec -i supabase_db_SplatoonTournamentHub psql -U postgres -d postgres < $$f; \
+		docker exec -i supabase_db_TournamentHub psql -U postgres -d postgres < $$f; \
 	done
 
 dev:

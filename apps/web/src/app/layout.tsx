@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Splatoon Tournament Hub",
-  description: "Gérez vos tournois Splatoon de manière professionnelle.",
+  title: "Tournament Hub",
+  description: "Gérez vos tournois de manière professionnelle.",
 };
 
 export default async function RootLayout({
