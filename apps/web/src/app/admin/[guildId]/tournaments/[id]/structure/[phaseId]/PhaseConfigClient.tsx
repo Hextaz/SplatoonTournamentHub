@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { botApiFetch } from "@/utils/api";
 import Link from "next/link";
 import { CheckCircle2, ChevronLeft } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 export function PhaseConfigClient({ 
   phase, 
@@ -18,6 +19,7 @@ export function PhaseConfigClient({
   totalTeams: number 
 }) {
   const router = useRouter();
+  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<"general" | "advanced">("general");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,13 +107,14 @@ export function PhaseConfigClient({
       }
       router.refresh();
       if (shouldRedirect) {
+        toast.success("Paramètres enregistrés !");
         router.push(`/admin/${guildId}/tournaments/${tournamentId}/structure`);
       } else {
-        alert("Paramètres mis à jour !");
+        toast.success("Paramètres mis à jour avec succès !");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Erreur lors de la mise à jour");
+      toast.error(e.message || "Erreur lors de la mise à jour");
     } finally {
       setIsSubmitting(false);
     }

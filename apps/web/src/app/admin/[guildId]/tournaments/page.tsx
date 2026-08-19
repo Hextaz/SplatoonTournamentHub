@@ -9,6 +9,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSession } from "next-auth/react";
 import { botApiFetch } from '@/utils/api';
+import { useToast } from "@/context/ToastContext";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 const formSchema = z.object({
   name: z.string().min(3, "Le nom doit contenir au moins 3 caractères"),
@@ -23,12 +25,15 @@ export default function TournamentsPage({
   params: Promise<{ guildId: string }>;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const { guildId } = use(params);
 
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [tournamentToDelete, setTournamentToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -50,12 +55,12 @@ export default function TournamentsPage({
 
   const activePublishedTournament = tournaments.find(t => ['REGISTRATION', 'ACTIVE'].includes(t.status));
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le tournoi "${name}" ? Cette action est irréversible.`)) return;
+  const handleDelete = async () => {
+    if (!tournamentToDelete) return;
     try {
-      setLoading(true);
+      setDeleting(true);
 
-      const response = await fetch(`/api/tournaments/${id}?guildId=${guildId}`, {
+      const response = await fetch(`/api/tournaments/${tournamentToDelete.id}?guildId=${guildId}`, {
         method: "DELETE",
       });
 
@@ -64,12 +69,14 @@ export default function TournamentsPage({
         throw new Error(errorData.error || "Accès refusé par le serveur.");
       }
 
+      setTournamentToDelete(null);
+      toast.success("Tournoi supprimé avec succès !");
       await fetchTournaments();
     } catch (err: any) {
       console.error("Delete Error:", err);
-      alert(`Erreur de suppression: ${err.message || "Erreur inconnue"}`);
+      toast.error(err.message || "Erreur de suppression");
     } finally {
-      setLoading(false);
+      setDeleting(false);
     }
   };
 
@@ -100,13 +107,14 @@ export default function TournamentsPage({
 
       setShowCreateModal(false);
       reset();
+      toast.success("Tournoi créé avec succès !");
       fetchTournaments();
 
       router.push(`/admin/${guildId}/tournaments/${created.id}`);
 
     } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la création du tournoi : " + (err.message || err));
+      toast.error(err.message || "Erreur lors de la création du tournoi");
     } finally {
       setCreating(false);
     }
@@ -158,9 +166,9 @@ export default function TournamentsPage({
                     <h2 className="text-2xl font-bold text-white leading-tight">{tournament.name}</h2>
                   </div>
                   <button
-                    onClick={() => handleDelete(tournament.id, tournament.name)}
+                    onClick={() => setTournamentToDelete(tournament)}
                     title="Supprimer"
-                    className="p-2 ml-4 bg-slate-700/50 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors shrink-0"
+                    className="p-2 ml-4 bg-slate-700/50 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors shrink-0 cursor-pointer"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
@@ -255,6 +263,25 @@ export default function TournamentsPage({
           </div>
         </div>
       )}
+
+      {/* Modal Suppression Tournoi */}
+      <ConfirmModal
+        isOpen={!!tournamentToDelete}
+        onClose={() => setTournamentToDelete(null)}
+        onConfirm={handleDelete}
+        title="Supprimer le tournoi"
+        description={
+          tournamentToDelete ? (
+            <span>
+              Êtes-vous sûr de vouloir supprimer définitivement le tournoi <strong className="text-white">"{tournamentToDelete.name}"</strong> ? Cette action est irréversible et supprimera l'ensemble de ses matchs et données.
+            </span>
+          ) : ""
+        }
+        confirmText="Supprimer définitivement"
+        variant="danger"
+        icon={Trash2}
+        isLoading={deleting}
+      />
     </div>
   );
 }

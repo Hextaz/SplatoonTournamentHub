@@ -4,13 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import { getBotApiUrl, botApiFetch } from '@/utils/api';
 
 import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, UserPlus, Trash2, Search, Pencil } from "lucide-react";
+import { CheckCircle2, XCircle, UserPlus, Trash2, Search, Pencil, Sparkles } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
+import { PromptModal } from "@/components/ui/PromptModal";
 
 export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { tournamentId: string; guildId: string; initialTeams: any[] }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [teams, setTeams] = useState(initialTeams);
   const [isAdding, setIsAdding] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
+  const [showFakeModal, setShowFakeModal] = useState(false);
+  const [isGeneratingFake, setIsGeneratingFake] = useState(false);
 
   // Custom Combobox State
   const [members, setMembers] = useState<any[]>([]);
@@ -104,19 +109,22 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       setSearchTerm("");
       setSelectedMember(null);
       setIsAdding(false);
+      toast.success("Équipe ajoutée avec succès !");
       router.refresh();
     } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de l'ajout de l'équipe : " + (err.message || err));
+      toast.error(err.message || "Erreur lors de l'ajout de l'équipe");
     }
   };
 
-  const handleGenerateFakeTeams = async () => {
-    const userInput = window.prompt("Combien d'équipes fictives voulez-vous générer ?", "8");
-    if (!userInput) return;
-    const count = parseInt(userInput);
-    if (!count || count <= 0) return;
+  const handleGenerateFakeTeamsSubmit = async (inputStr: string) => {
+    const count = parseInt(inputStr);
+    if (!count || count <= 0) {
+      toast.warning("Veuillez renseigner un nombre d'équipes valide (> 0).");
+      return;
+    }
 
+    setIsGeneratingFake(true);
     try {
       const res = await botApiFetch('/api/teams/generate-fake', {
         method: 'POST',
@@ -131,11 +139,14 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
 
       const newTeams = await res.json();
       setTeams(prev => [...prev, ...newTeams]);
+      setShowFakeModal(false);
+      toast.success(`${count} équipes fictives générées avec succès !`);
       router.refresh();
-      alert(`${count} équipes ajoutées avec succès !`);
     } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la génération d'équipes fictives : " + (err.message || err));
+      toast.error(err.message || "Erreur lors de la génération d'équipes fictives");
+    } finally {
+      setIsGeneratingFake(false);
     }
   };
 
@@ -153,10 +164,11 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       }
 
       setTeams(teams.map(t => t.id === teamId ? { ...t, is_checked_in: !currentStatus } : t));
+      toast.success(!currentStatus ? "Équipe check-in validé !" : "Check-in de l'équipe annulé !");
       router.refresh();
     } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la mise à jour : " + (err.message || err));
+      toast.error(err.message || "Erreur lors de la mise à jour");
     }
   };
 
@@ -195,10 +207,11 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
       setEditTeamName("");
       setSelectedMember(null);
       setSearchTerm("");
+      toast.success("Équipe mise à jour avec succès !");
       router.refresh();
     } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la modification de l'équipe : " + (err.message || err));
+      toast.error(err.message || "Erreur lors de la modification de l'équipe");
     }
   };
 
@@ -216,10 +229,11 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
 
       setTeams(teams.filter(t => t.id !== teamToDelete.id));
       setTeamToDelete(null);
+      toast.success("Équipe supprimée avec succès !");
       router.refresh();
     } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la suppression de l'équipe : " + (err.message || err));
+      toast.error(err.message || "Erreur lors de la suppression de l'équipe");
     }
   };
 
@@ -295,9 +309,10 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
           </button>
 
           <button
-            onClick={handleGenerateFakeTeams}
-            className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-yellow-500/20"
+            onClick={() => setShowFakeModal(true)}
+            className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-yellow-500/20 cursor-pointer"
           >
+            <Sparkles className="w-4 h-4" />
             Générer Fake
           </button>
         </div>
@@ -686,6 +701,22 @@ export function ParticipantsClient({ tournamentId, guildId, initialTeams }: { to
           </div>
         </div>
       )}
+
+      {/* Modal Génération Fake Teams */}
+      <PromptModal
+        isOpen={showFakeModal}
+        onClose={() => setShowFakeModal(false)}
+        onSubmit={handleGenerateFakeTeamsSubmit}
+        title="Générer des Équipes Fictives"
+        description="Indiquez le nombre d'équipes de test à générer automatiquement pour ce tournoi."
+        defaultValue="8"
+        inputType="number"
+        min={1}
+        max={128}
+        placeholder="Nombre d'équipes (ex: 8, 16, 32...)"
+        confirmText="Générer les équipes"
+        isLoading={isGeneratingFake}
+      />
     </div>
   );
 }

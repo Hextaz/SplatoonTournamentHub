@@ -17,6 +17,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/context/ToastContext";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 // Helper for bracket visually formatting the first round
 const BRACKET_PAIRS: Record<number, number[][]> = {
@@ -111,7 +113,10 @@ export function PlacementPhaseClient({
     return initial;
   });
 
+  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [targetSlot, setTargetSlot] = useState<number | null>(null); // 1-indexed
   const [searchQuery, setSearchQuery] = useState("");
@@ -138,7 +143,7 @@ export function PlacementPhaseClient({
       (t) => !seeds.some((s) => s?.id === t.id),
     );
     if (unplacedTeams.length === 0) {
-      alert("Plus aucune équipe disponible à placer.");
+      toast.info("Plus aucune équipe disponible à placer.");
       return;
     }
     const newSeeds = [...seeds];
@@ -148,6 +153,7 @@ export function PlacementPhaseClient({
       }
     }
     setSeeds(newSeeds);
+    toast.success("Remplissage automatique effectué !");
   };
   const handleRemoveFromSlot = (index: number) => {
     const newSeeds = [...seeds];
@@ -155,9 +161,9 @@ export function PlacementPhaseClient({
     setSeeds(newSeeds);
   };
   const handleResetSeeding = () => {
-    if (confirm("Voulez-vous vraiment réinitialiser tout le placement ?")) {
-      setSeeds(new Array(totalSlots).fill(null));
-    }
+    setSeeds(new Array(totalSlots).fill(null));
+    setShowResetModal(false);
+    toast.success("Seeding réinitialisé !");
   };
 
   const handleConfirmSelection = () => {
@@ -174,12 +180,6 @@ export function PlacementPhaseClient({
   };
 
   const handleSaveSeeding = async () => {
-    if (
-      !confirm(
-        "Sauvegarder le placement pour cette phase ? Cela régénérera les matchs associés.",
-      )
-    )
-      return;
     setIsSaving(true);
 
     // Construct payload
@@ -203,11 +203,12 @@ export function PlacementPhaseClient({
       );
 
       if (!res.ok) { let b={error: "Erreur de sauvegarde"}; try { b = await res.json(); } catch(e){} throw new Error(b.error || "Erreur de sauvegarde"); }
-      alert("Placement enregistré avec succès !");
+      setShowSaveModal(false);
+      toast.success("Placement enregistré avec succès !");
       router.refresh();
     } catch (e: any) {
       console.error(e);
-      alert("Erreur: " + (e.message || e));
+      toast.error(e.message || "Erreur lors de l'enregistrement du placement");
     } finally {
       setIsSaving(false);
     }
@@ -818,17 +819,17 @@ export function PlacementPhaseClient({
               Remplissage Automatique
             </button>
             <button
-              onClick={handleResetSeeding}
+              onClick={() => setShowResetModal(true)}
               disabled={seeds.every((s) => s === null)}
-              className="w-full h-10 bg-slate-800/80 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 rounded-lg font-semibold border border-slate-700 hover:border-rose-900/50 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:hover:bg-slate-800/80 disabled:hover:text-slate-400 disabled:hover:border-slate-700"
+              className="w-full h-10 bg-slate-800/80 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 rounded-lg font-semibold border border-slate-700 hover:border-rose-900/50 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:hover:bg-slate-800/80 disabled:hover:text-slate-400 disabled:hover:border-slate-700 cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
               Réinitialiser le seeding
             </button>
             <button
-              onClick={handleSaveSeeding}
+              onClick={() => setShowSaveModal(true)}
               disabled={isSaving}
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/15 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/15 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {isSaving ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -985,14 +986,14 @@ export function PlacementPhaseClient({
             <div className="px-6 py-4 bg-slate-900 flex items-center justify-between shrink-0 border-t border-slate-800">
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-bold shadow-md transition-colors flex items-center gap-2 border border-slate-700"
+                className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-bold shadow-md transition-colors flex items-center gap-2 border border-slate-700 cursor-pointer"
               >
                 Annuler
               </button>
               <button
                 onClick={handleConfirmSelection}
                 disabled={!selectedTeamId}
-                className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg font-bold shadow-lg transition-all"
+                className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg font-bold shadow-lg transition-all cursor-pointer"
               >
                 Valider
               </button>
@@ -1000,6 +1001,31 @@ export function PlacementPhaseClient({
           </div>
         </div>
       )}
+
+      {/* Modal Réinitialisation Seeding */}
+      <ConfirmModal
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        onConfirm={handleResetSeeding}
+        title="Réinitialiser le seeding"
+        description="Êtes-vous sûr de vouloir réinitialiser tout le placement des équipes pour cette phase ?"
+        confirmText="Réinitialiser"
+        variant="danger"
+        icon={RotateCcw}
+      />
+
+      {/* Modal Sauvegarde Seeding */}
+      <ConfirmModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onConfirm={handleSaveSeeding}
+        title="Enregistrer le placement"
+        description="Sauvegarder ce placement pour cette phase ? Les matchs associés seront régénérés selon cette nouvelle configuration."
+        confirmText="Sauvegarder et générer"
+        variant="primary"
+        icon={Save}
+        isLoading={isSaving}
+      />
       </div>
     </>
   );

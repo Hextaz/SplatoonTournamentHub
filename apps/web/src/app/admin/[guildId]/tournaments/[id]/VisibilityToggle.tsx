@@ -4,11 +4,13 @@ import { useState } from "react";
 import { botApiFetch } from '@/utils/api';
 import { Send, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 export function VisibilityToggle({ tournamentId, guildId, initialIsPublic }: { tournamentId: string, guildId: string, initialIsPublic: boolean }) {
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleToggle = async () => {
     setIsLoading(true);
@@ -25,10 +27,11 @@ export function VisibilityToggle({ tournamentId, guildId, initialIsPublic }: { t
       }
 
       setIsPublic(!isPublic);
+      toast.success(!isPublic ? "Le tournoi est désormais Public" : "Le tournoi est désormais Privé");
       router.refresh();
     } catch (e: any) {
       console.error(e);
-      alert("Erreur lors de la modification de la visibilité : " + (e.message || e));
+      toast.error(e.message || "Erreur lors de la modification de la visibilité");
     } finally {
       setIsLoading(false);
     }
