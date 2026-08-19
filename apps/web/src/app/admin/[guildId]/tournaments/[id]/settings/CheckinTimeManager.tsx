@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { botApiFetch } from "@/utils/api";
 import { useRouter } from "next/navigation";
-import { Square, Clock, ShieldAlert, Calendar } from "lucide-react";
+import { Square, Clock, ShieldAlert, Calendar, AlertTriangle } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 interface Props {
   tournament: any;
@@ -12,7 +14,9 @@ interface Props {
 
 export function CheckinTimeManager({ tournament, guildId }: Props) {
   const router = useRouter();
+  const { toast } = useToast();
   const [loadingStop, setLoadingStop] = useState(false);
+  const [showStopModal, setShowStopModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
 
@@ -38,8 +42,6 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
   const isDraft = tournament.status === "DRAFT";
 
   const handleStopCheckin = async () => {
-    if (!window.confirm("🛑 Êtes-vous sûr de vouloir arrêter le check-in maintenant ? Cela fermera immédiatement les inscriptions et empêchera de nouvelles validations.")) return;
-
     setError(null);
     setLoadingStop(true);
     try {
@@ -54,9 +56,13 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
         throw new Error(errData.error || "Erreur de communication avec le bot");
       }
 
+      setShowStopModal(false);
+      toast.success("Le check-in a été arrêté avec succès.");
       router.refresh();
     } catch (e: any) {
-      setError(e.message || "Impossible d'arrêter le check-in.");
+      const errMsg = e.message || "Impossible d'arrêter le check-in.";
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setLoadingStop(false);
     }
@@ -116,9 +122,9 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
           </div>
 
           <button
-            onClick={handleStopCheckin}
+            onClick={() => setShowStopModal(true)}
             disabled={loadingStop}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-lg font-bold transition-all shadow-md shadow-red-900/35 active:scale-[0.98] disabled:opacity-50"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-lg font-bold transition-all shadow-md shadow-red-900/35 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
           >
             <Square className="w-4 h-4 fill-white" />
             {loadingStop ? "Arrêt en cours..." : "Stopper le Check-in (Kill Switch)"}
@@ -160,6 +166,19 @@ export function CheckinTimeManager({ tournament, guildId }: Props) {
           </div>
         </div>
       )}
+
+      {/* Modal Confirmation Arrêt Checkin */}
+      <ConfirmModal
+        isOpen={showStopModal}
+        onClose={() => setShowStopModal(false)}
+        onConfirm={handleStopCheckin}
+        title="Arrêter le check-in"
+        description="Êtes-vous sûr de vouloir arrêter le check-in maintenant ? Cela fermera immédiatement les inscriptions et empêchera toute nouvelle validation de présence."
+        confirmText="Arrêter immédiatement"
+        variant="danger"
+        icon={Square}
+        isLoading={loadingStop}
+      />
     </div>
   );
 }

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { getBotApiUrl, botApiFetch } from '@/utils/api';
-
 import { useRouter } from "next/navigation";
 import { CopyX, GitMerge, LayoutGrid, Network, Trash2, LayoutList, MoreVertical, Search, Users, Plus } from "lucide-react";
 import Link from "next/link";
+import { useToast } from "@/context/ToastContext";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 export function StructureClient({
   tournamentId,
@@ -17,7 +18,9 @@ export function StructureClient({
   initialPhases: any[]
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [phaseToDelete, setPhaseToDelete] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
 
   const toggleDropdown = (id: string) => {
@@ -46,15 +49,17 @@ export function StructureClient({
 
       if (!res.ok) throw new Error("Creation error");
       const newPhase = await res.json();
+      toast.success("Phase créée avec succès !");
       router.push(`/admin/${guildId}/tournaments/${tournamentId}/structure/${newPhase.id}`);
-    } catch(e) {
+    } catch(e: any) {
       console.error(e);
-      alert("Erreur lors de la création de la phase.");
+      toast.error(e.message || "Erreur lors de la création de la phase.");
     }
   };
 
-  const deletePhase = async (id: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette phase et tous ses matchs ?")) return;
+  const deletePhase = async () => {
+    if (!phaseToDelete) return;
+    const id = phaseToDelete.id;
     setIsDeleting(id);
     try {
       const res = await botApiFetch(`/api/phases/${id}?guildId=${guildId}`, {
@@ -67,10 +72,12 @@ export function StructureClient({
       }
 
       setDropdownOpen(null);
+      setPhaseToDelete(null);
+      toast.success("Phase supprimée avec succès !");
       router.refresh();
     } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la suppression : " + (err.message || err));
+      toast.error(err.message || "Erreur lors de la suppression");
     } finally {
       setIsDeleting(null);
     }
@@ -137,9 +144,12 @@ export function StructureClient({
                         <Users className="w-4 h-4 text-slate-500" /> Placement
                       </Link>
                       <button
-                        onClick={() => deletePhase(phase.id)}
+                        onClick={() => {
+                          setDropdownOpen(null);
+                          setPhaseToDelete(phase);
+                        }}
                         disabled={isDeleting === phase.id}
-                        className="flex items-center gap-2 px-4 py-3 hover:bg-rose-500/10 text-rose-400 text-sm w-full text-left font-bold disabled:opacity-50 mt-1 transition-colors"
+                        className="flex items-center gap-2 px-4 py-3 hover:bg-rose-500/10 text-rose-400 text-sm w-full text-left font-bold disabled:opacity-50 mt-1 transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" /> {isDeleting === phase.id ? "Suppression..." : "Supprimer"}
                       </button>
@@ -169,7 +179,7 @@ export function StructureClient({
                   e.stopPropagation();
                   createPhase("ROUND_ROBIN");
                 }}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-emerald-500/30 hover:text-white"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-emerald-500/30 hover:text-white cursor-pointer"
               >
                 <LayoutGrid className="w-4 h-4 text-emerald-400" />
                 Phase de Poules
@@ -179,7 +189,7 @@ export function StructureClient({
                   e.stopPropagation();
                   createPhase("SINGLE_ELIM");
                 }}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-indigo-500/30 hover:text-white"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-indigo-500/30 hover:text-white cursor-pointer"
               >
                 <GitMerge className="w-4 h-4 text-indigo-400" />
                 Phase Finale (Arbre)
@@ -189,7 +199,7 @@ export function StructureClient({
                   e.stopPropagation();
                   createPhase("DOUBLE_ELIM");
                 }}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-violet-500/30 hover:text-white"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-violet-500/30 hover:text-white cursor-pointer"
               >
                 <CopyX className="w-4 h-4 text-violet-400" />
                 Double Élimination
@@ -199,7 +209,7 @@ export function StructureClient({
                   e.stopPropagation();
                   createPhase("SWISS");
                 }}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-amber-500/30 hover:text-white"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2.5 rounded-lg font-bold shadow-sm border border-slate-700 flex items-center justify-center gap-2 transition-all hover:border-amber-500/30 hover:text-white cursor-pointer"
               >
                 <Network className="w-4 h-4 text-amber-400" />
                 Ronde Suisse
@@ -209,6 +219,25 @@ export function StructureClient({
         </div>
 
       </div>
+
+      {/* Modal Suppression Phase */}
+      <ConfirmModal
+        isOpen={!!phaseToDelete}
+        onClose={() => setPhaseToDelete(null)}
+        onConfirm={deletePhase}
+        title="Supprimer la phase"
+        description={
+          phaseToDelete ? (
+            <span>
+              Êtes-vous sûr de vouloir supprimer la phase <strong className="text-white">"{phaseToDelete.name}"</strong> et tous ses matchs associés ?
+            </span>
+          ) : ""
+        }
+        confirmText="Supprimer définitivement"
+        variant="danger"
+        icon={Trash2}
+        isLoading={!!isDeleting}
+      />
     </div>
   );
 }

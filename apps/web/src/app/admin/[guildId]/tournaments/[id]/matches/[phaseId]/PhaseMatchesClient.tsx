@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 import { Search, Trophy, Check, X, CalendarDays, Loader2, ArrowLeft, Users, AlertCircle } from "lucide-react";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
 import { useSupabaseSubscription } from "@/hooks/useSupabaseSubscription";
+import { useToast } from "@/context/ToastContext";
 
 export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatches, phaseTeams, dbGroups }: any) {
   const router = useRouter();
+  const { toast } = useToast();
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
@@ -66,10 +68,11 @@ export function PhaseMatchesClient({ tournamentId, guildId, phase, initialMatche
       });
       if (!res.ok) throw new Error("API Error");
       setSelectedMatch(null);
+      toast.success("Match mis à jour avec succès !");
       router.refresh();
     } catch (err) {
       console.error(err);
-      alert("Impossible de mettre à jour le match.");
+      toast.error("Impossible de mettre à jour le match.");
     } finally {
       setIsSubmitting(false);
     }
